@@ -21,9 +21,9 @@ jobs:
           apt-get update
           apt-get install -y \
             make \
-            ros-humble-action-msgs \
-            ros-humble-example-interfaces \
-            ros-humble-test-msgs
+            ros-jazzy-action-msgs \
+            ros-jazzy-example-interfaces \
+            ros-jazzy-test-msgs
 
       - name: Run tests
         run: make test
@@ -39,9 +39,9 @@ jobs:
         run: |
           apt-get update
           apt-get install -y \
-            ros-humble-action-msgs \
-            ros-humble-example-interfaces \
-            ros-humble-test-msgs
+            ros-jazzy-action-msgs \
+            ros-jazzy-example-interfaces \
+            ros-jazzy-test-msgs
           env > "$GITHUB_ENV"
 
       - uses: golangci/golangci-lint-action@v3

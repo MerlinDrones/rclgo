@@ -51,7 +51,7 @@ import (
 // The severity levels of log messages / loggers.
 type LogSeverity uint32
 
-// Copypaste from /opt/ros/humble/include/rcutils/logging.h
+// Copypaste from /opt/ros/jazzy/include/rcutils/logging.h
 
 const (
 	LogSeverityUnset LogSeverity = 0  ///< The unset log level
