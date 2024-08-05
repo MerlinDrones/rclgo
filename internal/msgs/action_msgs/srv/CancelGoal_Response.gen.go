@@ -13,10 +13,10 @@ package action_msgs_srv
 import (
 	"unsafe"
 
-	"github.com/tiiuae/rclgo/pkg/rclgo"
-	"github.com/tiiuae/rclgo/pkg/rclgo/types"
-	"github.com/tiiuae/rclgo/pkg/rclgo/typemap"
-	action_msgs_msg "github.com/tiiuae/rclgo/internal/msgs/action_msgs/msg"
+	"github.com/PolibaX/rclgo/pkg/rclgo"
+	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
+	action_msgs_msg "github.com/PolibaX/rclgo/internal/msgs/action_msgs/msg"
 	
 )
 /*

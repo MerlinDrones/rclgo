@@ -42,6 +42,8 @@ func errorsCastC(rcl_ret_t C.rcl_ret_t, context string) error {
 		return &UnknownSubstitution{rclError: rclError{rclRetCode: 105, trace: string(stackTraceBuffer), context: errorsBuildContext(&UnknownSubstitution{}, context, string(stackTraceBuffer))}}
 	case C.RCL_RET_ALREADY_SHUTDOWN:
 		return &AlreadyShutdown{rclError: rclError{rclRetCode: 106, trace: string(stackTraceBuffer), context: errorsBuildContext(&AlreadyShutdown{}, context, string(stackTraceBuffer))}}
+	case C.RCL_RET_NOT_FOUND:
+		return &NotFound{rclError: rclError{rclRetCode: 107, trace: string(stackTraceBuffer), context: errorsBuildContext(&NotFound{}, context, string(stackTraceBuffer))}}
 	case C.RCL_RET_NODE_INVALID:
 		return &NodeInvalid{rclError: rclError{rclRetCode: 200, trace: string(stackTraceBuffer), context: errorsBuildContext(&NodeInvalid{}, context, string(stackTraceBuffer))}}
 	case C.RCL_RET_NODE_INVALID_NAME:
@@ -165,6 +167,11 @@ type UnknownSubstitution struct {
 
 // AlreadyShutdown rcl_shutdown() already called return code.
 type AlreadyShutdown struct {
+	rclError
+}
+
+// NotFound Resource not found
+type NotFound struct {
 	rclError
 }
 

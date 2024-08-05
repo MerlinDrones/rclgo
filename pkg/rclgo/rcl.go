@@ -35,7 +35,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/tiiuae/rclgo/pkg/rclgo/types"
+	"github.com/PolibaX/rclgo/pkg/rclgo/types"
 )
 
 type MessageInfo struct {

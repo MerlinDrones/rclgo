@@ -13,9 +13,9 @@ package sensor_msgs_msg
 import (
 	"unsafe"
 
-	"github.com/tiiuae/rclgo/pkg/rclgo"
-	"github.com/tiiuae/rclgo/pkg/rclgo/types"
-	"github.com/tiiuae/rclgo/pkg/rclgo/typemap"
+	"github.com/PolibaX/rclgo/pkg/rclgo"
+	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
 	
 )
 /*
@@ -31,10 +31,12 @@ func init() {
 	typemap.RegisterMessage("sensor_msgs/msg/NavSatStatus", NavSatStatusTypeSupport)
 }
 const (
+	NavSatStatus_STATUS_UNKNOWN int8 = -2// status is not yet set
 	NavSatStatus_STATUS_NO_FIX int8 = -1// unable to fix position
 	NavSatStatus_STATUS_FIX int8 = 0// unaugmented fix
 	NavSatStatus_STATUS_SBAS_FIX int8 = 1// with satellite-based augmentation
 	NavSatStatus_STATUS_GBAS_FIX int8 = 2// with ground-based augmentation
+	NavSatStatus_SERVICE_UNKNOWN uint16 = 0// Remember service is a bitfield, so checking (service & SERVICE_UNKNOWN) will not work. Use == instead.
 	NavSatStatus_SERVICE_GPS uint16 = 1
 	NavSatStatus_SERVICE_GLONASS uint16 = 2
 	NavSatStatus_SERVICE_COMPASS uint16 = 4// includes BeiDou.
@@ -42,7 +44,7 @@ const (
 )
 
 type NavSatStatus struct {
-	Status int8 `yaml:"status"`
+	Status int8 `yaml:"status"`// STATUS_UNKNOWN
 	Service uint16 `yaml:"service"`
 }
 
@@ -65,7 +67,7 @@ func (t *NavSatStatus) CloneMsg() types.Message {
 }
 
 func (t *NavSatStatus) SetDefaults() {
-	t.Status = 0
+	t.Status = -2
 	t.Service = 0
 }
 

@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	std_msgs_msg "github.com/tiiuae/rclgo/internal/msgs/std_msgs/msg"
-	"github.com/tiiuae/rclgo/pkg/rclgo"
+	std_msgs_msg "github.com/PolibaX/rclgo/internal/msgs/std_msgs/msg"
+	"github.com/PolibaX/rclgo/pkg/rclgo"
 )
 
 var (
