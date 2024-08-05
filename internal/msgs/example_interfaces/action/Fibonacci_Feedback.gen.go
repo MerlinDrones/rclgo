@@ -13,10 +13,10 @@ package example_interfaces_action
 import (
 	"unsafe"
 
-	"github.com/tiiuae/rclgo/pkg/rclgo"
-	"github.com/tiiuae/rclgo/pkg/rclgo/types"
-	"github.com/tiiuae/rclgo/pkg/rclgo/typemap"
-	primitives "github.com/tiiuae/rclgo/pkg/rclgo/primitives"
+	"github.com/PolibaX/rclgo/pkg/rclgo"
+	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
+	primitives "github.com/PolibaX/rclgo/pkg/rclgo/primitives"
 	
 )
 /*

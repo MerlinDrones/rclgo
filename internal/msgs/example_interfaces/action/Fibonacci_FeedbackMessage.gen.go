@@ -13,10 +13,10 @@ package example_interfaces_action
 import (
 	"unsafe"
 
-	"github.com/tiiuae/rclgo/pkg/rclgo"
-	"github.com/tiiuae/rclgo/pkg/rclgo/types"
-	"github.com/tiiuae/rclgo/pkg/rclgo/typemap"
-	unique_identifier_msgs_msg "github.com/tiiuae/rclgo/internal/msgs/unique_identifier_msgs/msg"
+	"github.com/PolibaX/rclgo/pkg/rclgo"
+	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
+	unique_identifier_msgs_msg "github.com/PolibaX/rclgo/internal/msgs/unique_identifier_msgs/msg"
 	
 )
 /*

@@ -2,4 +2,4 @@
 
 package main
 
-import _ "github.com/tiiuae/rclgo/cmd/rclgo-gen"
+import _ "github.com/PolibaX/rclgo/cmd/rclgo-gen"

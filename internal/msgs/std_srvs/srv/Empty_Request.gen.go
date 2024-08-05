@@ -13,9 +13,9 @@ package std_srvs_srv
 import (
 	"unsafe"
 
-	"github.com/tiiuae/rclgo/pkg/rclgo"
-	"github.com/tiiuae/rclgo/pkg/rclgo/types"
-	"github.com/tiiuae/rclgo/pkg/rclgo/typemap"
+	"github.com/PolibaX/rclgo/pkg/rclgo"
+	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
 	
 )
 /*

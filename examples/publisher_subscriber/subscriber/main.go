@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	std_msgs_msg "github.com/tiiuae/rclgo/examples/publisher_subscriber/msgs/std_msgs/msg"
-	"github.com/tiiuae/rclgo/pkg/rclgo"
+	std_msgs_msg "github.com/PolibaX/rclgo/examples/publisher_subscriber/msgs/std_msgs/msg"
+	"github.com/PolibaX/rclgo/pkg/rclgo"
 )
 
 func run() error {

@@ -13,9 +13,9 @@ package builtin_interfaces_msg
 import (
 	"unsafe"
 
-	"github.com/tiiuae/rclgo/pkg/rclgo"
-	"github.com/tiiuae/rclgo/pkg/rclgo/types"
-	"github.com/tiiuae/rclgo/pkg/rclgo/typemap"
+	"github.com/PolibaX/rclgo/pkg/rclgo"
+	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
 	
 )
 /*
@@ -33,7 +33,7 @@ func init() {
 
 type Time struct {
 	Sec int32 `yaml:"sec"`// The seconds component, valid over all int32 values.
-	Nanosec uint32 `yaml:"nanosec"`// The nanoseconds component, valid in the range [0, 10e9).
+	Nanosec uint32 `yaml:"nanosec"`// The nanoseconds component, valid in the range [0, 1e9).
 }
 
 // NewTime creates a new Time with default values.

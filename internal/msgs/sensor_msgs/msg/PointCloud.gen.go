@@ -13,11 +13,11 @@ package sensor_msgs_msg
 import (
 	"unsafe"
 
-	"github.com/tiiuae/rclgo/pkg/rclgo"
-	"github.com/tiiuae/rclgo/pkg/rclgo/types"
-	"github.com/tiiuae/rclgo/pkg/rclgo/typemap"
-	geometry_msgs_msg "github.com/tiiuae/rclgo/internal/msgs/geometry_msgs/msg"
-	std_msgs_msg "github.com/tiiuae/rclgo/internal/msgs/std_msgs/msg"
+	"github.com/PolibaX/rclgo/pkg/rclgo"
+	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
+	geometry_msgs_msg "github.com/PolibaX/rclgo/internal/msgs/geometry_msgs/msg"
+	std_msgs_msg "github.com/PolibaX/rclgo/internal/msgs/std_msgs/msg"
 	
 )
 /*

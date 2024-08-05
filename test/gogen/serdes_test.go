@@ -6,9 +6,9 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey" //nolint:revive
 
-	sensor_msgs "github.com/tiiuae/rclgo/internal/msgs/sensor_msgs/msg"
-	std_msgs "github.com/tiiuae/rclgo/internal/msgs/std_msgs/msg"
-	test_msgs "github.com/tiiuae/rclgo/internal/msgs/test_msgs/msg"
+	sensor_msgs "github.com/PolibaX/rclgo/internal/msgs/sensor_msgs/msg"
+	std_msgs "github.com/PolibaX/rclgo/internal/msgs/std_msgs/msg"
+	test_msgs "github.com/PolibaX/rclgo/internal/msgs/test_msgs/msg"
 )
 
 func TestSerDesROS2Messages(t *testing.T) {

@@ -30,7 +30,7 @@
     },
     Constants: ([]*gogen.ROS2Constant) <nil>,
     GoImports: (map[string]string) (len=1) {
-      (string) (len=44) "github.com/tiiuae/rclgo-msgs/action_msgs/msg": (string) (len=15) "action_msgs_msg"
+      (string) (len=44) "github.com/PolibaX/rclgo-msgs/action_msgs/msg": (string) (len=15) "action_msgs_msg"
     },
     CImports: (gogen.stringSet) (len=1) {
       (string) (len=11) "action_msgs": (struct {}) {
@@ -116,7 +116,7 @@
       })
     },
     GoImports: (map[string]string) (len=1) {
-      (string) (len=44) "github.com/tiiuae/rclgo-msgs/action_msgs/msg": (string) (len=15) "action_msgs_msg"
+      (string) (len=44) "github.com/PolibaX/rclgo-msgs/action_msgs/msg": (string) (len=15) "action_msgs_msg"
     },
     CImports: (gogen.stringSet) (len=1) {
       (string) (len=11) "action_msgs": (struct {}) {
