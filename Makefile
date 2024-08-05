@@ -29,8 +29,8 @@ generate:
 	go run ./cmd/rclgo-gen generate \
 	    --root-path /usr \
 	    --root-path /opt/ros/${ROS_DISTRO} \
-	    --dest-path "$$dest_path" \
-		--message-module-prefix "github.com/tiiuae/rclgo/$$dest_path" \
+	    --dest-path "$(DEST_PATH)" \
+		--message-module-prefix "github.com/PolibaX/rclgo/$(DEST_PATH)" \
 		--license-header-path ./license-header.txt \
 		--include-go-package-deps ./... \
 		--cgo-flags-path "" \
@@ -43,3 +43,4 @@ generate:
 
 lint:
 	golangci-lint run ./...
+
