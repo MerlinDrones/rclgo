@@ -146,16 +146,19 @@ func (g *Generator) GenerateROS2AllMessagesImporter() error {
 }
 
 var rclgoROSIncludes = []string{
+	"action_msgs",
+	"builtin_interfaces",
 	"rcl",
-	"rmw",
-	"rosidl_runtime_c",
-	"rosidl_typesupport_interface",
 	"rcutils",
 	"rcl_action",
-	"action_msgs",
-	"unique_identifier_msgs",
-	"builtin_interfaces",
 	"rcl_yaml_param_parser",
+	"rmw",
+	"rosidl_dynamic_typesupport",
+	"rosidl_runtime_c",
+	"rosidl_typesupport_interface",
+	"service_msgs",
+	"type_description_interfaces",
+	"unique_identifier_msgs",
 }
 
 func includeDirFlag(rootPath, rosPkg string) string {
