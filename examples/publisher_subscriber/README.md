@@ -8,5 +8,6 @@ To run the example, generate Go bindings by running
 
 Then you can run the publisher and subscriber in separate terminals:
 
+    source /opt/ros/${ROS_DISTRO}/setup.bash
     go run ./publisher
     go run ./subscriber
