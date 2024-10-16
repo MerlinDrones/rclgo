@@ -1,7 +1,7 @@
 rclgo the ROS2 client library Golang wrapper
 ============================================
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/PolibaX/rclgo.svg)][docs]
+[![Go Reference](https://pkg.go.dev/badge/github.com/merlindrones/rclgo.svg)][docs]
 
 ## Getting started
 
@@ -24,7 +24,7 @@ generated Go bindings depend on the corresponding C bindings to be installed.
 
 rclgo-gen can be installed globally by running
 
-    go install github.com/PolibaX/rclgo/cmd/rclgo-gen@latest
+    go install github.com/merlindrones/rclgo/cmd/rclgo-gen@latest
 
 but it is recommended to add rclgo-gen as a dependency to the project to ensure
 the version matches that of rclgo. This can be done by adding a file `tools.go`
@@ -35,16 +35,16 @@ following:
 
 package main
 
-import _ "github.com/PolibaX/rclgo/cmd/rclgo-gen"
+import _ "github.com/merlindrones/rclgo/cmd/rclgo-gen"
 ```
 Then run `go mod tidy`. This version of rclgo-gen can be used by running
 
-    go run github.com/PolibaX/rclgo/cmd/rclgo-gen generate -d msgs --include-go-package-deps ./...
+    go run github.com/merlindrones/rclgo/cmd/rclgo-gen generate -d msgs --include-go-package-deps ./...
 
 in the project directory. The command can be added as a `go generate` comment to
 one of the source files in the project, such as `main.go`, as follows:
 ```go
-//go:generate go run github.com/PolibaX/rclgo/cmd/rclgo-gen generate -d msgs --include-go-package-deps ./...
+//go:generate go run github.com/merlindrones/rclgo/cmd/rclgo-gen generate -d msgs --include-go-package-deps ./...
 ```
 
 ### Developing with custom interface types
@@ -74,4 +74,4 @@ variables `CGO_CFLAGS` and `CGO_LDFLAGS` can be used to pass additional `-I` and
 An example is available in
 [examples/custom_message_package](examples/custom_message_package).
 
-[docs]: https://pkg.go.dev/github.com/PolibaX/rclgo/pkg/rclgo
+[docs]: https://pkg.go.dev/github.com/merlindrones/rclgo/pkg/rclgo

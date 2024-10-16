@@ -22,9 +22,9 @@ import (
 	"errors"
 	"unsafe"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	typemap.RegisterService("test_msgs/srv/Empty", EmptyTypeSupport)
 }
 
-type _EmptyTypeSupport struct {}
+type _EmptyTypeSupport struct{}
 
 func (s _EmptyTypeSupport) Request() types.MessageTypeSupport {
 	return Empty_RequestTypeSupport
@@ -98,7 +98,7 @@ type EmptyService struct {
 func NewEmptyService(node *rclgo.Node, name string, options *rclgo.ServiceOptions, handler EmptyServiceRequestHandler) (*EmptyService, error) {
 	h := func(rmw *rclgo.ServiceInfo, msg types.Message, rs rclgo.ServiceResponseSender) {
 		m := msg.(*Empty_Request)
-		responseSender := EmptyServiceResponseSender{sender: rs} 
+		responseSender := EmptyServiceResponseSender{sender: rs}
 		handler(rmw, m, responseSender)
 	}
 	service, err := node.NewService(name, EmptyTypeSupport, options, h)

@@ -22,12 +22,12 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 
-	action_msgs_msg "github.com/PolibaX/rclgo/internal/msgs/action_msgs/msg"
-	action_msgs_srv "github.com/PolibaX/rclgo/internal/msgs/action_msgs/srv"
+	action_msgs_msg "github.com/merlindrones/rclgo/internal/msgs/action_msgs/msg"
+	action_msgs_srv "github.com/merlindrones/rclgo/internal/msgs/action_msgs/srv"
 )
 
 func init() {
@@ -35,7 +35,7 @@ func init() {
 	typemap.RegisterAction("test_msgs/action/NestedMessage", NestedMessageTypeSupport)
 }
 
-type _NestedMessageTypeSupport struct {}
+type _NestedMessageTypeSupport struct{}
 
 func (s _NestedMessageTypeSupport) Goal() types.MessageTypeSupport {
 	return NestedMessage_GoalTypeSupport
@@ -111,7 +111,7 @@ func (s *NestedMessageFeedbackSender) Send(msg *NestedMessage_Feedback) error {
 	return s.sender.Send(msg)
 }
 
-type NestedMessageGoalHandle struct{
+type NestedMessageGoalHandle struct {
 	*rclgo.GoalHandle
 
 	Description *NestedMessage_Goal
@@ -158,7 +158,7 @@ func (a _NestedMessageAction) TypeSupport() types.ActionTypeSupport {
 	return NestedMessageTypeSupport
 }
 
-type NestedMessageServer struct{
+type NestedMessageServer struct {
 	*rclgo.ActionServer
 }
 
@@ -174,7 +174,7 @@ type NestedMessageFeedbackHandler func(context.Context, *NestedMessage_FeedbackM
 
 type NestedMessageStatusHandler func(context.Context, *action_msgs_msg.GoalStatus)
 
-type NestedMessageClient struct{
+type NestedMessageClient struct {
 	*rclgo.ActionClient
 }
 

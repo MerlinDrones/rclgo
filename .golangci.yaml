@@ -54,22 +54,22 @@ linters-settings:
       # Too many false positives
       - github.com/spf13/viper.BindPFlag
       - github.com/spf13/viper.BindPFlags
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Debug
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Debugf
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Debugln
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Error
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Errorf
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Errorln
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Fatal
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Fatalf
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Fatalln
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Info
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Infof
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Infoln
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Warn
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Warnf
-      - (*github.com/PolibaX/rclgo/pkg/rclgo.Logger).Warnln
-      - github.com/PolibaX/rclgo/pkg/rclgo.Uninit
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Debug
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Debugf
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Debugln
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Error
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Errorf
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Errorln
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Fatal
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Fatalf
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Fatalln
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Info
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Infof
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Infoln
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Warn
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Warnf
+      - (*github.com/merlindrones/rclgo/pkg/rclgo.Logger).Warnln
+      - github.com/merlindrones/rclgo/pkg/rclgo.Uninit
   errorlint:
     errorf: false
   gocritic:
