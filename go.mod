@@ -1,4 +1,4 @@
-module github.com/PolibaX/rclgo
+module github.com/merlindrones/rclgo
 
 go 1.20
 

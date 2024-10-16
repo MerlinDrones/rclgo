@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
+	std_msgs "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
+	test_msgs "github.com/merlindrones/rclgo/internal/msgs/test_msgs/msg"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 	. "github.com/smartystreets/goconvey/convey" //nolint:revive
-	std_msgs "github.com/PolibaX/rclgo/internal/msgs/std_msgs/msg"
-	test_msgs "github.com/PolibaX/rclgo/internal/msgs/test_msgs/msg"
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
 	"gopkg.in/yaml.v3"
 )
 

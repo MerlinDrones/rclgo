@@ -5,8 +5,8 @@ import (
 	"context"
 	"errors"
 
-	example_interfaces_action "github.com/PolibaX/rclgo/internal/msgs/example_interfaces/action"
-	"github.com/PolibaX/rclgo/pkg/rclgo"
+	example_interfaces_action "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/action"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
 )
 
 var typeSafeFibonacci = example_interfaces_action.NewFibonacciAction(

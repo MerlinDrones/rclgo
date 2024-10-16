@@ -22,9 +22,9 @@ import (
 	"errors"
 	"unsafe"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	typemap.RegisterService("test_msgs/action/NestedMessage_GetResult", NestedMessage_GetResultTypeSupport)
 }
 
-type _NestedMessage_GetResultTypeSupport struct {}
+type _NestedMessage_GetResultTypeSupport struct{}
 
 func (s _NestedMessage_GetResultTypeSupport) Request() types.MessageTypeSupport {
 	return NestedMessage_GetResult_RequestTypeSupport
@@ -98,7 +98,7 @@ type NestedMessage_GetResultService struct {
 func NewNestedMessage_GetResultService(node *rclgo.Node, name string, options *rclgo.ServiceOptions, handler NestedMessage_GetResultServiceRequestHandler) (*NestedMessage_GetResultService, error) {
 	h := func(rmw *rclgo.ServiceInfo, msg types.Message, rs rclgo.ServiceResponseSender) {
 		m := msg.(*NestedMessage_GetResult_Request)
-		responseSender := NestedMessage_GetResultServiceResponseSender{sender: rs} 
+		responseSender := NestedMessage_GetResultServiceResponseSender{sender: rs}
 		handler(rmw, m, responseSender)
 	}
 	service, err := node.NewService(name, NestedMessage_GetResultTypeSupport, options, h)
