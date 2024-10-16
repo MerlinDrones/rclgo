@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	std_msgs_msg "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	std_msgs_msg "github.com/PolibaX/rclgo/internal/msgs/std_msgs/msg"
-	"github.com/PolibaX/rclgo/pkg/rclgo"
 )
 
 func requireTopicNamesAndTypes(t *testing.T, node *rclgo.Node, expected map[string][]string) {

@@ -84,7 +84,7 @@ import (
 	"runtime"
 	"unsafe"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 type dynamicMessageTypeSupport struct {

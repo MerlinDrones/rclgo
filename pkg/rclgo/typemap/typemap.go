@@ -12,7 +12,7 @@ package typemap
 import (
 	"fmt"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 /*

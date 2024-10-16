@@ -22,9 +22,9 @@ import (
 	"errors"
 	"unsafe"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	typemap.RegisterService("example_interfaces/srv/AddTwoInts", AddTwoIntsTypeSupport)
 }
 
-type _AddTwoIntsTypeSupport struct {}
+type _AddTwoIntsTypeSupport struct{}
 
 func (s _AddTwoIntsTypeSupport) Request() types.MessageTypeSupport {
 	return AddTwoInts_RequestTypeSupport
@@ -98,7 +98,7 @@ type AddTwoIntsService struct {
 func NewAddTwoIntsService(node *rclgo.Node, name string, options *rclgo.ServiceOptions, handler AddTwoIntsServiceRequestHandler) (*AddTwoIntsService, error) {
 	h := func(rmw *rclgo.ServiceInfo, msg types.Message, rs rclgo.ServiceResponseSender) {
 		m := msg.(*AddTwoInts_Request)
-		responseSender := AddTwoIntsServiceResponseSender{sender: rs} 
+		responseSender := AddTwoIntsServiceResponseSender{sender: rs}
 		handler(rmw, m, responseSender)
 	}
 	service, err := node.NewService(name, AddTwoIntsTypeSupport, options, h)

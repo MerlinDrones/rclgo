@@ -22,9 +22,9 @@ import (
 	"errors"
 	"unsafe"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	typemap.RegisterService("test_msgs/action/Fibonacci_GetResult", Fibonacci_GetResultTypeSupport)
 }
 
-type _Fibonacci_GetResultTypeSupport struct {}
+type _Fibonacci_GetResultTypeSupport struct{}
 
 func (s _Fibonacci_GetResultTypeSupport) Request() types.MessageTypeSupport {
 	return Fibonacci_GetResult_RequestTypeSupport
@@ -98,7 +98,7 @@ type Fibonacci_GetResultService struct {
 func NewFibonacci_GetResultService(node *rclgo.Node, name string, options *rclgo.ServiceOptions, handler Fibonacci_GetResultServiceRequestHandler) (*Fibonacci_GetResultService, error) {
 	h := func(rmw *rclgo.ServiceInfo, msg types.Message, rs rclgo.ServiceResponseSender) {
 		m := msg.(*Fibonacci_GetResult_Request)
-		responseSender := Fibonacci_GetResultServiceResponseSender{sender: rs} 
+		responseSender := Fibonacci_GetResultServiceResponseSender{sender: rs}
 		handler(rmw, m, responseSender)
 	}
 	service, err := node.NewService(name, Fibonacci_GetResultTypeSupport, options, h)

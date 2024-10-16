@@ -22,9 +22,9 @@ import (
 	"errors"
 	"unsafe"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	typemap.RegisterService("test_msgs/srv/Arrays", ArraysTypeSupport)
 }
 
-type _ArraysTypeSupport struct {}
+type _ArraysTypeSupport struct{}
 
 func (s _ArraysTypeSupport) Request() types.MessageTypeSupport {
 	return Arrays_RequestTypeSupport
@@ -98,7 +98,7 @@ type ArraysService struct {
 func NewArraysService(node *rclgo.Node, name string, options *rclgo.ServiceOptions, handler ArraysServiceRequestHandler) (*ArraysService, error) {
 	h := func(rmw *rclgo.ServiceInfo, msg types.Message, rs rclgo.ServiceResponseSender) {
 		m := msg.(*Arrays_Request)
-		responseSender := ArraysServiceResponseSender{sender: rs} 
+		responseSender := ArraysServiceResponseSender{sender: rs}
 		handler(rmw, m, responseSender)
 	}
 	service, err := node.NewService(name, ArraysTypeSupport, options, h)

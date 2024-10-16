@@ -1,13 +1,13 @@
-module github.com/PolibaX/rclgo/examples/publisher_subscriber
+module github.com/merlindrones/rclgo/examples/publisher_subscriber
 
 go 1.20
 
 // This is needed to keep the version of rclgo automatically in sync with the
 // rest of the repository. It is in general not needed for modules outside
 // this repository.
-replace github.com/PolibaX/rclgo v0.0.0 => ../..
+replace github.com/merlindrones/rclgo v0.0.0 => ../..
 
-require github.com/PolibaX/rclgo v0.0.0
+require github.com/merlindrones/rclgo v0.0.0
 
 require (
 	github.com/alessio/shellescape v1.4.2 // indirect

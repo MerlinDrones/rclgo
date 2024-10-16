@@ -5,9 +5,9 @@ import (
 	"context"
 	"errors"
 
-	example_interfaces_action "github.com/PolibaX/rclgo/internal/msgs/example_interfaces/action"
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	example_interfaces_action "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/action"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 var fibonacci = rclgo.NewAction(

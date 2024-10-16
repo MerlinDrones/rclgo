@@ -22,12 +22,12 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 
-	action_msgs_msg "github.com/PolibaX/rclgo/internal/msgs/action_msgs/msg"
-	action_msgs_srv "github.com/PolibaX/rclgo/internal/msgs/action_msgs/srv"
+	action_msgs_msg "github.com/merlindrones/rclgo/internal/msgs/action_msgs/msg"
+	action_msgs_srv "github.com/merlindrones/rclgo/internal/msgs/action_msgs/srv"
 )
 
 func init() {
@@ -35,7 +35,7 @@ func init() {
 	typemap.RegisterAction("test_msgs/action/Fibonacci", FibonacciTypeSupport)
 }
 
-type _FibonacciTypeSupport struct {}
+type _FibonacciTypeSupport struct{}
 
 func (s _FibonacciTypeSupport) Goal() types.MessageTypeSupport {
 	return Fibonacci_GoalTypeSupport
@@ -111,7 +111,7 @@ func (s *FibonacciFeedbackSender) Send(msg *Fibonacci_Feedback) error {
 	return s.sender.Send(msg)
 }
 
-type FibonacciGoalHandle struct{
+type FibonacciGoalHandle struct {
 	*rclgo.GoalHandle
 
 	Description *Fibonacci_Goal
@@ -158,7 +158,7 @@ func (a _FibonacciAction) TypeSupport() types.ActionTypeSupport {
 	return FibonacciTypeSupport
 }
 
-type FibonacciServer struct{
+type FibonacciServer struct {
 	*rclgo.ActionServer
 }
 
@@ -174,7 +174,7 @@ type FibonacciFeedbackHandler func(context.Context, *Fibonacci_FeedbackMessage)
 
 type FibonacciStatusHandler func(context.Context, *action_msgs_msg.GoalStatus)
 
-type FibonacciClient struct{
+type FibonacciClient struct {
 	*rclgo.ActionClient
 }
 

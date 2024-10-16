@@ -10,7 +10,7 @@ on:
 jobs:
   run-tests:
     runs-on: ubuntu-latest
-    container: ghcr.io/PolibaX/fog-ros-baseimage-builder:sha-7fca749
+    container: ghcr.io/merlindrones/fog-ros-baseimage-builder:sha-7fca749
     env:
       GOFLAGS: -buildvcs=false
     steps:
@@ -30,7 +30,7 @@ jobs:
 
   run-linter:
     runs-on: ubuntu-latest
-    container: ghcr.io/PolibaX/fog-ros-baseimage-builder:sha-7fca749
+    container: ghcr.io/merlindrones/fog-ros-baseimage-builder:sha-7fca749
     steps:
       - uses: actions/checkout@v3
 

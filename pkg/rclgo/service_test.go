@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	example_interfaces_srv "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/srv"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 	. "github.com/smartystreets/goconvey/convey" //nolint:revive
-	example_interfaces_srv "github.com/PolibaX/rclgo/internal/msgs/example_interfaces/srv"
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
 )
 
 func TestServiceAndClient(t *testing.T) {
