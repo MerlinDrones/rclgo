@@ -64,8 +64,8 @@ type Config struct {
 }
 
 var DefaultConfig = Config{
-	RclgoImportPath:     "github.com/PolibaX/rclgo",
-	MessageModulePrefix: "github.com/PolibaX/rclgo-msgs",
+	RclgoImportPath:     "github.com/merlindrones/rclgo",
+	MessageModulePrefix: "github.com/merlindrones/rclgo-msgs",
 }
 
 // RclgoRepoRootPath returns the path to the root of the rclgo repository.
@@ -230,6 +230,7 @@ func (g *Generator) GenerateGolangMessageTypes() error {
 		}
 	} else {
 		for _, pkg := range g.config.ROSPkgIncludes {
+			fmt.Printf("Generating ROS2 package: %s\n", pkg)
 			g.generatePkg(pkg, true)
 		}
 		goDeps, err := loadGoPkgDeps(g.config.GoPkgIncludes...)

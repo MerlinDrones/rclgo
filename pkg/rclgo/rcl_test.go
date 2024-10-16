@@ -10,9 +10,9 @@ import (
 	"sync"
 	"testing"
 
+	std_msgs_msg "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/stretchr/testify/require"
-	std_msgs_msg "github.com/PolibaX/rclgo/internal/msgs/std_msgs/msg"
-	"github.com/PolibaX/rclgo/pkg/rclgo"
 )
 
 var (

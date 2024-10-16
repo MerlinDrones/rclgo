@@ -22,9 +22,9 @@ import (
 	"errors"
 	"unsafe"
 
-	"github.com/PolibaX/rclgo/pkg/rclgo"
-	"github.com/PolibaX/rclgo/pkg/rclgo/typemap"
-	"github.com/PolibaX/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	typemap.RegisterService("test_msgs/srv/BasicTypes", BasicTypesTypeSupport)
 }
 
-type _BasicTypesTypeSupport struct {}
+type _BasicTypesTypeSupport struct{}
 
 func (s _BasicTypesTypeSupport) Request() types.MessageTypeSupport {
 	return BasicTypes_RequestTypeSupport
@@ -98,7 +98,7 @@ type BasicTypesService struct {
 func NewBasicTypesService(node *rclgo.Node, name string, options *rclgo.ServiceOptions, handler BasicTypesServiceRequestHandler) (*BasicTypesService, error) {
 	h := func(rmw *rclgo.ServiceInfo, msg types.Message, rs rclgo.ServiceResponseSender) {
 		m := msg.(*BasicTypes_Request)
-		responseSender := BasicTypesServiceResponseSender{sender: rs} 
+		responseSender := BasicTypesServiceResponseSender{sender: rs}
 		handler(rmw, m, responseSender)
 	}
 	service, err := node.NewService(name, BasicTypesTypeSupport, options, h)

@@ -8,11 +8,11 @@ import (
 	"syscall"
 	"time"
 
-	greeting_msgs "github.com/PolibaX/rclgo/examples/custom_message_package/greeter/msgs/greeting_msgs/msg"
-	"github.com/PolibaX/rclgo/pkg/rclgo"
+	greeting_msgs "github.com/merlindrones/rclgo/examples/custom_message_package/greeter/msgs/greeting_msgs/msg"
+	"github.com/merlindrones/rclgo/pkg/rclgo"
 )
 
-//go:generate go run github.com/PolibaX/rclgo/cmd/rclgo-gen generate -d msgs --include-go-package-deps ./... --cgo-flags-path ""
+//go:generate go run github.com/merlindrones/rclgo/cmd/rclgo-gen generate -d msgs --include-go-package-deps ./... --cgo-flags-path ""
 
 func run() error {
 	rclArgs, restArgs, err := rclgo.ParseArgs(os.Args[1:])
