@@ -2,6 +2,8 @@ module github.com/merlindrones/rclgo
 
 go 1.20
 
+
+
 require (
 	github.com/alessio/shellescape v1.4.2
 	github.com/bradleyjkemp/cupaloy/v2 v2.8.0
