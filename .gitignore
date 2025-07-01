@@ -24,3 +24,4 @@ _obj
 
 # Local VS Code configuration
 .vscode/bookmarks.json
+.idea
