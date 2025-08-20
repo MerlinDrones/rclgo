@@ -1,13 +1,8 @@
 module github.com/merlindrones/rclgo/examples/publisher_subscriber
 
-go 1.20
+go 1.23.5
 
-// This is needed to keep the version of rclgo automatically in sync with the
-// rest of the repository. It is in general not needed for modules outside
-// this repository.
-replace github.com/merlindrones/rclgo v0.0.0 => ../..
-
-require github.com/merlindrones/rclgo v0.0.0
+require github.com/merlindrones/rclgo v0.0.0-20241016185817-0b2d427cb574
 
 require (
 	github.com/alessio/shellescape v1.4.2 // indirect
