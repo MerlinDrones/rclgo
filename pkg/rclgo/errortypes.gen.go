@@ -23,7 +23,7 @@ import (
 
 func errorsCastC(rcl_ret_t C.rcl_ret_t, context string) error {
 	stackTraceBuffer := make([]byte, 2048)
-	runtime.Stack(stackTraceBuffer, false) // Get stack trace of the current running thread only
+	runtime.Stack(stackTraceBuffer, true) // Get stack trace of the current running thread only
 
 	// https://stackoverflow.com/questions/9928221/table-of-functions-vs-switch-in-golang
 	// switch-case is faster thanks to compiler optimization than a dispatcher?
@@ -42,8 +42,8 @@ func errorsCastC(rcl_ret_t C.rcl_ret_t, context string) error {
 		return &UnknownSubstitution{rclError: rclError{rclRetCode: 105, trace: string(stackTraceBuffer), context: errorsBuildContext(&UnknownSubstitution{}, context, string(stackTraceBuffer))}}
 	case C.RCL_RET_ALREADY_SHUTDOWN:
 		return &AlreadyShutdown{rclError: rclError{rclRetCode: 106, trace: string(stackTraceBuffer), context: errorsBuildContext(&AlreadyShutdown{}, context, string(stackTraceBuffer))}}
-	case C.RCL_RET_NOT_FOUND:
-		return &NotFound{rclError: rclError{rclRetCode: 107, trace: string(stackTraceBuffer), context: errorsBuildContext(&NotFound{}, context, string(stackTraceBuffer))}}
+	//case C.RCL_RET_NOT_FOUND:
+	//return &NotFound{rclError: rclError{rclRetCode: 107, trace: string(stackTraceBuffer), context: errorsBuildContext(&NotFound{}, context, string(stackTraceBuffer))}}
 	case C.RCL_RET_NODE_INVALID:
 		return &NodeInvalid{rclError: rclError{rclRetCode: 200, trace: string(stackTraceBuffer), context: errorsBuildContext(&NodeInvalid{}, context, string(stackTraceBuffer))}}
 	case C.RCL_RET_NODE_INVALID_NAME:
@@ -124,7 +124,7 @@ func errorsCastC(rcl_ret_t C.rcl_ret_t, context string) error {
 		return &RmwInvalidArgument{rclError: rclError{rclRetCode: 11, trace: string(stackTraceBuffer), context: errorsBuildContext(&RmwInvalidArgument{}, context, string(stackTraceBuffer))}}
 	case C.RMW_RET_INCORRECT_RMW_IMPLEMENTATION:
 		return &RmwIncorrectRmwImplementation{rclError: rclError{rclRetCode: 12, trace: string(stackTraceBuffer), context: errorsBuildContext(&RmwIncorrectRmwImplementation{}, context, string(stackTraceBuffer))}}
-	
+
 	default:
 		return &UnknownReturnCode{rclError: rclError{rclRetCode: int(rcl_ret_t), context: context}}
 	}
@@ -133,7 +133,6 @@ func errorsCastC(rcl_ret_t C.rcl_ret_t, context string) error {
 type UnknownReturnCode struct {
 	rclError
 }
-
 
 // AlreadyInit rcl specific ret codes start at 100rcl_init() already called return code.
 type AlreadyInit struct {
@@ -385,8 +384,6 @@ type RmwNodeNameNonExistent struct {
 	rclError
 }
 
-
-
 // Ok Success return code.
 type Ok = RmwOk
 
@@ -404,5 +401,3 @@ type InvalidArgument = RmwInvalidArgument
 
 // Unsupported Unsupported return code.
 type Unsupported = RmwUnsupported
-
-

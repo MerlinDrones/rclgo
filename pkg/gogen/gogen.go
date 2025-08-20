@@ -230,6 +230,7 @@ func (g *Generator) GenerateGolangMessageTypes() error {
 		}
 	} else {
 		for _, pkg := range g.config.ROSPkgIncludes {
+			fmt.Printf("Generating ROS2 package: %s\n", pkg)
 			g.generatePkg(pkg, true)
 		}
 		goDeps, err := loadGoPkgDeps(g.config.GoPkgIncludes...)

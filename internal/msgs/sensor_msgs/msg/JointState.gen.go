@@ -16,7 +16,7 @@ import (
 
 	std_msgs_msg "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
-	primitives "github.com/merlindrones/rclgo/pkg/rclgo/primitives"
+	"github.com/merlindrones/rclgo/pkg/rclgo/primitives"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )

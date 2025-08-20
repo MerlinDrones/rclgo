@@ -10,7 +10,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 package primitives
 
 /*
-#include "rosidl_runtime_c/string.h"
+#include "string.h"
 #include "rosidl_runtime_c/primitives_sequence.h"
 */
 import "C"
