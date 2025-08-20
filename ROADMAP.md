@@ -1,6 +1,5 @@
 # rclgo ↔ rclcpp/rclpy Parity Roadmap (ROS 2 Humble)
 
-> Working dir: `/home/dave/Git/merlin/rclgo`
 > Target: ROS 2 **Humble** APIs; production-grade gaps first, then nice-to-haves.
 
 ---
