@@ -10,8 +10,6 @@ import (
 	_ "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/msg"     //
 	_ "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/srv"     //
 	_ "github.com/merlindrones/rclgo/internal/msgs/geometry_msgs/msg"          //
-	_ "github.com/merlindrones/rclgo/internal/msgs/px4_msgs/msg"               //
-	_ "github.com/merlindrones/rclgo/internal/msgs/px4_msgs/srv"               //
 	_ "github.com/merlindrones/rclgo/internal/msgs/sensor_msgs/msg"            //
 	_ "github.com/merlindrones/rclgo/internal/msgs/sensor_msgs/srv"            //
 	_ "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"               //
