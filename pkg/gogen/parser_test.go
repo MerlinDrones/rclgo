@@ -14,6 +14,8 @@ package gogen
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json" // <-- add
+	"sort"          // <-- add
 	"testing"
 
 	"github.com/bradleyjkemp/cupaloy/v2"
@@ -35,7 +37,7 @@ func TestParseROS2Field(t *testing.T) {
 			m, err := parser.parseMessageLine(line, ros2msg)
 			So(err, ShouldBeNil)
 			sum := md5.Sum([]byte(line))
-			So(cupaloy.SnapshotMulti(hex.EncodeToString(sum[:]), m), ShouldBeNil)
+			So(snapshotCanonical(hex.EncodeToString(sum[:]), m), ShouldBeNil)
 		})
 	}
 
@@ -101,7 +103,21 @@ func TestParseROS2Field(t *testing.T) {
 	testParseService := func(pkg, name, source string) {
 		s := NewROS2Service(pkg, name)
 		So(parser.ParseService(s, source), ShouldBeNil)
-		So(cupaloy.SnapshotMulti("service-"+name, s), ShouldBeNil)
+
+		snapshot := struct {
+			Name     string
+			Package  string
+			Request  string
+			Response string
+		}{
+			Name:     s.Name,
+			Package:  s.Package,
+			Request:  canonicalizeGoImports(s.Request.GoImports),
+			Response: canonicalizeGoImports(s.Response.GoImports),
+		}
+
+		So(snapshotCanonical("service-"+name, snapshot), ShouldBeNil)
+
 	}
 
 	Convey("Parse ROS2 services", t, func() {
@@ -151,7 +167,7 @@ int8 ERROR_GOAL_TERMINATED=3
 int8 return_code
 
 # Goals that accepted the cancel request.
-GoalInfo[] goals_canceling		
+GoalInfo[] goals_canceling
 `)
 		testParseService("tf2_msgs", "FrameGraph", `
 ---
@@ -285,4 +301,57 @@ func TestBlacklist(t *testing.T) {
 		So(skip, ShouldBeTrue)
 		So(blacklistEntry, ShouldEqual, "this-is-a-test-blacklist-entry-do-not-remove-used-for-internal-testing")
 	})
+}
+
+// Turn the GoImports map into a stable, path-agnostic JSON string.
+// We only snapshot the alias values (not the module path keys) so snapshots
+// won’t churn if a module path length or prefix changes.
+func canonicalizeGoImports(m map[string]string) string {
+	vals := make([]string, 0, len(m))
+	for _, v := range m {
+		vals = append(vals, v)
+	}
+	sort.Strings(vals)
+	b, _ := json.Marshal(struct {
+		GoImports []string `json:"go_imports"`
+	}{GoImports: vals})
+	return string(b)
+}
+
+// Wrapper that snapshots objects while replacing GoImports maps with a
+// canonical string to avoid path noise in snapshots.
+func snapshotCanonical(name string, obj interface{}) error {
+	switch v := obj.(type) {
+	case *ROS2Message:
+		type msgAlias ROS2Message
+		snap := struct {
+			msgAlias
+			GoImportsCanonical string `json:"go_imports_canonical"`
+		}{
+			msgAlias:           msgAlias(*v),
+			GoImportsCanonical: canonicalizeGoImports(v.GoImports),
+		}
+		// remove unstable map from the snapshot payload
+		snap.GoImports = nil
+		return cupaloy.SnapshotMulti(name, snap)
+
+	case *ROS2Service:
+		type svcAlias ROS2Service
+		snap := struct {
+			svcAlias
+			RequestGoImportsCanonical  string `json:"request_go_imports"`
+			ResponseGoImportsCanonical string `json:"response_go_imports"`
+		}{
+			svcAlias:                   svcAlias(*v),
+			RequestGoImportsCanonical:  canonicalizeGoImports(v.Request.GoImports),
+			ResponseGoImportsCanonical: canonicalizeGoImports(v.Response.GoImports),
+		}
+		// remove unstable maps from the snapshot payload
+		snap.Request.GoImports = nil
+		snap.Response.GoImports = nil
+		return cupaloy.SnapshotMulti(name, snap)
+
+	default:
+		return cupaloy.SnapshotMulti(name, obj)
+	}
 }

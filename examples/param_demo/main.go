@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,12 +17,31 @@ import (
 func i64(v int64) *int64     { return &v }
 func f64(v float64) *float64 { return &v }
 
+// very small arg parser that tolerates --ros-args etc.
+func parseParamsFile(args []string) (string, []string) {
+	out := make([]string, 0, len(args))
+	var paramsPath string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--params-file" && i+1 < len(args) {
+			paramsPath = args[i+1]
+			i++
+			continue
+		}
+		out = append(out, a)
+	}
+	return paramsPath, out
+}
+
 func main() {
 	// Init global context (uses default options)
 	if err := rclgo.Init(nil); err != nil {
 		log.Fatalf("rclgo.Init: %v", err)
 	}
 	defer rclgo.Uninit()
+
+	// Parse an optional --params-file before creating the node.
+	paramsPath, _ := parseParamsFile(os.Args[1:])
 
 	n, err := rclgo.NewNode("param_demo", "")
 	if err != nil {
@@ -34,20 +54,40 @@ func main() {
 		log.Fatalf("params.NewManager: %v", err)
 	}
 
-	// Declare a few parameters with descriptors
-	_, _ = mgr.Declare("camera.fps",
+	// If a YAML is provided, preload it first. Any names loaded here
+	// will be considered "declared", and we won't redeclare them below.
+	if paramsPath != "" {
+		if err := params.LoadYAML(mgr, "param_demo", paramsPath); err != nil {
+			log.Printf("[param_demo] LoadYAML(%s): %v", filepath.Base(paramsPath), err)
+		} else {
+			log.Printf("[param_demo] Loaded YAML params from %s", paramsPath)
+		}
+	}
+
+	// Helper: declare a parameter only if it doesn't already exist.
+	declareIfMissing := func(name string, v params.Value, d params.Descriptor) {
+		if _, ok := mgr.Get(name); ok {
+			return
+		}
+		if _, err := mgr.Declare(name, v, d); err != nil {
+			log.Printf("[param_demo] declare %s: %v", name, err)
+		}
+	}
+
+	// Declare our standard parameters (skip if YAML already provided them)
+	declareIfMissing("camera.fps",
 		params.Value{Kind: params.KindInt64, Int64: 15},
 		params.Descriptor{MinInt: i64(1), MaxInt: i64(120), Description: "Output frame rate"},
 	)
-	_, _ = mgr.Declare("camera.frame_id",
+	declareIfMissing("camera.frame_id",
 		params.Value{Kind: params.KindString, Str: "camera"},
 		params.Descriptor{Description: "TF frame for published images"},
 	)
-	_, _ = mgr.Declare("camera.exposure",
+	declareIfMissing("camera.exposure",
 		params.Value{Kind: params.KindDouble, Double: 0.02},
-		params.Descriptor{MinDouble: f64(0.001), MaxDouble: f64(0.1)},
+		params.Descriptor{MinDouble: f64(0.001), MaxDouble: f64(0.1), Description: "Exposure time (s)"},
 	)
-	_, _ = mgr.Declare("build.git_sha",
+	declareIfMissing("build.git_sha",
 		params.Value{Kind: params.KindString, Str: "dev"},
 		params.Descriptor{ReadOnly: true, Description: "Build commit SHA"},
 	)
@@ -57,7 +97,7 @@ func main() {
 	var frameID string = "camera"
 	var exposure float64 = 0.02
 
-	// Initial sync
+	// Initial sync (pull values loaded by YAML or default declarations)
 	if p, ok := mgr.Get("camera.fps"); ok {
 		fps = p.Value.Int64
 	}
@@ -69,7 +109,6 @@ func main() {
 	}
 
 	log.Printf("Node FQN: %s (name=%s)", n.FullyQualifiedName(), n.Name())
-	// A tiny ticker to show we’re alive and using the latest params
 
 	// Optional: hook /use_sim_time
 	mgr.EnableUseSimTimeHook(func(enabled bool) {
@@ -82,8 +121,9 @@ func main() {
 		select {
 		case tickerCh <- struct{}{}:
 		default:
-		} // signal rebuild
+		}
 	}
+
 	mgr.OnSet(func(changes []params.Parameter) params.SetResult {
 		for _, ch := range changes {
 			switch ch.Name {
@@ -101,6 +141,7 @@ func main() {
 		}
 		return params.SetResult{Successful: true}
 	})
+
 	go func() {
 		var t *time.Ticker
 		start := func() {
