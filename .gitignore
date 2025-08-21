@@ -20,3 +20,4 @@ _obj
 .idea
 cgo-flags.env
 scripts/sros.sh
+VERSION
