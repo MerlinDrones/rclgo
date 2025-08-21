@@ -25,3 +25,6 @@ _obj
 # Local VS Code configuration
 .vscode/bookmarks.json
 .idea
+/cgo-flags.env
+/VERSION
+*/cgo-flags.env
