@@ -1,0 +1,6 @@
+(struct { Name string; Package string; Request string; Response string }) {
+  Name: (string) (len=10) "CancelGoal",
+  Package: (string) (len=11) "action_msgs",
+  Request: (string) (len=34) "{\"go_imports\":[\"action_msgs_msg\"]}",
+  Response: (string) (len=34) "{\"go_imports\":[\"action_msgs_msg\"]}"
+}

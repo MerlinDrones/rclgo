@@ -1,0 +1,6 @@
+(struct { Name string; Package string; Request string; Response string }) {
+  Name: (string) (len=10) "NoResponse",
+  Package: (string) "",
+  Request: (string) (len=29) "{\"go_imports\":[\"primitives\"]}",
+  Response: (string) (len=17) "{\"go_imports\":[]}"
+}
