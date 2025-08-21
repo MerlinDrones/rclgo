@@ -1,0 +1,6 @@
+(struct { Name string; Package string; Request string; Response string }) {
+  Name: (string) (len=10) "FrameGraph",
+  Package: (string) (len=8) "tf2_msgs",
+  Request: (string) (len=17) "{\"go_imports\":[]}",
+  Response: (string) (len=29) "{\"go_imports\":[\"primitives\"]}"
+}
