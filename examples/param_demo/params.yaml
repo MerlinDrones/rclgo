@@ -1,0 +1,5 @@
+param_demo:
+    ros__parameters:
+        camera.fps: 60
+        camera.frame_id: "front_cam"
+        camera.exposure: 0.01
