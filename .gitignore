@@ -19,5 +19,6 @@ _obj
 .vscode/bookmarks.json
 .idea
 cgo-flags.env
-scripts/sros.sh
+scripts/*
 VERSION
+/scripts/
