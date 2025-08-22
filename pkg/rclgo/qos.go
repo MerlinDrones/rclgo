@@ -125,22 +125,6 @@ func NewDefaultServiceQosProfile() QosProfile {
 	return NewDefaultQosProfile()
 }
 
-// NewSensorDataQosProfile matches rclcpp::SensorDataQoS:
-// KeepLast(5), BestEffort, Volatile.
-func NewSensorDataQosProfile() QosProfile {
-	return QosProfile{
-		History:                      HistoryKeepLast,
-		Depth:                        5,
-		Reliability:                  ReliabilityBestEffort,
-		Durability:                   DurabilityVolatile,
-		Deadline:                     DeadlineDefault,
-		Lifespan:                     LifespanDefault,
-		Liveliness:                   LivelinessAutomatic,
-		LivelinessLeaseDuration:      LivelinessLeaseDurationDefault,
-		AvoidRosNamespaceConventions: false,
-	}
-}
-
 // NewParametersQosProfile is a conservative default for parameter service calls:
 // KeepLast(10), Reliable, Volatile.
 func NewParametersQosProfile() QosProfile {
