@@ -3,6 +3,9 @@ rclgo the ROS2 client library Golang wrapper
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/merlindrones/rclgo.svg)][docs]
 
+## Roadmap
+[Roadmap for ROS2 Parity](ROADMAP.md)
+
 ## Getting started
 
 rclgo is used with the Go module system like most Go libraries. It also requires

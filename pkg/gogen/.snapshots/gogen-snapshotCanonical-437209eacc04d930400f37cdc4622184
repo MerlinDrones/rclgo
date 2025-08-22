@@ -1,0 +1,16 @@
+(*gogen.ROS2Field)({
+  TypeArray: (string) (len=2) "[]",
+  ArrayBounded: (string) "",
+  ArraySize: (int) 0,
+  DefaultValue: (string) "",
+  PkgName: (string) "",
+  GoPkgName: (string) "",
+  PkgIsLocal: (bool) false,
+  RosType: (string) (len=6) "string",
+  CType: (string) (len=6) "String",
+  GoType: (string) (len=6) "string",
+  RosName: (string) (len=26) "bounded_string_array_value",
+  CName: (string) (len=26) "bounded_string_array_value",
+  GoName: (string) (len=23) "BoundedStringArrayValue",
+  Comment: (string) ""
+})
