@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.4.0] – 2025-08-XX
+
+### Added
+- **ROS Time / Clock API (Parity with rclcpp/rclpy)**
+    - `rostime.Clock` with support for:
+        - Wall time (`time.Now()`)
+        - Simulated time via `/use_sim_time` parameter and `/clock` subscription
+        - Methods: `Now()`, `NowMsg()`, `SleepUntil()`
+    - `rostime.Rate` for time-aware loop execution
+    - `/parameter_events` timestamps respect current time source
+    - Explicit QoS profile for `/clock` subscription (BestEffort, Volatile)
+- **Examples**
+    - New `clock_demo` under `examples/` showing wall vs. sim time usage
+    - Includes `params.yaml` and usage README
+- **Documentation**
+    - Added `docs/rostime.md` describing time concepts, usage, and a comparison of Wall vs. ROS Time
+
+### Changed
+- Integrated `params.Manager` with `rostime.Clock` to stamp parameter events with the active clock.
+
+### Roadmap
+- Time features now marked as **done** in `ROADMAP.md`.
+- Next milestones: QoS validation & defaults, Actions, Lifecycle Nodes, Executors.
+
 ## [Unreleased]
 
 ### Added
