@@ -21,4 +21,4 @@ _obj
 cgo-flags.env
 scripts/*
 VERSION
-/scripts/
+/scripts/*
