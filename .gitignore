@@ -20,5 +20,4 @@ _obj
 .idea
 cgo-flags.env
 scripts/*
-VERSION
 /scripts/*
