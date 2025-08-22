@@ -46,9 +46,9 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 
 ### [P0] ROS Time / Clock
 
-* ☐ Clock types: ROS time vs system
-* ☐ Time source: subscribe to `/clock`; parameter `/use_sim_time`
-* ☐ Time jump callbacks (basic)
+* ☑ Clock types: ROS time vs system
+* ☑ Time source: subscribe to `/clock`; parameter `/use_sim_time`
+* ☑ Time jump callbacks (basic)
 * **DoD**: Timers run correctly under simulated time; clock switch unit-tested.
 
 ### [P0] Executors & Callback Groups
@@ -123,7 +123,7 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 
 # Milestones & Sequencing
 
-1. **M1 (Foundations)**: ✅ Parameters, ◐ QoS validation, ☐ ROS Time
+1. **M1 (Foundations)**: ✅ Parameters, ◐ QoS validation, ✅ ROS Time
 2. **M2 (Core interop)**: ☐ Actions, ☐ Lifecycle, ☐ Services async/cancel
 3. **M3 (Concurrency)**: ☐ Executors + callback groups
 4. **M4 (Ecosystem)**: ☐ Graph/discovery, ☐ logging parity
@@ -135,10 +135,10 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 
 | Feature               | rclcpp | rclpy | rclgo |
 | --------------------- | -----: | ----: |------:|
-| Parameters            |      ✅ |     ✅ |       ✅ |
+| Parameters            |      ✅ |     ✅ |     ✅ |
 | Actions               |      ✅ |     ✅ |     ☐ |
 | Lifecycle             |      ✅ |    ⚠️ |     ☐ |
-| ROS Time              |      ✅ |     ✅ |     ☐ |
+| ROS Time              |      ✅ |     ✅ |     ✅ |
 | Executors (MT)        |      ✅ |    ⚠️ |     ☐ |
 | Callback Groups       |      ✅ |    ⚠️ |     ☐ |
 | QoS Policies          |      ✅ |     ✅ |     ✅ |
@@ -147,5 +147,6 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 | Discovery/Graph       |      ✅ |     ✅ |     ☐ |
 | Intra-process         |      ✅ |     — |     ☐ |
 | Logging Parity        |      ✅ |     ✅ |     ☐ |
+
 
 ---
