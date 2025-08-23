@@ -12,6 +12,7 @@ import (
 
 	std_msgs_msg "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/stretchr/testify/require"
 )
 
@@ -146,8 +147,8 @@ func TestPubSubCount(t *testing.T) {
 	requireValue(t, 1)(sub2.GetPublisherCount())
 
 	subOptsUnrealiable := rclgo.NewDefaultSubscriptionOptions()
-	subOptsUnrealiable.Qos.Reliability = rclgo.ReliabilityBestEffort
-	subOptsUnrealiable.Qos.Durability = rclgo.DurabilityTransientLocal
+	subOptsUnrealiable.Qos.Reliability = qos.ReliabilityBestEffort
+	subOptsUnrealiable.Qos.Durability = qos.DurabilityTransientLocal
 	subUnreliable := noErr(subNode.NewSubscription("string", std_msgs_msg.StringTypeSupport, subOptsUnrealiable, noopSub))(t)
 
 	requireValue(t, 2)(pub.GetSubscriptionCount())
@@ -156,8 +157,8 @@ func TestPubSubCount(t *testing.T) {
 	requireValue(t, 0)(subUnreliable.GetPublisherCount())
 
 	pubOptsUnrealiable := rclgo.NewDefaultPublisherOptions()
-	pubOptsUnrealiable.Qos.Reliability = rclgo.ReliabilityBestEffort
-	pubOptsUnrealiable.Qos.Durability = rclgo.DurabilityTransientLocal
+	pubOptsUnrealiable.Qos.Reliability = qos.ReliabilityBestEffort
+	pubOptsUnrealiable.Qos.Durability = qos.DurabilityTransientLocal
 	pubUnreliable := noErr(pubNode.NewPublisher("string", std_msgs_msg.StringTypeSupport, pubOptsUnrealiable))(t)
 
 	requireValue(t, 2)(pub.GetSubscriptionCount())
