@@ -17,6 +17,7 @@ import (
 	std_msgs "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
 	test_msgs "github.com/merlindrones/rclgo/internal/msgs/test_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 	. "github.com/smartystreets/goconvey/convey" //nolint:revive
 	"gopkg.in/yaml.v3"
@@ -528,12 +529,12 @@ func parseArgsMust(args ...string) *rclgo.Args {
 	return a
 }
 
-var reliableQos = func() rclgo.QosProfile {
-	qos := rclgo.NewDefaultQosProfile()
-	qos.History = rclgo.HistoryKeepAll
-	qos.Durability = rclgo.DurabilityTransientLocal
-	qos.Reliability = rclgo.ReliabilityReliable
-	return qos
+var reliableQos = func() qos.Profile {
+	prof := qos.NewDefault()
+	prof.History = qos.HistoryKeepAll
+	prof.Durability = qos.DurabilityTransientLocal
+	prof.Reliability = qos.ReliabilityReliable
+	return prof
 }()
 
 func newContextWithSubscriber(
