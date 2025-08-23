@@ -1,0 +1,5 @@
+clock_demo:
+    ros__parameters:
+        # When true, the node will follow /clock (simulated time).
+        # When false or if /clock isn't available, it uses wall time.
+        use_sim_time: true

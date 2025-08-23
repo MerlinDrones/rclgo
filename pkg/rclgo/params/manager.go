@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 
 	builtin_interfaces_msg "github.com/merlindrones/rclgo/internal/msgs/builtin_interfaces/msg"
@@ -27,14 +28,19 @@ func NewManager(n *rclgo.Node) (*Manager, error) {
 	m := &Manager{st: newStore(), n: n}
 
 	// /parameter_events publisher: Reliable + TransientLocal + KeepAll
-	opts := &rclgo.PublisherOptions{
-		Qos: rclgo.NewParameterEventsQosProfile(),
-	}
+	opts := &rclgo.PublisherOptions{Qos: qos.NewParameterEventsProfile()}
 	pub, err := n.NewPublisher("/parameter_events", rcl_interfaces_msg.ParameterEventTypeSupport, opts)
 	if err != nil {
 		return nil, err
 	}
 	m.pub = pub
+
+	// Ensure 'use_sim_time' exists by default (ROS 2 convention; default=false).
+	// This makes the parameter visible to tools (ros2 param) immediately.
+	// Descriptor is not read-only; users/simulators can set it at runtime.
+	_, _ = m.st.declare("use_sim_time", Value{Kind: KindBool, Bool: false}, Descriptor{
+		Description: "Use simulated time from /clock when true.",
+	})
 
 	// Node-scoped parameter services (match rclcpp/rclpy)
 	base := n.FullyQualifiedName()
@@ -79,6 +85,14 @@ func (m *Manager) Declare(name string, v Value, d Descriptor) (Parameter, error)
 func (m *Manager) Get(name string) (Parameter, bool) { return m.st.get(name) }
 func (m *Manager) List() []Parameter                 { return m.st.list() }
 func (m *Manager) OnSet(cb OnSetCallback)            { m.st.cb = cb }
+
+// SimTimeEnabled reports whether 'use_sim_time' is currently true.
+func (m *Manager) SimTimeEnabled() bool {
+	if p, ok := m.st.get("use_sim_time"); ok && p.Value.Kind == KindBool {
+		return p.Value.Bool
+	}
+	return false
+}
 
 // Undeclare removes a parameter and publishes a delete event.
 func (m *Manager) Undeclare(name string) bool {
