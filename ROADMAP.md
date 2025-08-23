@@ -16,10 +16,10 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 
 ## Top Priorities (P0)
 
-### [P0] Parameters API (node-local + remote)
+### \[P0] Parameters API (node-local + remote)
 
 * ☑ Design: `pkg/rclgo/params` surface (`Declare`, `Get`, `Set`, `OnSet`, `Undeclare`)
-* ☑ Bindings: rcl_interfaces services + `/parameter_events` publisher
+* ☑ Bindings: rcl\_interfaces services + `/parameter_events` publisher
 * ☑ `/use_sim_time` integration hook
 * ☑ CLI compatibility: `ros2 param get/set/list/describe/undeclare` works against rclgo nodes
 * ☑ YAML preload loader (`params.LoadYAML`)
@@ -29,7 +29,7 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
   Event topic emits on declare/set/undeclare.
   Constraints and OnSet callbacks enforced.
 
-### [P0] Actions (client & server)
+### \[P0] Actions (client & server)
 
 * ⚙ Design: idiomatic Go API (`ActionServer[TGoal,TResult,TFeedback]`, ctx-based cancellation)
 * ☐ Bindings to `rcl_action`
@@ -37,21 +37,21 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 * ☐ Simple and composed examples (`Fibonacci`, `FollowPath`)
 * **DoD**: Interop with rclcpp/rclpy examples; cancel/preempt tested; goal state transitions logged.
 
-### [P0] Lifecycle Nodes
+### \[P0] Lifecycle Nodes
 
 * ⚙ Design: `LifecycleNode` with states (unconfigured→inactive→active→finalized) and transition callbacks
 * ☐ Wire to `rcl_lifecycle`
 * ☐ Parameter-change validation during `configure`
 * **DoD**: Transitions callable via `ros2 lifecycle`; node publishes lifecycle state; example package passes.
 
-### [P0] ROS Time / Clock
+### \[P0] ROS Time / Clock
 
 * ☑ Clock types: ROS time vs system
 * ☑ Time source: subscribe to `/clock`; parameter `/use_sim_time`
 * ☑ Time jump callbacks (basic)
 * **DoD**: Timers run correctly under simulated time; clock switch unit-tested.
 
-### [P0] Executors & Callback Groups
+### \[P0] Executors & Callback Groups
 
 * ☐ Single-threaded executor solidified (wakeups, waitset mgmt)
 * ☐ Multi-threaded executor (N workers), cooperative shutdown
@@ -63,9 +63,12 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 ## Quality of Service (QoS) (P0→P1)
 
 * ☑ Policy surface parity (`reliability`, `durability`, `history`, `depth`, `liveliness`, `deadline`, `lifespan`)
-* ☐ Constructor validation (reject invalid combos)
+* ☑ Constructor validation (reject invalid combos)
 * ☐ QoS event callbacks: deadline missed, liveliness lost/changed, incompatible QoS
-* **DoD**: Events observable; invalid profiles error; interoperability tests across rmw.
+* ☑ C interop round‑trip tests (`qos/cinterop_test.go`)
+* ☑ Unit tests for `Profile` and common profiles
+* ☑ Developer docs: `docs/qos.md`
+* **DoD**: Events observable; invalid profiles error; interoperability tests across rmw. Documentation exists and basic interop/unit tests pass.
 
 ---
 
@@ -117,13 +120,14 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 * ☐ `rclgo` launch-lite (YAML or Go DSL mini-launch)
 * ☐ Node scaffolding tool
 * ☐ Examples: minimal pub/sub, svc, action, lifecycle, parameters
+* ☑ Docs: QoS primer and examples (`docs/qos.md`)
 * **DoD**: New users can build/run examples with `colcon` or `go build`.
 
 ---
 
 # Milestones & Sequencing
 
-1. **M1 (Foundations)**: ✅ Parameters, ◐ QoS validation, ✅ ROS Time
+1. **M1 (Foundations)**: ✅ Parameters, ✅ QoS validation, ✅ ROS Time
 2. **M2 (Core interop)**: ☐ Actions, ☐ Lifecycle, ☐ Services async/cancel
 3. **M3 (Concurrency)**: ☐ Executors + callback groups
 4. **M4 (Ecosystem)**: ☐ Graph/discovery, ☐ logging parity
@@ -134,7 +138,7 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 # Tracking Matrix (snapshot)
 
 | Feature               | rclcpp | rclpy | rclgo |
-| --------------------- | -----: | ----: |------:|
+| --------------------- | -----: | ----: | ----: |
 | Parameters            |      ✅ |     ✅ |     ✅ |
 | Actions               |      ✅ |     ✅ |     ☐ |
 | Lifecycle             |      ✅ |    ⚠️ |     ☐ |
@@ -147,6 +151,3 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 | Discovery/Graph       |      ✅ |     ✅ |     ☐ |
 | Intra-process         |      ✅ |     — |     ☐ |
 | Logging Parity        |      ✅ |     ✅ |     ☐ |
-
-
----
