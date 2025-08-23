@@ -8,6 +8,7 @@ import (
 
 	example_interfaces_srv "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/srv"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 	. "github.com/smartystreets/goconvey/convey" //nolint:revive
 )
@@ -36,9 +37,9 @@ func TestServiceAndClient(t *testing.T) {
 
 		randGen = rand.NewSource(42)
 
-		qosProfile = rclgo.NewDefaultServiceQosProfile()
+		qosProfile = qos.NewDefault()
 	)
-	qosProfile.History = rclgo.HistoryKeepAll
+	qosProfile.History = qos.HistoryKeepAll
 	sendReq := func(a, b int64) *testSendResult {
 		req := example_interfaces_srv.NewAddTwoInts_Request()
 		req.A = a

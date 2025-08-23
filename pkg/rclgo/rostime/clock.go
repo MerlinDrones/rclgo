@@ -7,6 +7,7 @@ import (
 
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/params"
+	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/utils"
 
 	builtin_interfaces_msg "github.com/merlindrones/rclgo/internal/msgs/builtin_interfaces/msg"
@@ -201,7 +202,7 @@ func (c *Clock) setUseSim(enable bool) {
 // nodeCreateClockSub adapts to rclgo's NewSubscription signature.
 func nodeCreateClockSub(node *rclgo.Node, cb func(*rosgraph_msgs_msg.Clock)) (*rclgo.Subscription, error) {
 	opts := &rclgo.SubscriptionOptions{
-		Qos: rclgo.NewClockQosProfile(), // explicit /clock QoS
+		Qos: qos.NewClockProfile(),
 	}
 	callback := rclgo.SubscriptionCallback(func(sub *rclgo.Subscription) {
 		// Take one rosgraph_msgs/Clock message and forward it.

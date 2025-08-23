@@ -8,6 +8,8 @@ import "C"
 
 import (
 	"unsafe"
+
+	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 )
 
 // GetTopicNamesAndTypes returns a map of all known topic names to corresponding
@@ -175,7 +177,7 @@ type TopicEndpointInfo struct {
 	TopicType     string
 	EndpointType  EndpointType
 	EndpointGID   GID
-	QosProfile    QosProfile
+	QosProfile    qos.Profile
 }
 
 func (n *Node) GetPublishersInfoByTopic(topic string, mangle bool) ([]TopicEndpointInfo, error) {
@@ -215,7 +217,7 @@ func (n *Node) getInfoByTopic(kind, topic string, mangle bool, get func(
 		for j := range info.endpoint_gid {
 			infos[i].EndpointGID[j] = byte(info.endpoint_gid[j])
 		}
-		infos[i].QosProfile.fromCStruct(&info.qos_profile)
+		infos[i].QosProfile = qosFromC(&info.qos_profile)
 	}
 	return infos, nil
 }

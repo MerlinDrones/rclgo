@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 
 	builtin_interfaces_msg "github.com/merlindrones/rclgo/internal/msgs/builtin_interfaces/msg"
@@ -27,9 +28,7 @@ func NewManager(n *rclgo.Node) (*Manager, error) {
 	m := &Manager{st: newStore(), n: n}
 
 	// /parameter_events publisher: Reliable + TransientLocal + KeepAll
-	opts := &rclgo.PublisherOptions{
-		Qos: rclgo.NewParameterEventsQosProfile(),
-	}
+	opts := &rclgo.PublisherOptions{Qos: qos.NewParameterEventsProfile()}
 	pub, err := n.NewPublisher("/parameter_events", rcl_interfaces_msg.ParameterEventTypeSupport, opts)
 	if err != nil {
 		return nil, err
