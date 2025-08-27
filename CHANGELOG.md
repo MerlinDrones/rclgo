@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.4.0] – 2025-08-26
+
+### Features
+- add shimgen tool for generating alias shims for ROS message packages
+
+### Refactoring
+- update imports to reflect `/internal` to `/pkg` migration in unit tests and implementation
+- moved msgs from /internal to /pkg
+- update message generation paths to pkg/msgs
+
+### Chores
+- bump VERSION to 0.4.0 for v0.4.0
+- Merge tag 'v0.3.0' into humble
+
+
 ## [Unreleased] – 2025-08-23
 
 ### Chores
