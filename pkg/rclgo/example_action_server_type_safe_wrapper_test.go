@@ -5,14 +5,14 @@ import (
 	"context"
 	"errors"
 
-	example_interfaces_action "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/action"
+	example_interfaces_action2 "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/action"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 )
 
-var typeSafeFibonacci = example_interfaces_action.NewFibonacciAction(
+var typeSafeFibonacci = example_interfaces_action2.NewFibonacciAction(
 	func(
-		ctx context.Context, goal *example_interfaces_action.FibonacciGoalHandle,
-	) (*example_interfaces_action.Fibonacci_Result, error) {
+		ctx context.Context, goal *example_interfaces_action2.FibonacciGoalHandle,
+	) (*example_interfaces_action2.Fibonacci_Result, error) {
 		if goal.Description.Order < 0 {
 			return nil, errors.New("order must be non-negative")
 		}
@@ -20,8 +20,8 @@ var typeSafeFibonacci = example_interfaces_action.NewFibonacciAction(
 		if err != nil {
 			return nil, err
 		}
-		result := example_interfaces_action.NewFibonacci_Result()
-		fb := example_interfaces_action.NewFibonacci_Feedback()
+		result := example_interfaces_action2.NewFibonacci_Result()
+		fb := example_interfaces_action2.NewFibonacci_Feedback()
 		var x, y, i int32
 		for y = 1; i < goal.Description.Order; x, y, i = y, x+y, i+1 {
 			result.Sequence = append(result.Sequence, x)
@@ -44,7 +44,7 @@ func ExampleActionServer_type_safe_wrapper() {
 	if err != nil {
 		// handle error
 	}
-	_, err = example_interfaces_action.NewFibonacciServer(node, "fibonacci", typeSafeFibonacci, nil)
+	_, err = example_interfaces_action2.NewFibonacciServer(node, "fibonacci", typeSafeFibonacci, nil)
 	if err != nil {
 		// handle error
 	}

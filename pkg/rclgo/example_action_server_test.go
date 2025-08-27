@@ -5,15 +5,15 @@ import (
 	"context"
 	"errors"
 
-	example_interfaces_action "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/action"
+	example_interfaces_action2 "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/action"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
 var fibonacci = rclgo.NewAction(
-	example_interfaces_action.FibonacciTypeSupport,
+	example_interfaces_action2.FibonacciTypeSupport,
 	func(ctx context.Context, goal *rclgo.GoalHandle) (types.Message, error) {
-		description := goal.Description.(*example_interfaces_action.Fibonacci_Goal)
+		description := goal.Description.(*example_interfaces_action2.Fibonacci_Goal)
 		if description.Order < 0 {
 			return nil, errors.New("order must be non-negative")
 		}
@@ -21,8 +21,8 @@ var fibonacci = rclgo.NewAction(
 		if err != nil {
 			return nil, err
 		}
-		result := example_interfaces_action.NewFibonacci_Result()
-		fb := example_interfaces_action.NewFibonacci_Feedback()
+		result := example_interfaces_action2.NewFibonacci_Result()
+		fb := example_interfaces_action2.NewFibonacci_Feedback()
 		var x, y, i int32
 		for y = 1; i < description.Order; x, y, i = y, x+y, i+1 {
 			result.Sequence = append(result.Sequence, x)

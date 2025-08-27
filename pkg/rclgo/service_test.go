@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	example_interfaces_srv "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/srv"
+	example_interfaces_srv2 "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/srv"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
@@ -30,7 +30,7 @@ func TestServiceAndClient(t *testing.T) {
 		spinErrs            = make(chan error, 2)
 
 		requestReceivedChan = make(
-			chan *example_interfaces_srv.AddTwoInts_Request,
+			chan *example_interfaces_srv2.AddTwoInts_Request,
 			1,
 		)
 		responseSentErrChan = make(chan error, 1)
@@ -41,7 +41,7 @@ func TestServiceAndClient(t *testing.T) {
 	)
 	qosProfile.History = qos.HistoryKeepAll
 	sendReq := func(a, b int64) *testSendResult {
-		req := example_interfaces_srv.NewAddTwoInts_Request()
+		req := example_interfaces_srv2.NewAddTwoInts_Request()
 		req.A = a
 		req.B = b
 		result := testSendResult{req: req, sum: a + b}
@@ -65,12 +65,12 @@ func TestServiceAndClient(t *testing.T) {
 			So(err, ShouldBeNil)
 			_, err = node.NewService(
 				"add",
-				example_interfaces_srv.AddTwoIntsTypeSupport,
+				example_interfaces_srv2.AddTwoIntsTypeSupport,
 				&rclgo.ServiceOptions{Qos: qosProfile},
 				func(rsi *rclgo.ServiceInfo, rm types.Message, srs rclgo.ServiceResponseSender) {
-					req := rm.(*example_interfaces_srv.AddTwoInts_Request)
+					req := rm.(*example_interfaces_srv2.AddTwoInts_Request)
 					requestReceivedChan <- req
-					resp := example_interfaces_srv.NewAddTwoInts_Response()
+					resp := example_interfaces_srv2.NewAddTwoInts_Response()
 					resp.Sum = req.A + req.B
 					responseSentErrChan <- srs.SendResponse(resp)
 				},
@@ -85,7 +85,7 @@ func TestServiceAndClient(t *testing.T) {
 			So(err, ShouldBeNil)
 			client, err = node.NewClient(
 				"add",
-				example_interfaces_srv.AddTwoIntsTypeSupport,
+				example_interfaces_srv2.AddTwoIntsTypeSupport,
 				&rclgo.ClientOptions{Qos: qosProfile},
 			)
 			So(err, ShouldBeNil)
@@ -99,7 +99,7 @@ func TestServiceAndClient(t *testing.T) {
 			So(result.err, ShouldBeNil)
 			So(result.info, ShouldNotBeNil)
 			So(
-				result.resp.(*example_interfaces_srv.AddTwoInts_Response).Sum,
+				result.resp.(*example_interfaces_srv2.AddTwoInts_Response).Sum,
 				ShouldEqual,
 				-4,
 			)
@@ -111,7 +111,7 @@ func TestServiceAndClient(t *testing.T) {
 			const reqCount = 100
 			testResults := make(chan *testSendResult, reqCount)
 			requestReceivedChan = make(
-				chan *example_interfaces_srv.AddTwoInts_Request,
+				chan *example_interfaces_srv2.AddTwoInts_Request,
 				reqCount,
 			)
 			responseSentErrChan = make(chan error, reqCount)
@@ -125,7 +125,7 @@ func TestServiceAndClient(t *testing.T) {
 				So(res.err, ShouldBeNil)
 				So(res.info, ShouldNotBeNil)
 				So(
-					res.resp.(*example_interfaces_srv.AddTwoInts_Response).Sum,
+					res.resp.(*example_interfaces_srv2.AddTwoInts_Response).Sum,
 					ShouldEqual,
 					res.sum,
 				)
