@@ -5,13 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
+	rcl_interfaces_msg2 "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/msg"
+	rcl_interfaces_srv2 "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/srv"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
-
-	builtin_interfaces_msg "github.com/merlindrones/rclgo/internal/msgs/builtin_interfaces/msg"
-	rcl_interfaces_msg "github.com/merlindrones/rclgo/internal/msgs/rcl_interfaces/msg"
-	rcl_interfaces_srv "github.com/merlindrones/rclgo/internal/msgs/rcl_interfaces/srv"
 )
 
 type Manager struct {
@@ -29,7 +28,7 @@ func NewManager(n *rclgo.Node) (*Manager, error) {
 
 	// /parameter_events publisher: Reliable + TransientLocal + KeepAll
 	opts := &rclgo.PublisherOptions{Qos: qos.NewParameterEventsProfile()}
-	pub, err := n.NewPublisher("/parameter_events", rcl_interfaces_msg.ParameterEventTypeSupport, opts)
+	pub, err := n.NewPublisher("/parameter_events", rcl_interfaces_msg2.ParameterEventTypeSupport, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -49,22 +48,22 @@ func NewManager(n *rclgo.Node) (*Manager, error) {
 	}
 	log.Printf("[params] node base=%s", base)
 
-	if _, err := n.NewService(base+"/get_parameters", rcl_interfaces_srv.GetParametersTypeSupport, nil, m.onGetParameters); err != nil {
+	if _, err := n.NewService(base+"/get_parameters", rcl_interfaces_srv2.GetParametersTypeSupport, nil, m.onGetParameters); err != nil {
 		return nil, err
 	}
 	log.Printf("[params] service registered: %s/get_parameters", base)
 
-	if _, err := n.NewService(base+"/set_parameters", rcl_interfaces_srv.SetParametersTypeSupport, nil, m.onSetParameters); err != nil {
+	if _, err := n.NewService(base+"/set_parameters", rcl_interfaces_srv2.SetParametersTypeSupport, nil, m.onSetParameters); err != nil {
 		return nil, err
 	}
 	log.Printf("[params] service registered: %s/set_parameters", base)
 
-	if _, err := n.NewService(base+"/list_parameters", rcl_interfaces_srv.ListParametersTypeSupport, nil, m.onListParameters); err != nil {
+	if _, err := n.NewService(base+"/list_parameters", rcl_interfaces_srv2.ListParametersTypeSupport, nil, m.onListParameters); err != nil {
 		return nil, err
 	}
 	log.Printf("[params] service registered: %s/list_parameters", base)
 
-	if _, err := n.NewService(base+"/describe_parameters", rcl_interfaces_srv.DescribeParametersTypeSupport, nil, m.onDescribeParameters); err != nil {
+	if _, err := n.NewService(base+"/describe_parameters", rcl_interfaces_srv2.DescribeParametersTypeSupport, nil, m.onDescribeParameters); err != nil {
 		return nil, err
 	}
 	log.Printf("[params] service registered: %s/describe_parameters", base)
@@ -112,15 +111,15 @@ func (m *Manager) SetNowProvider(f func() builtin_interfaces_msg.Time) {
 // --- Service handlers ---
 
 func (m *Manager) onGetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
-	req := reqMsg.(*rcl_interfaces_srv.GetParameters_Request)
-	resp := rcl_interfaces_srv.NewGetParameters_Response()
+	req := reqMsg.(*rcl_interfaces_srv2.GetParameters_Request)
+	resp := rcl_interfaces_srv2.NewGetParameters_Response()
 
-	values := make([]rcl_interfaces_msg.ParameterValue, 0, len(req.Names))
+	values := make([]rcl_interfaces_msg2.ParameterValue, 0, len(req.Names))
 	for _, name := range req.Names {
 		if p, ok := m.st.get(name); ok {
 			values = append(values, toRclValue(p.Value))
 		} else {
-			values = append(values, rcl_interfaces_msg.ParameterValue{Type: KindNotSet})
+			values = append(values, rcl_interfaces_msg2.ParameterValue{Type: KindNotSet})
 		}
 	}
 	resp.Values = values
@@ -128,8 +127,8 @@ func (m *Manager) onGetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 }
 
 func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
-	req := reqMsg.(*rcl_interfaces_srv.SetParameters_Request)
-	resp := rcl_interfaces_srv.NewSetParameters_Response()
+	req := reqMsg.(*rcl_interfaces_srv2.SetParameters_Request)
+	resp := rcl_interfaces_srv2.NewSetParameters_Response()
 
 	incoming := make([]Parameter, 0, len(req.Parameters))
 	for _, p := range req.Parameters {
@@ -138,9 +137,9 @@ func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 	result, old, newp := m.st.set(incoming)
 
 	// Per-item results: mirror ROS 2 semantics (one result per requested parameter)
-	results := make([]rcl_interfaces_msg.SetParametersResult, len(req.Parameters))
+	results := make([]rcl_interfaces_msg2.SetParametersResult, len(req.Parameters))
 	for i := range results {
-		results[i] = rcl_interfaces_msg.SetParametersResult{
+		results[i] = rcl_interfaces_msg2.SetParametersResult{
 			Successful: result.Successful,
 			Reason:     result.Reason,
 		}
@@ -154,8 +153,8 @@ func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 }
 
 func (m *Manager) onListParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
-	req := reqMsg.(*rcl_interfaces_srv.ListParameters_Request)
-	resp := rcl_interfaces_srv.NewListParameters_Response()
+	req := reqMsg.(*rcl_interfaces_srv2.ListParameters_Request)
+	resp := rcl_interfaces_srv2.NewListParameters_Response()
 
 	var names []string
 	all := m.st.list()
@@ -196,14 +195,14 @@ func (m *Manager) onListParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, s
 }
 
 func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
-	req := reqMsg.(*rcl_interfaces_srv.DescribeParameters_Request)
-	resp := rcl_interfaces_srv.NewDescribeParameters_Response()
+	req := reqMsg.(*rcl_interfaces_srv2.DescribeParameters_Request)
+	resp := rcl_interfaces_srv2.NewDescribeParameters_Response()
 
-	descs := make([]rcl_interfaces_msg.ParameterDescriptor, 0, len(req.Names))
+	descs := make([]rcl_interfaces_msg2.ParameterDescriptor, 0, len(req.Names))
 	for _, name := range req.Names {
 		if p, ok := m.st.get(name); ok {
 			d := m.st.desc[name]
-			pd := rcl_interfaces_msg.ParameterDescriptor{
+			pd := rcl_interfaces_msg2.ParameterDescriptor{
 				Name:        name,
 				Type:        uint8(p.Value.Kind),
 				Description: d.Description,
@@ -218,7 +217,7 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 				if d.MaxInt != nil {
 					to = *d.MaxInt
 				}
-				pd.IntegerRange = []rcl_interfaces_msg.IntegerRange{{
+				pd.IntegerRange = []rcl_interfaces_msg2.IntegerRange{{
 					FromValue: from,
 					ToValue:   to,
 					Step:      1,
@@ -232,7 +231,7 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 				if d.MaxDouble != nil {
 					to = *d.MaxDouble
 				}
-				pd.FloatingPointRange = []rcl_interfaces_msg.FloatingPointRange{{
+				pd.FloatingPointRange = []rcl_interfaces_msg2.FloatingPointRange{{
 					FromValue: from,
 					ToValue:   to,
 					Step:      0.0,
@@ -246,7 +245,7 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 			continue
 		}
 		// Placeholder for undeclared names
-		descs = append(descs, rcl_interfaces_msg.ParameterDescriptor{
+		descs = append(descs, rcl_interfaces_msg2.ParameterDescriptor{
 			Name: name,
 			Type: KindNotSet,
 		})
@@ -274,18 +273,18 @@ func (m *Manager) publishEvent(newp, old []Parameter) {
 	if m.pub == nil {
 		return
 	}
-	evt := &rcl_interfaces_msg.ParameterEvent{
+	evt := &rcl_interfaces_msg2.ParameterEvent{
 		Stamp: m.stampNow(),
 		Node:  m.n.FullyQualifiedName(),
 	}
 	for _, p := range newp {
-		evt.NewParameters = append(evt.NewParameters, rcl_interfaces_msg.Parameter{
+		evt.NewParameters = append(evt.NewParameters, rcl_interfaces_msg2.Parameter{
 			Name:  p.Name,
 			Value: toRclValue(p.Value),
 		})
 	}
 	for _, p := range old {
-		evt.ChangedParameters = append(evt.ChangedParameters, rcl_interfaces_msg.Parameter{
+		evt.ChangedParameters = append(evt.ChangedParameters, rcl_interfaces_msg2.Parameter{
 			Name:  p.Name,
 			Value: toRclValue(p.Value),
 		})
@@ -297,12 +296,12 @@ func (m *Manager) publishDelete(del []Parameter) {
 	if m.pub == nil {
 		return
 	}
-	evt := &rcl_interfaces_msg.ParameterEvent{
+	evt := &rcl_interfaces_msg2.ParameterEvent{
 		Stamp: m.stampNow(),
 		Node:  m.n.FullyQualifiedName(),
 	}
 	for _, p := range del {
-		evt.DeletedParameters = append(evt.DeletedParameters, rcl_interfaces_msg.Parameter{
+		evt.DeletedParameters = append(evt.DeletedParameters, rcl_interfaces_msg2.Parameter{
 			Name:  p.Name,
 			Value: toRclValue(p.Value),
 		})
@@ -312,8 +311,8 @@ func (m *Manager) publishDelete(del []Parameter) {
 
 // --- Converters between Value and rcl_interfaces/ParameterValue ---
 
-func toRclValue(v Value) rcl_interfaces_msg.ParameterValue {
-	out := rcl_interfaces_msg.ParameterValue{Type: uint8(v.Kind)}
+func toRclValue(v Value) rcl_interfaces_msg2.ParameterValue {
+	out := rcl_interfaces_msg2.ParameterValue{Type: uint8(v.Kind)}
 	switch v.Kind {
 	case KindBool:
 		out.BoolValue = v.Bool
@@ -337,7 +336,7 @@ func toRclValue(v Value) rcl_interfaces_msg.ParameterValue {
 	return out
 }
 
-func fromRclValue(v rcl_interfaces_msg.ParameterValue) Value {
+func fromRclValue(v rcl_interfaces_msg2.ParameterValue) Value {
 	out := Value{Kind: v.Type}
 	switch v.Type {
 	case KindBool:

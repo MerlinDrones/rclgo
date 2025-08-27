@@ -14,9 +14,9 @@ import (
 	"errors"
 	"testing"
 
-	example_interfaces_action "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/action"
-	std_msgs "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
-	std_srvs_srv "github.com/merlindrones/rclgo/internal/msgs/std_srvs/srv"
+	"github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/action"
+	"github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
+	"github.com/merlindrones/rclgo/pkg/msgs/std_srvs/srv"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 	. "github.com/smartystreets/goconvey/convey" //nolint:revive
@@ -64,7 +64,7 @@ func TestContextClose(t *testing.T) {
 				So(err, ShouldBeNil)
 				_, err = node2.NewPublisher(
 					"/test_topic",
-					std_msgs.StringTypeSupport,
+					std_msgs_msg.StringTypeSupport,
 					nil,
 				)
 				So(err, ShouldBeNil)
@@ -76,14 +76,14 @@ func TestContextClose(t *testing.T) {
 				So(err, ShouldBeNil)
 				_, err = node2.NewSubscription(
 					"/test_topic",
-					std_msgs.StringTypeSupport,
+					std_msgs_msg.StringTypeSupport,
 					nil,
 					func(s *rclgo.Subscription) {},
 				)
 				So(err, ShouldBeNil)
 				_, err = node2.NewPublisher(
 					"/test_topic2",
-					std_msgs.ColorRGBATypeSupport,
+					std_msgs_msg.ColorRGBATypeSupport,
 					nil,
 				)
 				So(err, ShouldBeNil)

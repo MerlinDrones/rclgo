@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	example_interfaces_action "github.com/merlindrones/rclgo/internal/msgs/example_interfaces/action"
+	example_interfaces_action2 "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/action"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
@@ -22,14 +22,14 @@ func ExampleActionClient() {
 	}
 	client, err := node.NewActionClient(
 		"fibonacci",
-		example_interfaces_action.FibonacciTypeSupport,
+		example_interfaces_action2.FibonacciTypeSupport,
 		nil,
 	)
 	if err != nil {
 		// handle error
 	}
 	ctx := context.Background()
-	goal := example_interfaces_action.NewFibonacci_Goal()
+	goal := example_interfaces_action2.NewFibonacci_Goal()
 	goal.Order = 10
 	result, _, err := client.WatchGoal(ctx, goal, func(ctx context.Context, feedback types.Message) {
 		fmt.Println("Got feedback:", feedback)
@@ -50,7 +50,7 @@ func ExampleActionClient_type_safe_wrapper() {
 	if err != nil {
 		// handle error
 	}
-	client, err := example_interfaces_action.NewFibonacciClient(
+	client, err := example_interfaces_action2.NewFibonacciClient(
 		node,
 		"fibonacci",
 		nil,
@@ -59,9 +59,9 @@ func ExampleActionClient_type_safe_wrapper() {
 		// handle error
 	}
 	ctx := context.Background()
-	goal := example_interfaces_action.NewFibonacci_Goal()
+	goal := example_interfaces_action2.NewFibonacci_Goal()
 	goal.Order = 10
-	result, _, err := client.WatchGoal(ctx, goal, func(ctx context.Context, feedback *example_interfaces_action.Fibonacci_FeedbackMessage) {
+	result, _, err := client.WatchGoal(ctx, goal, func(ctx context.Context, feedback *example_interfaces_action2.Fibonacci_FeedbackMessage) {
 		fmt.Println("Got feedback:", feedback)
 	})
 	if err != nil {

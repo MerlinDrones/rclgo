@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	std_msgs_msg "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
+	std_msgs_msg2 "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,7 +55,7 @@ func TestNodeGetTopicNamesAndTypes(t *testing.T) {
 	})
 
 	t.Log("new publisher")
-	_, err = std_msgs_msg.NewBoolPublisher(node1, "test_topic", nil)
+	_, err = std_msgs_msg2.NewBoolPublisher(node1, "test_topic", nil)
 	require.NoError(t, err)
 
 	t.Log("node1 after publisher")
@@ -71,7 +71,7 @@ func TestNodeGetTopicNamesAndTypes(t *testing.T) {
 	})
 
 	t.Log("new int publisher")
-	intpub, err := std_msgs_msg.NewInt64Publisher(node1, "test_topic2", nil)
+	intpub, err := std_msgs_msg2.NewInt64Publisher(node1, "test_topic2", nil)
 	require.NoError(t, err)
 
 	t.Log("node1 after creating int publisher")
@@ -89,7 +89,7 @@ func TestNodeGetTopicNamesAndTypes(t *testing.T) {
 	})
 
 	t.Log("publish int")
-	err = intpub.Publish(std_msgs_msg.NewInt64())
+	err = intpub.Publish(std_msgs_msg2.NewInt64())
 	require.NoError(t, err)
 
 	t.Log("node1 after publishing int")
@@ -107,7 +107,7 @@ func TestNodeGetTopicNamesAndTypes(t *testing.T) {
 	})
 
 	t.Log("new string publisher")
-	_, err = std_msgs_msg.NewStringPublisher(node2, "test_topic", nil)
+	_, err = std_msgs_msg2.NewStringPublisher(node2, "test_topic", nil)
 	require.NoError(t, err)
 
 	t.Log("node1 after second publisher")

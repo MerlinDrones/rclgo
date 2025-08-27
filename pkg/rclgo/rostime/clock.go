@@ -5,13 +5,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
+	"github.com/merlindrones/rclgo/pkg/msgs/rosgraph_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/params"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/utils"
-
-	builtin_interfaces_msg "github.com/merlindrones/rclgo/internal/msgs/builtin_interfaces/msg"
-	rosgraph_msgs_msg "github.com/merlindrones/rclgo/internal/msgs/rosgraph_msgs/msg"
 )
 
 type Clock struct {

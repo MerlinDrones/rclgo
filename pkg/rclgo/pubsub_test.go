@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	std_msgs "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
-	test_msgs "github.com/merlindrones/rclgo/internal/msgs/test_msgs/msg"
+	"github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
+	test_msgs "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
@@ -27,7 +27,7 @@ func TestPubSub(t *testing.T) {
 	var rclContextPub *rclgo.Context
 	var rclContextSub *rclgo.Context
 	var publisher *rclgo.Publisher
-	subChan := make(chan *std_msgs.ColorRGBA, 1)
+	subChan := make(chan *std_msgs_msg.ColorRGBA, 1)
 	subErrChan := make(chan error, 1)
 	subCtx, cancelSubCtx := context.WithCancel(context.Background())
 	defer cancelSubCtx()
@@ -41,13 +41,13 @@ func TestPubSub(t *testing.T) {
 					"sub",
 					"/test",
 					"/topic",
-					std_msgs.ColorRGBATypeSupport,
+					std_msgs_msg.ColorRGBATypeSupport,
 					func(s *rclgo.Subscription) {
 						buf, _, err := s.TakeSerializedMessage()
 						if err != nil {
 							panic(fmt.Sprint("failed to take message: ", err))
 						}
-						msg, err := rclgo.Deserialize(buf, std_msgs.ColorRGBATypeSupport)
+						msg, err := rclgo.Deserialize(buf, std_msgs_msg.ColorRGBATypeSupport)
 						if err != nil {
 							panic(fmt.Sprint("failed to deserialize message: ", err))
 						}
@@ -57,7 +57,7 @@ func TestPubSub(t *testing.T) {
 						} else if !bytes.Equal(buf, newBuf) {
 							panic(fmt.Sprintf("reserialized message (%#v) is different from the original (%#v)", newBuf, buf))
 						}
-						subChan <- msg.(*std_msgs.ColorRGBA)
+						subChan <- msg.(*std_msgs_msg.ColorRGBA)
 					},
 				)
 				So(err, ShouldBeNil)
@@ -71,7 +71,7 @@ func TestPubSub(t *testing.T) {
 					"pub",
 					"/test",
 					"/topic",
-					std_msgs.ColorRGBATypeSupport,
+					std_msgs_msg.ColorRGBATypeSupport,
 				)
 				So(err, ShouldBeNil)
 			})
@@ -156,7 +156,7 @@ func TestMultipleSubscribersInSingleWaitSet(t *testing.T) {
 				So(err, ShouldBeNil)
 				_, err = node.NewSubscription(
 					"/topic1",
-					std_msgs.StringTypeSupport,
+					std_msgs_msg.StringTypeSupport,
 					nil,
 					sendToChan(topic1Chan),
 				)
@@ -167,7 +167,7 @@ func TestMultipleSubscribersInSingleWaitSet(t *testing.T) {
 				So(err, ShouldBeNil)
 				_, err = node.NewSubscription(
 					"/topic2",
-					std_msgs.StringTypeSupport,
+					std_msgs_msg.StringTypeSupport,
 					nil,
 					sendToChan(topic2Chan),
 				)
@@ -178,7 +178,7 @@ func TestMultipleSubscribersInSingleWaitSet(t *testing.T) {
 				So(err, ShouldBeNil)
 				pub1, err = node.NewPublisher(
 					"/topic1",
-					std_msgs.StringTypeSupport,
+					std_msgs_msg.StringTypeSupport,
 					nil,
 				)
 				So(err, ShouldBeNil)
@@ -188,7 +188,7 @@ func TestMultipleSubscribersInSingleWaitSet(t *testing.T) {
 				So(err, ShouldBeNil)
 				pub2, err = node.NewPublisher(
 					"/topic1",
-					std_msgs.StringTypeSupport,
+					std_msgs_msg.StringTypeSupport,
 					nil,
 				)
 				So(err, ShouldBeNil)
@@ -442,7 +442,7 @@ func getMemReading() string {
 }
 
 func publishColorRGBA(p *rclgo.Publisher, r, g, b, a float32) error {
-	m := std_msgs.NewColorRGBA()
+	m := std_msgs_msg.NewColorRGBA()
 	m.R = r
 	m.G = g
 	m.B = b
@@ -450,12 +450,12 @@ func publishColorRGBA(p *rclgo.Publisher, r, g, b, a float32) error {
 	return p.Publish(m)
 }
 
-func receiveColorRGBA(subChan chan *std_msgs.ColorRGBA, r, g, b, a float32) {
-	var m *std_msgs.ColorRGBA
+func receiveColorRGBA(subChan chan *std_msgs_msg.ColorRGBA, r, g, b, a float32) {
+	var m *std_msgs_msg.ColorRGBA
 	timeOut(1000, func() {
 		m = <-subChan
 	}, "Subscriber waiting for messages")
-	So(m, ShouldResemble, &std_msgs.ColorRGBA{R: r, G: g, B: b, A: a})
+	So(m, ShouldResemble, &std_msgs_msg.ColorRGBA{R: r, G: g, B: b, A: a})
 }
 
 func timeOut(timeoutMs int, f func(), testDescription string) {
@@ -486,7 +486,7 @@ func waitChan[T any](t *testing.T, timeout time.Duration, ch <-chan T, testDescr
 }
 
 func publishString(pub *rclgo.Publisher, s string) {
-	msg := std_msgs.NewString()
+	msg := std_msgs_msg.NewString()
 	msg.Data = s
 	So(pub.Publish(msg), ShouldBeNil)
 }
@@ -631,7 +631,7 @@ func sendToChan(c chan<- receiveResult) func(s *rclgo.Subscription) {
 }
 
 type receiveResult struct {
-	msg std_msgs.String
+	msg std_msgs_msg.String
 	rmi *rclgo.MessageInfo
 	err error
 }

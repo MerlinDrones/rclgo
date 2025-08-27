@@ -1,7 +1,8 @@
 package utils
 
 import (
-	builtin_interfaces_msg "github.com/merlindrones/rclgo/internal/msgs/builtin_interfaces/msg"
+	"github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
+
 	"time"
 )
 

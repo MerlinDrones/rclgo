@@ -3,8 +3,8 @@ package params
 import (
 	"testing"
 
-	rclif_msg "github.com/merlindrones/rclgo/internal/msgs/rcl_interfaces/msg"
-	rclif_srv "github.com/merlindrones/rclgo/internal/msgs/rcl_interfaces/srv"
+	"github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/msg"
+	"github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/srv"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
@@ -23,11 +23,11 @@ func TestEnableUseSimTimeHook_TogglesOnSet(t *testing.T) {
 	})
 
 	// Set true
-	req1 := rclif_srv.NewSetParameters_Request()
-	req1.Parameters = []rclif_msg.Parameter{
+	req1 := rcl_interfaces_srv.NewSetParameters_Request()
+	req1.Parameters = []rcl_interfaces_msg.Parameter{
 		{
 			Name: "use_sim_time",
-			Value: rclif_msg.ParameterValue{
+			Value: rcl_interfaces_msg.ParameterValue{
 				Type:      KindBool,
 				BoolValue: true,
 			},
@@ -35,7 +35,7 @@ func TestEnableUseSimTimeHook_TogglesOnSet(t *testing.T) {
 	}
 	s1 := &sinkSender{}
 	m.onSetParameters(nil, req1, s1)
-	resp1 := s1.last.(*rclif_srv.SetParameters_Response)
+	resp1 := s1.last.(*rcl_interfaces_srv.SetParameters_Response)
 	if len(resp1.Results) != 1 || !resp1.Results[0].Successful {
 		t.Fatalf("expected success, got %+v", resp1.Results)
 	}
@@ -49,11 +49,11 @@ func TestEnableUseSimTimeHook_TogglesOnSet(t *testing.T) {
 	}
 
 	// Set false
-	req2 := rclif_srv.NewSetParameters_Request()
-	req2.Parameters = []rclif_msg.Parameter{
+	req2 := rcl_interfaces_srv.NewSetParameters_Request()
+	req2.Parameters = []rcl_interfaces_msg.Parameter{
 		{
 			Name: "use_sim_time",
-			Value: rclif_msg.ParameterValue{
+			Value: rcl_interfaces_msg.ParameterValue{
 				Type:      KindBool,
 				BoolValue: false,
 			},
@@ -61,7 +61,7 @@ func TestEnableUseSimTimeHook_TogglesOnSet(t *testing.T) {
 	}
 	s2 := &sinkSender{}
 	m.onSetParameters(nil, req2, s2)
-	resp2 := s2.last.(*rclif_srv.SetParameters_Response)
+	resp2 := s2.last.(*rcl_interfaces_srv.SetParameters_Response)
 	if len(resp2.Results) != 1 || !resp2.Results[0].Successful {
 		t.Fatalf("expected success, got %+v", resp2.Results)
 	}

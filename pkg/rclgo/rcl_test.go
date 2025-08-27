@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	std_msgs_msg "github.com/merlindrones/rclgo/internal/msgs/std_msgs/msg"
+	"github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/stretchr/testify/require"
