@@ -36,8 +36,8 @@ esac
 go run ./cmd/rclgo-gen generate \
   --root-path /opt/ros/humble \
   --root-path "$(pwd)" \
-  --dest-path ./internal/msgs \
-  --message-module-prefix github.com/merlindrones/rclgo/internal/msgs \
+  --dest-path ./pkg/msgs \
+  --message-module-prefix github.com/merlindrones/rclgo/pkg/msgs \
   --rclgo-import-path github.com/merlindrones/rclgo \
   --include-package std_msgs \
   --include-package std_srvs \
