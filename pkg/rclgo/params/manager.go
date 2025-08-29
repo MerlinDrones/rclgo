@@ -81,6 +81,14 @@ func (m *Manager) Declare(name string, v Value, d Descriptor) (Parameter, error)
 	return p, err
 }
 
+func (m *Manager) DeclareIfMissing(name string, v Value, d Descriptor) error {
+	if _, ok := m.Get(name); ok {
+		return nil
+	}
+	_, err := m.Declare(name, v, d)
+	return err
+}
+
 func (m *Manager) Get(name string) (Parameter, bool) { return m.st.get(name) }
 func (m *Manager) List() []Parameter                 { return m.st.list() }
 func (m *Manager) OnSet(cb OnSetCallback)            { m.st.cb = cb }
