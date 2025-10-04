@@ -519,7 +519,6 @@ func (p *Publisher) Publish(ros2msg types.Message) error {
 	ptr := p.typeSupport.PrepareMemory()
 	defer p.typeSupport.ReleaseMemory(ptr)
 	p.typeSupport.AsCStruct(ptr, ros2msg)
-
 	rc = C.rcl_publish(p.rcl_publisher_t, ptr, nil)
 	if rc != C.RCL_RET_OK {
 		return errorsCastC(rc, fmt.Sprintf("rcl_publish() failed for publisher '%+v'", p))
