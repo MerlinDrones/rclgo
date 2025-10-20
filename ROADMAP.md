@@ -23,11 +23,15 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 * ☑ `/use_sim_time` integration hook
 * ☑ CLI compatibility: `ros2 param get/set/list/describe/undeclare` works against rclgo nodes
 * ☑ YAML preload loader (`params.LoadYAML`)
+* ☑ CLI parameter overrides (`--ros-args -p name:=value`)
+* ☐ **TODO**: Environment variable overrides (e.g., `RCL_PARAM_name=value`)
 * **Definition of Done**:
   Parameters can be declared/undeclared, described, loaded from YAML.
   CLI interop passes (`ros2 param`).
   Event topic emits on declare/set/undeclare.
   Constraints and OnSet callbacks enforced.
+  CLI overrides work like rclcpp/rclpy. Env var overrides remain for future work.
+* **Status**: CLI parameter overrides complete (✅). Only env var overrides remain for full parity.
 
 ### \[P0] Actions (client & server)
 
@@ -100,9 +104,12 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 
 ## Logging (P1)
 
-* ☐ Named loggers per node with severity control
-* ☐ Bridge to rcl logging; parameter-driven level change
-* **DoD**: `ros2 run` shows ROS log formatting; `ros2 param set /node logger_level` affects output.
+* ☑ Named loggers per node with severity control
+* ☑ Bridge to rcl logging; filesystem output (spdlog)
+* ☐ Parameter-driven logger level change (`ros2 param set /node logger_level`)
+* **DoD**: `ros2 run` shows ROS log formatting; logs written to `~/.ros/log/`; parameter service can change levels.
+* **Status**: Core logging functionality complete. ROS formatting ✅, filesystem logging ✅, named loggers ✅, severity
+  control ✅. Missing: parameter service integration for dynamic level changes.
 
 ---
 
@@ -127,18 +134,20 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 
 # Milestones & Sequencing
 
-1. **M1 (Foundations)**: ✅ Parameters, ✅ QoS validation, ✅ ROS Time
+1. **M1 (Foundations)**: ✅ Parameters (CLI overrides ✅), ✅ QoS validation, ✅ ROS Time
 2. **M2 (Core interop)**: ☐ Actions, ☐ Lifecycle, ☐ Services async/cancel
 3. **M3 (Concurrency)**: ☐ Executors + callback groups
-4. **M4 (Ecosystem)**: ☐ Graph/discovery, ☐ logging parity
+4. **M4 (Ecosystem)**: ☐ Graph/discovery, ⚠️ logging parity (core done, param integration pending)
 5. **M5 (Perf & UX)**: ☐ Intra-process, ☐ tooling, examples
 
 ---
 
 # Tracking Matrix (snapshot)
 
+Legend: ✅ complete · ⚠️ partial · ☐ not started · — not applicable
+
 | Feature               | rclcpp | rclpy | rclgo |
-| --------------------- | -----: | ----: | ----: |
+|-----------------------|-------:|------:|------:|
 | Parameters            |      ✅ |     ✅ |     ✅ |
 | Actions               |      ✅ |     ✅ |     ☐ |
 | Lifecycle             |      ✅ |    ⚠️ |     ☐ |
@@ -150,4 +159,4 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 | Services Async/Cancel |      ✅ |     ✅ |     ☐ |
 | Discovery/Graph       |      ✅ |     ✅ |     ☐ |
 | Intra-process         |      ✅ |     — |     ☐ |
-| Logging Parity        |      ✅ |     ✅ |     ☐ |
+| Logging Parity        |      ✅ |     ✅ |    ⚠️ |
