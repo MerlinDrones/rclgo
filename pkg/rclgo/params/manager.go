@@ -1,6 +1,7 @@
 package params
 
 import (
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -92,6 +93,24 @@ func (m *Manager) DeclareIfMissing(name string, v Value, d Descriptor) error {
 func (m *Manager) Get(name string) (Parameter, bool) { return m.st.get(name) }
 func (m *Manager) List() []Parameter                 { return m.st.list() }
 func (m *Manager) OnSet(cb OnSetCallback)            { m.st.cb = cb }
+
+// Set updates one or more existing parameters. Returns SetResult indicating success/failure.
+// All parameters must already be declared, and constraints will be validated.
+func (m *Manager) Set(params ...Parameter) (SetResult, error) {
+	result, old, newp := m.st.set(params)
+	if result.Successful {
+		m.publishEvent(newp, old)
+	}
+	if !result.Successful {
+		return result, fmt.Errorf("set failed: %s", result.Reason)
+	}
+	return result, nil
+}
+
+// SetValue is a convenience wrapper for Set that updates a single parameter by name.
+func (m *Manager) SetValue(name string, v Value) (SetResult, error) {
+	return m.Set(Parameter{Name: name, Value: v})
+}
 
 // SimTimeEnabled reports whether 'use_sim_time' is currently true.
 func (m *Manager) SimTimeEnabled() bool {
