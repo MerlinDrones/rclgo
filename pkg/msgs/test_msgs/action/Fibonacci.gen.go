@@ -13,11 +13,12 @@ import (
 	"time"
 	"unsafe"
 
-	action_msgs_msg2 "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/msg"
-	action_msgs_srv2 "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/srv"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
+
+	action_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/msg"
+	action_msgs_srv "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/srv"
 )
 
 func init() {
@@ -64,7 +65,7 @@ func (s _FibonacciTypeSupport) NewGetResultResponse(status int8, result types.Me
 }
 
 func (s _FibonacciTypeSupport) CancelGoal() types.ServiceTypeSupport {
-	return action_msgs_srv2.CancelGoalTypeSupport
+	return action_msgs_srv.CancelGoalTypeSupport
 }
 
 func (s _FibonacciTypeSupport) Feedback() types.MessageTypeSupport {
@@ -83,7 +84,7 @@ func (s _FibonacciTypeSupport) NewFeedbackMessage(goalID *types.GoalID, feedback
 }
 
 func (s _FibonacciTypeSupport) GoalStatusArray() types.MessageTypeSupport {
-	return action_msgs_msg2.GoalStatusArrayTypeSupport
+	return action_msgs_msg.GoalStatusArrayTypeSupport
 }
 
 func (s _FibonacciTypeSupport) TypeSupport() unsafe.Pointer {
@@ -162,7 +163,7 @@ func NewFibonacciServer(node *rclgo.Node, name string, action FibonacciAction, o
 
 type FibonacciFeedbackHandler func(context.Context, *Fibonacci_FeedbackMessage)
 
-type FibonacciStatusHandler func(context.Context, *action_msgs_msg2.GoalStatus)
+type FibonacciStatusHandler func(context.Context, *action_msgs_msg.GoalStatus)
 
 type FibonacciClient struct {
 	*rclgo.ActionClient
@@ -217,9 +218,9 @@ func (c *FibonacciClient) GetResult(ctx context.Context, goalID *types.GoalID) (
 	return nil, err
 }
 
-func (c *FibonacciClient) CancelGoal(ctx context.Context, request *action_msgs_srv2.CancelGoal_Request) (*action_msgs_srv2.CancelGoal_Response, error) {
+func (c *FibonacciClient) CancelGoal(ctx context.Context, request *action_msgs_srv.CancelGoal_Request) (*action_msgs_srv.CancelGoal_Response, error) {
 	resp, err := c.ActionClient.CancelGoal(ctx, request)
-	if r, ok := resp.(*action_msgs_srv2.CancelGoal_Response); ok {
+	if r, ok := resp.(*action_msgs_srv.CancelGoal_Response); ok {
 		return r, err
 	}
 	return nil, err
@@ -233,6 +234,6 @@ func (c *FibonacciClient) WatchFeedback(ctx context.Context, goalID *types.GoalI
 
 func (c *FibonacciClient) WatchStatus(ctx context.Context, goalID *types.GoalID, handler FibonacciStatusHandler) <-chan error {
 	return c.ActionClient.WatchStatus(ctx, goalID, func(ctx context.Context, msg types.Message) {
-		handler(ctx, msg.(*action_msgs_msg2.GoalStatus))
+		handler(ctx, msg.(*action_msgs_msg.GoalStatus))
 	})
 }

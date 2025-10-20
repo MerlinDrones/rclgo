@@ -5,8 +5,8 @@ package test_msgs_action
 import (
 	"unsafe"
 
-	"github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
-	test_msgs_msg2 "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"
+	builtin_interfaces_msg "github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
+	test_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
@@ -26,8 +26,8 @@ func init() {
 }
 
 type NestedMessage_Goal struct {
-	NestedFieldNoPkg   test_msgs_msg2.Builtins     `yaml:"nested_field_no_pkg"` // goal definition
-	NestedField        test_msgs_msg2.BasicTypes   `yaml:"nested_field"`
+	NestedFieldNoPkg   test_msgs_msg.Builtins      `yaml:"nested_field_no_pkg"` // goal definition
+	NestedField        test_msgs_msg.BasicTypes    `yaml:"nested_field"`
 	NestedDifferentPkg builtin_interfaces_msg.Time `yaml:"nested_different_pkg"`
 }
 
@@ -137,16 +137,16 @@ func (t _NestedMessage_GoalTypeSupport) ReleaseMemory(pointer_to_free unsafe.Poi
 func (t _NestedMessage_GoalTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*NestedMessage_Goal)
 	mem := (*C.test_msgs__action__NestedMessage_Goal)(dst)
-	test_msgs_msg2.BuiltinsTypeSupport.AsCStruct(unsafe.Pointer(&mem.nested_field_no_pkg), &m.NestedFieldNoPkg)
-	test_msgs_msg2.BasicTypesTypeSupport.AsCStruct(unsafe.Pointer(&mem.nested_field), &m.NestedField)
+	test_msgs_msg.BuiltinsTypeSupport.AsCStruct(unsafe.Pointer(&mem.nested_field_no_pkg), &m.NestedFieldNoPkg)
+	test_msgs_msg.BasicTypesTypeSupport.AsCStruct(unsafe.Pointer(&mem.nested_field), &m.NestedField)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.nested_different_pkg), &m.NestedDifferentPkg)
 }
 
 func (t _NestedMessage_GoalTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
 	m := msg.(*NestedMessage_Goal)
 	mem := (*C.test_msgs__action__NestedMessage_Goal)(ros2_message_buffer)
-	test_msgs_msg2.BuiltinsTypeSupport.AsGoStruct(&m.NestedFieldNoPkg, unsafe.Pointer(&mem.nested_field_no_pkg))
-	test_msgs_msg2.BasicTypesTypeSupport.AsGoStruct(&m.NestedField, unsafe.Pointer(&mem.nested_field))
+	test_msgs_msg.BuiltinsTypeSupport.AsGoStruct(&m.NestedFieldNoPkg, unsafe.Pointer(&mem.nested_field_no_pkg))
+	test_msgs_msg.BasicTypesTypeSupport.AsGoStruct(&m.NestedField, unsafe.Pointer(&mem.nested_field))
 	builtin_interfaces_msg.TimeTypeSupport.AsGoStruct(&m.NestedDifferentPkg, unsafe.Pointer(&mem.nested_different_pkg))
 }
 

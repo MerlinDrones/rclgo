@@ -5,7 +5,7 @@ package test_msgs_msg
 import (
 	"unsafe"
 
-	builtin_interfaces_msg2 "github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
+	builtin_interfaces_msg "github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
@@ -25,8 +25,8 @@ func init() {
 }
 
 type Builtins struct {
-	DurationValue builtin_interfaces_msg2.Duration `yaml:"duration_value"`
-	TimeValue     builtin_interfaces_msg2.Time     `yaml:"time_value"`
+	DurationValue builtin_interfaces_msg.Duration `yaml:"duration_value"`
+	TimeValue     builtin_interfaces_msg.Time     `yaml:"time_value"`
 }
 
 // NewBuiltins creates a new Builtins with default values.
@@ -133,15 +133,15 @@ func (t _BuiltinsTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _BuiltinsTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Builtins)
 	mem := (*C.test_msgs__msg__Builtins)(dst)
-	builtin_interfaces_msg2.DurationTypeSupport.AsCStruct(unsafe.Pointer(&mem.duration_value), &m.DurationValue)
-	builtin_interfaces_msg2.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.time_value), &m.TimeValue)
+	builtin_interfaces_msg.DurationTypeSupport.AsCStruct(unsafe.Pointer(&mem.duration_value), &m.DurationValue)
+	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.time_value), &m.TimeValue)
 }
 
 func (t _BuiltinsTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
 	m := msg.(*Builtins)
 	mem := (*C.test_msgs__msg__Builtins)(ros2_message_buffer)
-	builtin_interfaces_msg2.DurationTypeSupport.AsGoStruct(&m.DurationValue, unsafe.Pointer(&mem.duration_value))
-	builtin_interfaces_msg2.TimeTypeSupport.AsGoStruct(&m.TimeValue, unsafe.Pointer(&mem.time_value))
+	builtin_interfaces_msg.DurationTypeSupport.AsGoStruct(&m.DurationValue, unsafe.Pointer(&mem.duration_value))
+	builtin_interfaces_msg.TimeTypeSupport.AsGoStruct(&m.TimeValue, unsafe.Pointer(&mem.time_value))
 }
 
 func (t _BuiltinsTypeSupport) TypeSupport() unsafe.Pointer {

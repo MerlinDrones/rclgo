@@ -5,9 +5,9 @@ package test_msgs_srv
 import (
 	"unsafe"
 
-	test_msgs_msg2 "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"
+	test_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
-	"github.com/merlindrones/rclgo/pkg/rclgo/primitives"
+	primitives "github.com/merlindrones/rclgo/pkg/rclgo/primitives"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
@@ -26,37 +26,37 @@ func init() {
 }
 
 type Arrays_Request struct {
-	BoolValues           [3]bool                      `yaml:"bool_values"`
-	ByteValues           [3]byte                      `yaml:"byte_values"`
-	CharValues           [3]byte                      `yaml:"char_values"`
-	Float32Values        [3]float32                   `yaml:"float32_values"`
-	Float64Values        [3]float64                   `yaml:"float64_values"`
-	Int8Values           [3]int8                      `yaml:"int8_values"`
-	Uint8Values          [3]uint8                     `yaml:"uint8_values"`
-	Int16Values          [3]int16                     `yaml:"int16_values"`
-	Uint16Values         [3]uint16                    `yaml:"uint16_values"`
-	Int32Values          [3]int32                     `yaml:"int32_values"`
-	Uint32Values         [3]uint32                    `yaml:"uint32_values"`
-	Int64Values          [3]int64                     `yaml:"int64_values"`
-	Uint64Values         [3]uint64                    `yaml:"uint64_values"`
-	StringValues         [3]string                    `yaml:"string_values"`
-	BasicTypesValues     [3]test_msgs_msg2.BasicTypes `yaml:"basic_types_values"`
-	ConstantsValues      [3]test_msgs_msg2.Constants  `yaml:"constants_values"`
-	DefaultsValues       [3]test_msgs_msg2.Defaults   `yaml:"defaults_values"`
-	BoolValuesDefault    [3]bool                      `yaml:"bool_values_default"`
-	ByteValuesDefault    [3]byte                      `yaml:"byte_values_default"`
-	CharValuesDefault    [3]byte                      `yaml:"char_values_default"`
-	Float32ValuesDefault [3]float32                   `yaml:"float32_values_default"`
-	Float64ValuesDefault [3]float64                   `yaml:"float64_values_default"`
-	Int8ValuesDefault    [3]int8                      `yaml:"int8_values_default"`
-	Uint8ValuesDefault   [3]uint8                     `yaml:"uint8_values_default"`
-	Int16ValuesDefault   [3]int16                     `yaml:"int16_values_default"`
-	Uint16ValuesDefault  [3]uint16                    `yaml:"uint16_values_default"`
-	Int32ValuesDefault   [3]int32                     `yaml:"int32_values_default"`
-	Uint32ValuesDefault  [3]uint32                    `yaml:"uint32_values_default"`
-	Int64ValuesDefault   [3]int64                     `yaml:"int64_values_default"`
-	Uint64ValuesDefault  [3]uint64                    `yaml:"uint64_values_default"`
-	StringValuesDefault  [3]string                    `yaml:"string_values_default"`
+	BoolValues           [3]bool                     `yaml:"bool_values"`
+	ByteValues           [3]byte                     `yaml:"byte_values"`
+	CharValues           [3]byte                     `yaml:"char_values"`
+	Float32Values        [3]float32                  `yaml:"float32_values"`
+	Float64Values        [3]float64                  `yaml:"float64_values"`
+	Int8Values           [3]int8                     `yaml:"int8_values"`
+	Uint8Values          [3]uint8                    `yaml:"uint8_values"`
+	Int16Values          [3]int16                    `yaml:"int16_values"`
+	Uint16Values         [3]uint16                   `yaml:"uint16_values"`
+	Int32Values          [3]int32                    `yaml:"int32_values"`
+	Uint32Values         [3]uint32                   `yaml:"uint32_values"`
+	Int64Values          [3]int64                    `yaml:"int64_values"`
+	Uint64Values         [3]uint64                   `yaml:"uint64_values"`
+	StringValues         [3]string                   `yaml:"string_values"`
+	BasicTypesValues     [3]test_msgs_msg.BasicTypes `yaml:"basic_types_values"`
+	ConstantsValues      [3]test_msgs_msg.Constants  `yaml:"constants_values"`
+	DefaultsValues       [3]test_msgs_msg.Defaults   `yaml:"defaults_values"`
+	BoolValuesDefault    [3]bool                     `yaml:"bool_values_default"`
+	ByteValuesDefault    [3]byte                     `yaml:"byte_values_default"`
+	CharValuesDefault    [3]byte                     `yaml:"char_values_default"`
+	Float32ValuesDefault [3]float32                  `yaml:"float32_values_default"`
+	Float64ValuesDefault [3]float64                  `yaml:"float64_values_default"`
+	Int8ValuesDefault    [3]int8                     `yaml:"int8_values_default"`
+	Uint8ValuesDefault   [3]uint8                    `yaml:"uint8_values_default"`
+	Int16ValuesDefault   [3]int16                    `yaml:"int16_values_default"`
+	Uint16ValuesDefault  [3]uint16                   `yaml:"uint16_values_default"`
+	Int32ValuesDefault   [3]int32                    `yaml:"int32_values_default"`
+	Uint32ValuesDefault  [3]uint32                   `yaml:"uint32_values_default"`
+	Int64ValuesDefault   [3]int64                    `yaml:"int64_values_default"`
+	Uint64ValuesDefault  [3]uint64                   `yaml:"uint64_values_default"`
+	StringValuesDefault  [3]string                   `yaml:"string_values_default"`
 }
 
 // NewArrays_Request creates a new Arrays_Request with default values.
@@ -82,9 +82,9 @@ func (t *Arrays_Request) Clone() *Arrays_Request {
 	c.Int64Values = t.Int64Values
 	c.Uint64Values = t.Uint64Values
 	c.StringValues = t.StringValues
-	test_msgs_msg2.CloneBasicTypesSlice(c.BasicTypesValues[:], t.BasicTypesValues[:])
-	test_msgs_msg2.CloneConstantsSlice(c.ConstantsValues[:], t.ConstantsValues[:])
-	test_msgs_msg2.CloneDefaultsSlice(c.DefaultsValues[:], t.DefaultsValues[:])
+	test_msgs_msg.CloneBasicTypesSlice(c.BasicTypesValues[:], t.BasicTypesValues[:])
+	test_msgs_msg.CloneConstantsSlice(c.ConstantsValues[:], t.ConstantsValues[:])
+	test_msgs_msg.CloneDefaultsSlice(c.DefaultsValues[:], t.DefaultsValues[:])
 	c.BoolValuesDefault = t.BoolValuesDefault
 	c.ByteValuesDefault = t.ByteValuesDefault
 	c.CharValuesDefault = t.CharValuesDefault
@@ -256,11 +256,11 @@ func (t _Arrays_RequestTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	cSlice_string_values := mem.string_values[:]
 	primitives.String__Array_to_C(*(*[]primitives.CString)(unsafe.Pointer(&cSlice_string_values)), m.StringValues[:])
 	cSlice_basic_types_values := mem.basic_types_values[:]
-	test_msgs_msg2.BasicTypes__Array_to_C(*(*[]test_msgs_msg2.CBasicTypes)(unsafe.Pointer(&cSlice_basic_types_values)), m.BasicTypesValues[:])
+	test_msgs_msg.BasicTypes__Array_to_C(*(*[]test_msgs_msg.CBasicTypes)(unsafe.Pointer(&cSlice_basic_types_values)), m.BasicTypesValues[:])
 	cSlice_constants_values := mem.constants_values[:]
-	test_msgs_msg2.Constants__Array_to_C(*(*[]test_msgs_msg2.CConstants)(unsafe.Pointer(&cSlice_constants_values)), m.ConstantsValues[:])
+	test_msgs_msg.Constants__Array_to_C(*(*[]test_msgs_msg.CConstants)(unsafe.Pointer(&cSlice_constants_values)), m.ConstantsValues[:])
 	cSlice_defaults_values := mem.defaults_values[:]
-	test_msgs_msg2.Defaults__Array_to_C(*(*[]test_msgs_msg2.CDefaults)(unsafe.Pointer(&cSlice_defaults_values)), m.DefaultsValues[:])
+	test_msgs_msg.Defaults__Array_to_C(*(*[]test_msgs_msg.CDefaults)(unsafe.Pointer(&cSlice_defaults_values)), m.DefaultsValues[:])
 	cSlice_bool_values_default := mem.bool_values_default[:]
 	primitives.Bool__Array_to_C(*(*[]primitives.CBool)(unsafe.Pointer(&cSlice_bool_values_default)), m.BoolValuesDefault[:])
 	cSlice_byte_values_default := mem.byte_values_default[:]
@@ -323,11 +323,11 @@ func (t _Arrays_RequestTypeSupport) AsGoStruct(msg types.Message, ros2_message_b
 	cSlice_string_values := mem.string_values[:]
 	primitives.String__Array_to_Go(m.StringValues[:], *(*[]primitives.CString)(unsafe.Pointer(&cSlice_string_values)))
 	cSlice_basic_types_values := mem.basic_types_values[:]
-	test_msgs_msg2.BasicTypes__Array_to_Go(m.BasicTypesValues[:], *(*[]test_msgs_msg2.CBasicTypes)(unsafe.Pointer(&cSlice_basic_types_values)))
+	test_msgs_msg.BasicTypes__Array_to_Go(m.BasicTypesValues[:], *(*[]test_msgs_msg.CBasicTypes)(unsafe.Pointer(&cSlice_basic_types_values)))
 	cSlice_constants_values := mem.constants_values[:]
-	test_msgs_msg2.Constants__Array_to_Go(m.ConstantsValues[:], *(*[]test_msgs_msg2.CConstants)(unsafe.Pointer(&cSlice_constants_values)))
+	test_msgs_msg.Constants__Array_to_Go(m.ConstantsValues[:], *(*[]test_msgs_msg.CConstants)(unsafe.Pointer(&cSlice_constants_values)))
 	cSlice_defaults_values := mem.defaults_values[:]
-	test_msgs_msg2.Defaults__Array_to_Go(m.DefaultsValues[:], *(*[]test_msgs_msg2.CDefaults)(unsafe.Pointer(&cSlice_defaults_values)))
+	test_msgs_msg.Defaults__Array_to_Go(m.DefaultsValues[:], *(*[]test_msgs_msg.CDefaults)(unsafe.Pointer(&cSlice_defaults_values)))
 	cSlice_bool_values_default := mem.bool_values_default[:]
 	primitives.Bool__Array_to_Go(m.BoolValuesDefault[:], *(*[]primitives.CBool)(unsafe.Pointer(&cSlice_bool_values_default)))
 	cSlice_byte_values_default := mem.byte_values_default[:]
