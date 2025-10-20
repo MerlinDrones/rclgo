@@ -1,8 +1,8 @@
 module rclgo_param_demo_pkg
 
-go 1.22
+go 1.24.0
 
-require github.com/merlindrones/rclgo v0.0.0-20250701001034-bab9cbe02fd7
+require github.com/merlindrones/rclgo v0.4.0
 
 require (
 	github.com/kr/pretty v0.3.1 // indirect

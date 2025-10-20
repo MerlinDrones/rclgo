@@ -1,6 +1,6 @@
 module github.com/merlindrones/rclgo/examples/publisher_subscriber
 
-go 1.23.5
+go 1.24.0
 
 require github.com/merlindrones/rclgo v0.0.0-20241016185817-0b2d427cb574
 
@@ -22,10 +22,10 @@ require (
 	github.com/spf13/viper v1.16.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb // indirect
-	golang.org/x/mod v0.11.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/mod v0.29.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
-	golang.org/x/tools v0.9.1 // indirect
+	golang.org/x/tools v0.38.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
