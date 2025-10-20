@@ -5,7 +5,7 @@ package test_msgs_action
 import (
 	"unsafe"
 
-	"github.com/merlindrones/rclgo/pkg/msgs/unique_identifier_msgs/msg"
+	unique_identifier_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/unique_identifier_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"

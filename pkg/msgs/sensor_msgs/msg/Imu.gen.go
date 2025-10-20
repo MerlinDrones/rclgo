@@ -5,10 +5,10 @@ package sensor_msgs_msg
 import (
 	"unsafe"
 
-	geometry_msgs_msg2 "github.com/merlindrones/rclgo/pkg/msgs/geometry_msgs/msg"
-	"github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
+	geometry_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/geometry_msgs/msg"
+	std_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
-	"github.com/merlindrones/rclgo/pkg/rclgo/primitives"
+	primitives "github.com/merlindrones/rclgo/pkg/rclgo/primitives"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
@@ -27,13 +27,13 @@ func init() {
 }
 
 type Imu struct {
-	Header                       std_msgs_msg.Header           `yaml:"header"`
-	Orientation                  geometry_msgs_msg2.Quaternion `yaml:"orientation"`
-	OrientationCovariance        [9]float64                    `yaml:"orientation_covariance"` // Row major about x, y, z axes
-	AngularVelocity              geometry_msgs_msg2.Vector3    `yaml:"angular_velocity"`
-	AngularVelocityCovariance    [9]float64                    `yaml:"angular_velocity_covariance"` // Row major about x, y, z axes
-	LinearAcceleration           geometry_msgs_msg2.Vector3    `yaml:"linear_acceleration"`
-	LinearAccelerationCovariance [9]float64                    `yaml:"linear_acceleration_covariance"` // Row major x, y z
+	Header                       std_msgs_msg.Header          `yaml:"header"`
+	Orientation                  geometry_msgs_msg.Quaternion `yaml:"orientation"`
+	OrientationCovariance        [9]float64                   `yaml:"orientation_covariance"` // Row major about x, y, z axes
+	AngularVelocity              geometry_msgs_msg.Vector3    `yaml:"angular_velocity"`
+	AngularVelocityCovariance    [9]float64                   `yaml:"angular_velocity_covariance"` // Row major about x, y, z axes
+	LinearAcceleration           geometry_msgs_msg.Vector3    `yaml:"linear_acceleration"`
+	LinearAccelerationCovariance [9]float64                   `yaml:"linear_acceleration_covariance"` // Row major x, y z
 }
 
 // NewImu creates a new Imu with default values.
@@ -151,13 +151,13 @@ func (t _ImuTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Imu)
 	mem := (*C.sensor_msgs__msg__Imu)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	geometry_msgs_msg2.QuaternionTypeSupport.AsCStruct(unsafe.Pointer(&mem.orientation), &m.Orientation)
+	geometry_msgs_msg.QuaternionTypeSupport.AsCStruct(unsafe.Pointer(&mem.orientation), &m.Orientation)
 	cSlice_orientation_covariance := mem.orientation_covariance[:]
 	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_orientation_covariance)), m.OrientationCovariance[:])
-	geometry_msgs_msg2.Vector3TypeSupport.AsCStruct(unsafe.Pointer(&mem.angular_velocity), &m.AngularVelocity)
+	geometry_msgs_msg.Vector3TypeSupport.AsCStruct(unsafe.Pointer(&mem.angular_velocity), &m.AngularVelocity)
 	cSlice_angular_velocity_covariance := mem.angular_velocity_covariance[:]
 	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_angular_velocity_covariance)), m.AngularVelocityCovariance[:])
-	geometry_msgs_msg2.Vector3TypeSupport.AsCStruct(unsafe.Pointer(&mem.linear_acceleration), &m.LinearAcceleration)
+	geometry_msgs_msg.Vector3TypeSupport.AsCStruct(unsafe.Pointer(&mem.linear_acceleration), &m.LinearAcceleration)
 	cSlice_linear_acceleration_covariance := mem.linear_acceleration_covariance[:]
 	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_linear_acceleration_covariance)), m.LinearAccelerationCovariance[:])
 }
@@ -166,13 +166,13 @@ func (t _ImuTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsaf
 	m := msg.(*Imu)
 	mem := (*C.sensor_msgs__msg__Imu)(ros2_message_buffer)
 	std_msgs_msg.HeaderTypeSupport.AsGoStruct(&m.Header, unsafe.Pointer(&mem.header))
-	geometry_msgs_msg2.QuaternionTypeSupport.AsGoStruct(&m.Orientation, unsafe.Pointer(&mem.orientation))
+	geometry_msgs_msg.QuaternionTypeSupport.AsGoStruct(&m.Orientation, unsafe.Pointer(&mem.orientation))
 	cSlice_orientation_covariance := mem.orientation_covariance[:]
 	primitives.Float64__Array_to_Go(m.OrientationCovariance[:], *(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_orientation_covariance)))
-	geometry_msgs_msg2.Vector3TypeSupport.AsGoStruct(&m.AngularVelocity, unsafe.Pointer(&mem.angular_velocity))
+	geometry_msgs_msg.Vector3TypeSupport.AsGoStruct(&m.AngularVelocity, unsafe.Pointer(&mem.angular_velocity))
 	cSlice_angular_velocity_covariance := mem.angular_velocity_covariance[:]
 	primitives.Float64__Array_to_Go(m.AngularVelocityCovariance[:], *(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_angular_velocity_covariance)))
-	geometry_msgs_msg2.Vector3TypeSupport.AsGoStruct(&m.LinearAcceleration, unsafe.Pointer(&mem.linear_acceleration))
+	geometry_msgs_msg.Vector3TypeSupport.AsGoStruct(&m.LinearAcceleration, unsafe.Pointer(&mem.linear_acceleration))
 	cSlice_linear_acceleration_covariance := mem.linear_acceleration_covariance[:]
 	primitives.Float64__Array_to_Go(m.LinearAccelerationCovariance[:], *(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_linear_acceleration_covariance)))
 }

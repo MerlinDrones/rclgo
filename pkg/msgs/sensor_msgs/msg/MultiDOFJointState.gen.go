@@ -5,10 +5,10 @@ package sensor_msgs_msg
 import (
 	"unsafe"
 
-	geometry_msgs_msg2 "github.com/merlindrones/rclgo/pkg/msgs/geometry_msgs/msg"
-	"github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
+	geometry_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/geometry_msgs/msg"
+	std_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
-	"github.com/merlindrones/rclgo/pkg/rclgo/primitives"
+	primitives "github.com/merlindrones/rclgo/pkg/rclgo/primitives"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
@@ -27,11 +27,11 @@ func init() {
 }
 
 type MultiDOFJointState struct {
-	Header     std_msgs_msg.Header            `yaml:"header"`
-	JointNames []string                       `yaml:"joint_names"`
-	Transforms []geometry_msgs_msg2.Transform `yaml:"transforms"`
-	Twist      []geometry_msgs_msg2.Twist     `yaml:"twist"`
-	Wrench     []geometry_msgs_msg2.Wrench    `yaml:"wrench"`
+	Header     std_msgs_msg.Header           `yaml:"header"`
+	JointNames []string                      `yaml:"joint_names"`
+	Transforms []geometry_msgs_msg.Transform `yaml:"transforms"`
+	Twist      []geometry_msgs_msg.Twist     `yaml:"twist"`
+	Wrench     []geometry_msgs_msg.Wrench    `yaml:"wrench"`
 }
 
 // NewMultiDOFJointState creates a new MultiDOFJointState with default values.
@@ -49,16 +49,16 @@ func (t *MultiDOFJointState) Clone() *MultiDOFJointState {
 		copy(c.JointNames, t.JointNames)
 	}
 	if t.Transforms != nil {
-		c.Transforms = make([]geometry_msgs_msg2.Transform, len(t.Transforms))
-		geometry_msgs_msg2.CloneTransformSlice(c.Transforms, t.Transforms)
+		c.Transforms = make([]geometry_msgs_msg.Transform, len(t.Transforms))
+		geometry_msgs_msg.CloneTransformSlice(c.Transforms, t.Transforms)
 	}
 	if t.Twist != nil {
-		c.Twist = make([]geometry_msgs_msg2.Twist, len(t.Twist))
-		geometry_msgs_msg2.CloneTwistSlice(c.Twist, t.Twist)
+		c.Twist = make([]geometry_msgs_msg.Twist, len(t.Twist))
+		geometry_msgs_msg.CloneTwistSlice(c.Twist, t.Twist)
 	}
 	if t.Wrench != nil {
-		c.Wrench = make([]geometry_msgs_msg2.Wrench, len(t.Wrench))
-		geometry_msgs_msg2.CloneWrenchSlice(c.Wrench, t.Wrench)
+		c.Wrench = make([]geometry_msgs_msg.Wrench, len(t.Wrench))
+		geometry_msgs_msg.CloneWrenchSlice(c.Wrench, t.Wrench)
 	}
 	return c
 }
@@ -158,9 +158,9 @@ func (t _MultiDOFJointStateTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.
 	mem := (*C.sensor_msgs__msg__MultiDOFJointState)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.joint_names)), m.JointNames)
-	geometry_msgs_msg2.Transform__Sequence_to_C((*geometry_msgs_msg2.CTransform__Sequence)(unsafe.Pointer(&mem.transforms)), m.Transforms)
-	geometry_msgs_msg2.Twist__Sequence_to_C((*geometry_msgs_msg2.CTwist__Sequence)(unsafe.Pointer(&mem.twist)), m.Twist)
-	geometry_msgs_msg2.Wrench__Sequence_to_C((*geometry_msgs_msg2.CWrench__Sequence)(unsafe.Pointer(&mem.wrench)), m.Wrench)
+	geometry_msgs_msg.Transform__Sequence_to_C((*geometry_msgs_msg.CTransform__Sequence)(unsafe.Pointer(&mem.transforms)), m.Transforms)
+	geometry_msgs_msg.Twist__Sequence_to_C((*geometry_msgs_msg.CTwist__Sequence)(unsafe.Pointer(&mem.twist)), m.Twist)
+	geometry_msgs_msg.Wrench__Sequence_to_C((*geometry_msgs_msg.CWrench__Sequence)(unsafe.Pointer(&mem.wrench)), m.Wrench)
 }
 
 func (t _MultiDOFJointStateTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -168,9 +168,9 @@ func (t _MultiDOFJointStateTypeSupport) AsGoStruct(msg types.Message, ros2_messa
 	mem := (*C.sensor_msgs__msg__MultiDOFJointState)(ros2_message_buffer)
 	std_msgs_msg.HeaderTypeSupport.AsGoStruct(&m.Header, unsafe.Pointer(&mem.header))
 	primitives.String__Sequence_to_Go(&m.JointNames, *(*primitives.CString__Sequence)(unsafe.Pointer(&mem.joint_names)))
-	geometry_msgs_msg2.Transform__Sequence_to_Go(&m.Transforms, *(*geometry_msgs_msg2.CTransform__Sequence)(unsafe.Pointer(&mem.transforms)))
-	geometry_msgs_msg2.Twist__Sequence_to_Go(&m.Twist, *(*geometry_msgs_msg2.CTwist__Sequence)(unsafe.Pointer(&mem.twist)))
-	geometry_msgs_msg2.Wrench__Sequence_to_Go(&m.Wrench, *(*geometry_msgs_msg2.CWrench__Sequence)(unsafe.Pointer(&mem.wrench)))
+	geometry_msgs_msg.Transform__Sequence_to_Go(&m.Transforms, *(*geometry_msgs_msg.CTransform__Sequence)(unsafe.Pointer(&mem.transforms)))
+	geometry_msgs_msg.Twist__Sequence_to_Go(&m.Twist, *(*geometry_msgs_msg.CTwist__Sequence)(unsafe.Pointer(&mem.twist)))
+	geometry_msgs_msg.Wrench__Sequence_to_Go(&m.Wrench, *(*geometry_msgs_msg.CWrench__Sequence)(unsafe.Pointer(&mem.wrench)))
 }
 
 func (t _MultiDOFJointStateTypeSupport) TypeSupport() unsafe.Pointer {

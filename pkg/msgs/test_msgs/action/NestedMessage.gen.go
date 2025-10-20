@@ -13,11 +13,12 @@ import (
 	"time"
 	"unsafe"
 
-	action_msgs_msg2 "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/msg"
-	action_msgs_srv2 "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/srv"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
+
+	action_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/msg"
+	action_msgs_srv "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/srv"
 )
 
 func init() {
@@ -64,7 +65,7 @@ func (s _NestedMessageTypeSupport) NewGetResultResponse(status int8, result type
 }
 
 func (s _NestedMessageTypeSupport) CancelGoal() types.ServiceTypeSupport {
-	return action_msgs_srv2.CancelGoalTypeSupport
+	return action_msgs_srv.CancelGoalTypeSupport
 }
 
 func (s _NestedMessageTypeSupport) Feedback() types.MessageTypeSupport {
@@ -83,7 +84,7 @@ func (s _NestedMessageTypeSupport) NewFeedbackMessage(goalID *types.GoalID, feed
 }
 
 func (s _NestedMessageTypeSupport) GoalStatusArray() types.MessageTypeSupport {
-	return action_msgs_msg2.GoalStatusArrayTypeSupport
+	return action_msgs_msg.GoalStatusArrayTypeSupport
 }
 
 func (s _NestedMessageTypeSupport) TypeSupport() unsafe.Pointer {
@@ -162,7 +163,7 @@ func NewNestedMessageServer(node *rclgo.Node, name string, action NestedMessageA
 
 type NestedMessageFeedbackHandler func(context.Context, *NestedMessage_FeedbackMessage)
 
-type NestedMessageStatusHandler func(context.Context, *action_msgs_msg2.GoalStatus)
+type NestedMessageStatusHandler func(context.Context, *action_msgs_msg.GoalStatus)
 
 type NestedMessageClient struct {
 	*rclgo.ActionClient
@@ -217,9 +218,9 @@ func (c *NestedMessageClient) GetResult(ctx context.Context, goalID *types.GoalI
 	return nil, err
 }
 
-func (c *NestedMessageClient) CancelGoal(ctx context.Context, request *action_msgs_srv2.CancelGoal_Request) (*action_msgs_srv2.CancelGoal_Response, error) {
+func (c *NestedMessageClient) CancelGoal(ctx context.Context, request *action_msgs_srv.CancelGoal_Request) (*action_msgs_srv.CancelGoal_Response, error) {
 	resp, err := c.ActionClient.CancelGoal(ctx, request)
-	if r, ok := resp.(*action_msgs_srv2.CancelGoal_Response); ok {
+	if r, ok := resp.(*action_msgs_srv.CancelGoal_Response); ok {
 		return r, err
 	}
 	return nil, err
@@ -233,6 +234,6 @@ func (c *NestedMessageClient) WatchFeedback(ctx context.Context, goalID *types.G
 
 func (c *NestedMessageClient) WatchStatus(ctx context.Context, goalID *types.GoalID, handler NestedMessageStatusHandler) <-chan error {
 	return c.ActionClient.WatchStatus(ctx, goalID, func(ctx context.Context, msg types.Message) {
-		handler(ctx, msg.(*action_msgs_msg2.GoalStatus))
+		handler(ctx, msg.(*action_msgs_msg.GoalStatus))
 	})
 }

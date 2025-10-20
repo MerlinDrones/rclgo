@@ -5,7 +5,7 @@ package example_interfaces_action
 import (
 	"unsafe"
 
-	"github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
+	builtin_interfaces_msg "github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
