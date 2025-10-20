@@ -21,3 +21,5 @@ _obj
 cgo-flags.env
 scripts/*
 /scripts/*
+/CLAUDE.md
+/TODO.md

@@ -10,6 +10,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 package rclgo
 
 /*
+#cgo LDFLAGS: -lrcl_yaml_param_parser
 #include <stdlib.h>
 #include <string.h>
 
@@ -21,6 +22,7 @@ package rclgo
 #include <rcl/timer.h>
 #include <rcl/expand_topic_name.h>
 #include <rcl_action/wait.h>
+#include <rcl_yaml_param_parser/parser.h>
 #include <rmw/rmw.h>
 
 // Cast enums on the C side to avoid cgo typedef mismatches in this package.
@@ -174,6 +176,28 @@ func (a *Args) argc() C.int {
 func (a *Args) argv() **C.char {
 	s := (*reflect.SliceHeader)(unsafe.Pointer(&a.unparsed))
 	return (**C.char)(unsafe.Pointer(s.Data))
+}
+
+// Parsed returns a pointer to the parsed RCL arguments structure.
+// This is primarily used internally and by the params package for extracting
+// parameter overrides.
+func (a *Args) Parsed() unsafe.Pointer {
+	return unsafe.Pointer(&a.parsed)
+}
+
+// GetParamOverrides safely extracts parameter overrides from ROS arguments.
+// This method performs the CGO call here (where Args is defined) to avoid
+// CGO pointer safety issues when passing pointers across package boundaries.
+// Returns an unsafe.Pointer to rcl_params_t that must be freed by the caller
+// using rcl_yaml_node_struct_fini.
+func (a *Args) GetParamOverrides() (unsafe.Pointer, error) {
+	var cparams *C.rcl_params_t
+	rc := C.rcl_arguments_get_param_overrides(&a.parsed, &cparams)
+	runtime.KeepAlive(a)
+	if rc != C.RCL_RET_OK {
+		return nil, errorsCastC(rc, "rcl_arguments_get_param_overrides")
+	}
+	return unsafe.Pointer(cparams), nil
 }
 
 func (a *Args) String() string {
@@ -519,7 +543,6 @@ func (p *Publisher) Publish(ros2msg types.Message) error {
 	ptr := p.typeSupport.PrepareMemory()
 	defer p.typeSupport.ReleaseMemory(ptr)
 	p.typeSupport.AsCStruct(ptr, ros2msg)
-
 	rc = C.rcl_publish(p.rcl_publisher_t, ptr, nil)
 	if rc != C.RCL_RET_OK {
 		return errorsCastC(rc, fmt.Sprintf("rcl_publish() failed for publisher '%+v'", p))

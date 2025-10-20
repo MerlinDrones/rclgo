@@ -52,5 +52,6 @@ go run ./cmd/rclgo-gen generate \
   --include-package service_msgs \
   --include-package lifecycle_msgs \
   --include-package rosgraph_msgs \
+  --include-package px4_msgs \
   --ignore-ros-distro-mismatch
 

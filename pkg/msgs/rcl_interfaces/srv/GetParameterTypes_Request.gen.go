@@ -6,7 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo"
-	"github.com/merlindrones/rclgo/pkg/rclgo/primitives"
+	primitives "github.com/merlindrones/rclgo/pkg/rclgo/primitives"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )

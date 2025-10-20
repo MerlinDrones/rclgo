@@ -5,7 +5,7 @@ package sensor_msgs_srv
 import (
 	"unsafe"
 
-	"github.com/merlindrones/rclgo/pkg/msgs/sensor_msgs/msg"
+	sensor_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/sensor_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"

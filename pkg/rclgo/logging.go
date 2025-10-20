@@ -113,15 +113,24 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 		return nil
 	}
 	loggingInitialized = true
-	rc := C.rcl_logging_configure_with_output_handler(
+
+	// Use rcl_logging_configure instead of rcl_logging_configure_with_output_handler
+	// to ensure proper initialization of the logging backend (including filesystem logging).
+	// The default output handler will automatically call rcl_logging_multiple_output_handler,
+	// which handles both console and filesystem output.
+	rc := C.rcl_logging_configure(
 		&rclArgs.parsed,
 		loggingAllocator,
-		(*[0]byte)(C.loggingOutputHandler),
 	)
 	runtime.KeepAlive(rclArgs)
 	if rc != C.RCL_RET_OK {
-		return errorsCastC(rc, "rclInitLogging -> rcl_logging_configure_with_output_handler()")
+		return errorsCastC(rc, "rclInitLogging -> rcl_logging_configure()")
 	}
+
+	// Now set our custom output handler wrapper which allows for Go-level customization
+	// while still delegating to the default RCL handler that writes to files.
+	C.rcutils_logging_set_output_handler((*[0]byte)(C.loggingOutputHandler))
+
 	return nil
 }
 

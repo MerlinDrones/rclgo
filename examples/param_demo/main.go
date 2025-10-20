@@ -34,14 +34,20 @@ func parseParamsFile(args []string) (string, []string) {
 }
 
 func main() {
-	// Init global context (uses default options)
-	if err := rclgo.Init(nil); err != nil {
+	// Parse ROS arguments (including parameter overrides like -p param:=value)
+	rclArgs, restArgs, err := rclgo.ParseArgs(os.Args[1:])
+	if err != nil {
+		log.Fatalf("ParseArgs: %v", err)
+	}
+
+	// Init global context
+	if err := rclgo.Init(rclArgs); err != nil {
 		log.Fatalf("rclgo.Init: %v", err)
 	}
 	defer rclgo.Uninit()
 
-	// Parse an optional --params-file before creating the node.
-	paramsPath, _ := parseParamsFile(os.Args[1:])
+	// Parse an optional --params-file from remaining args
+	paramsPath, _ := parseParamsFile(restArgs)
 
 	n, err := rclgo.NewNode("param_demo", "")
 	if err != nil {
@@ -91,6 +97,13 @@ func main() {
 		params.Value{Kind: params.KindString, Str: "dev"},
 		params.Descriptor{ReadOnly: true, Description: "Build commit SHA"},
 	)
+
+	// Apply CLI parameter overrides (e.g., --ros-args -p camera.fps:=30)
+	if err := params.ApplyOverrides(mgr, n.Name(), rclArgs); err != nil {
+		log.Printf("[param_demo] ApplyOverrides: %v", err)
+	} else {
+		log.Printf("[param_demo] Applied CLI parameter overrides")
+	}
 
 	// Maintain local copies for hot paths
 	var fps int64 = 15
