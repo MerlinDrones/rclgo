@@ -107,6 +107,34 @@ git cherry-pick --abort
 
 ---
 
+### `local-ci.sh`
+
+**Run all CI checks locally before pushing** (recommended workflow).
+
+**Usage**:
+```bash
+source /opt/ros/humble/setup.bash
+./scripts/local-ci.sh
+```
+
+**What it checks**:
+- Code formatting (`go fmt`)
+- Go vet (common mistakes)
+- Build (`go build ./...`)
+- Tests (`go test ./...`)
+- Linting (`golangci-lint`, if installed)
+- Example builds
+
+**Why use this**:
+- Catch issues before pushing
+- Faster than waiting for CI
+- Works with your local ROS environment
+- Mirrors what would fail in review
+
+**Run before every PR!**
+
+---
+
 ### `test-all-distros.sh`
 
 Test rclgo on all supported ROS 2 distros using Docker.

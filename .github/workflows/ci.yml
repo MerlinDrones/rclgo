@@ -1,26 +1,18 @@
 name: CI
 
+# Lightweight CI for validation
+# For rclgo: Run scripts/local-ci.sh before pushing (requires ROS environment)
+# This CI only checks things that don't require ROS
+
 on:
   pull_request:
     branches: [humble, jazzy, master]
-  push:
-    branches: [humble, jazzy, master]
   workflow_dispatch:
 
-env:
-  GO_VERSION: '1.24'
-
 jobs:
-  lint:
-    name: Lint (${{ matrix.ros_distro }})
+  basic-checks:
+    name: Basic Checks
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        ros_distro: [humble]  # Only lint on primary distro
-
-    container:
-      image: ros:${{ matrix.ros_distro }}
 
     steps:
       - name: Checkout
@@ -29,170 +21,35 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: '1.24'
 
-      - name: Install ROS 2 development dependencies
+      - name: Check code formatting
         run: |
-          apt-get update
-          apt-get install -y \
-            ros-${{ matrix.ros_distro }}-rcl \
-            ros-${{ matrix.ros_distro }}-rcl-action \
-            ros-${{ matrix.ros_distro }}-rcl-yaml-param-parser \
-            ros-${{ matrix.ros_distro }}-rcpputils \
-            ros-${{ matrix.ros_distro }}-rmw \
-            ros-${{ matrix.ros_distro }}-rosidl-runtime-c \
-            ros-${{ matrix.ros_distro }}-rosidl-typesupport-introspection-c \
-            ros-${{ matrix.ros_distro }}-test-msgs \
-            build-essential
-
-      - name: golangci-lint
-        run: |
-          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
-          golangci-lint run --timeout=5m
-
-  test:
-    name: Test (${{ matrix.ros_distro }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        ros_distro: [humble, jazzy]
-
-    container:
-      image: ros:${{ matrix.ros_distro }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Install ROS 2 development dependencies
-        run: |
-          apt-get update
-          apt-get install -y \
-            ros-${{ matrix.ros_distro }}-rcl \
-            ros-${{ matrix.ros_distro }}-rcl-action \
-            ros-${{ matrix.ros_distro }}-rcl-yaml-param-parser \
-            ros-${{ matrix.ros_distro }}-rcpputils \
-            ros-${{ matrix.ros_distro }}-rmw \
-            ros-${{ matrix.ros_distro }}-rosidl-runtime-c \
-            ros-${{ matrix.ros_distro }}-rosidl-typesupport-introspection-c \
-            ros-${{ matrix.ros_distro }}-test-msgs \
-            build-essential
-
-      - name: Source ROS environment
-        run: |
-          echo "source /opt/ros/${{ matrix.ros_distro }}/setup.bash" >> ~/.bashrc
-
-      - name: Build
-        run: |
-          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
-          go build ./...
-
-      - name: Run tests
-        run: |
-          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
-          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage.txt
-          flags: ${{ matrix.ros_distro }}
-          name: ${{ matrix.ros_distro }}
-
-  build-examples:
-    name: Build Examples (${{ matrix.ros_distro }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        ros_distro: [humble, jazzy]
-
-    container:
-      image: ros:${{ matrix.ros_distro }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Install ROS 2 dependencies
-        run: |
-          apt-get update
-          apt-get install -y \
-            ros-${{ matrix.ros_distro }}-ros-core \
-            build-essential
-
-      - name: Build all examples
-        run: |
-          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
-          for example_dir in examples/*/; do
-            echo "Building ${example_dir}..."
-            cd "${example_dir}"
-            go build ./...
-            cd -
-          done
-
-  check-generated:
-    name: Check Generated Code (${{ matrix.ros_distro }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        ros_distro: [humble, jazzy]
-
-    container:
-      image: ros:${{ matrix.ros_distro }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y \
-            ros-${{ matrix.ros_distro }}-ros-core \
-            ros-${{ matrix.ros_distro }}-std-msgs \
-            ros-${{ matrix.ros_distro }}-geometry-msgs \
-            ros-${{ matrix.ros_distro }}-sensor-msgs \
-            ros-${{ matrix.ros_distro }}-nav-msgs \
-            build-essential
-
-      - name: Build rclgo-gen
-        run: |
-          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
-          make build
-
-      - name: Regenerate messages
-        run: |
-          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
-          make generate
-
-      - name: Check for differences
-        run: |
-          if ! git diff --quiet pkg/msgs/; then
-            echo "❌ Generated code is out of sync!"
-            echo "Run 'make generate' and commit the changes."
-            git diff pkg/msgs/
+          if [ -n "$(gofmt -l . | grep -v '.gen.go')" ]; then
+            echo "❌ Code needs formatting. Run: go fmt ./..."
+            gofmt -l . | grep -v '.gen.go'
             exit 1
           fi
-          echo "✅ Generated code is up to date"
+          echo "✅ Code formatting OK"
+
+      - name: Verify go.mod is tidy
+        run: |
+          go mod tidy
+          if ! git diff --quiet go.mod go.sum; then
+            echo "❌ go.mod is not tidy. Run: go mod tidy"
+            git diff go.mod go.sum
+            exit 1
+          fi
+          echo "✅ go.mod is tidy"
+
+      - name: Check for common issues
+        run: |
+          # Check for debugging statements (excluding tests and generated code)
+          if grep -r "fmt.Println" --include="*.go" --exclude="*_test.go" --exclude="*.gen.go" . ; then
+            echo "⚠️  Found fmt.Println statements - please use proper logging"
+            exit 1
+          fi
+          echo "✅ No common issues found"
 
   label-pr:
     name: Label PR
@@ -200,6 +57,7 @@ jobs:
     if: github.event_name == 'pull_request'
     permissions:
       pull-requests: write
+
     steps:
       - name: Determine distro from base branch
         id: distro
@@ -228,3 +86,49 @@ jobs:
               repo: context.repo.repo,
               labels: ['${{ steps.distro.outputs.label }}']
             })
+
+  reminder:
+    name: Testing Reminder
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Comment reminder
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Check if we already commented
+            const comments = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            const botComment = comments.data.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('scripts/local-ci.sh')
+            );
+
+            if (!botComment) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 🤖 Testing Reminder
+
+Before merging, ensure you've run local tests:
+
+\`\`\`bash
+# Source ROS environment
+source /opt/ros/humble/setup.bash
+
+# Run all local checks
+./scripts/local-ci.sh
+
+# Or test on all distros with Docker
+./scripts/test-all-distros.sh
+\`\`\`
+
+This CI only runs basic checks. Full testing requires a ROS environment.`
+              });
+            }

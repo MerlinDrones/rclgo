@@ -25,6 +25,7 @@ scripts/*
 !/scripts/git-rclgo.sh
 !/scripts/sync-feature.sh
 !/scripts/test-all-distros.sh
+!/scripts/local-ci.sh
 !/scripts/README.md
 /CLAUDE.md
 /TODO.md
