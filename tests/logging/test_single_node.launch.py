@@ -18,8 +18,9 @@ from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
-    # Get the directory of this launch file
-    launch_dir = Path(__file__).parent
+    # Get the directory of this launch file (ensure absolute path)
+    launch_file = Path(__file__).resolve()
+    launch_dir = launch_file.parent
     config_dir = launch_dir / 'config'
 
     # Declare launch arguments
@@ -31,7 +32,7 @@ def generate_launch_description():
 
     params_file_arg = DeclareLaunchArgument(
         'params_file',
-        default_value=str(config_dir / 'params.yaml'),
+        default_value=str((config_dir / 'params.yaml').resolve()),
         description='Path to parameter file'
     )
 
@@ -46,8 +47,8 @@ def generate_launch_description():
     params_file = LaunchConfiguration('params_file')
     use_realtime_logging = LaunchConfiguration('use_realtime_logging')
 
-    # Determine the executable path (relative to rclgo root)
-    rclgo_root = Path(__file__).parent.parent.parent
+    # Determine the executable path (absolute path to rclgo root)
+    rclgo_root = launch_file.parent.parent.parent
     param_demo_exe = rclgo_root / 'examples' / 'param_demo' / 'param_demo'
 
     if not param_demo_exe.exists():
