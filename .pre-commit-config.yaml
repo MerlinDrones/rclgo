@@ -1,0 +1,102 @@
+# Pre-commit hooks for rclgo
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '^(.*\.md|.*\.patch)$'
+      - id: end-of-file-fixer
+        exclude: '^(pkg/msgs/.*\.gen\.go)$'
+      - id: check-yaml
+        args: ['--unsafe']  # Allow custom YAML tags in ROS launch files
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+
+  # Prevent commits to protected branches
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: no-commit-to-branch
+        name: Protect main branches
+        args: ['--branch', 'humble', '--branch', 'jazzy', '--branch', 'master']
+        stages: [commit]
+
+  # Go formatting
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+        name: go fmt
+        description: Run 'go fmt' to format Go code
+        exclude: '^(pkg/msgs/.*\.gen\.go)$'
+
+      - id: go-vet
+        name: go vet
+        description: Run 'go vet' to check for common mistakes
+
+      - id: go-build
+        name: go build
+        description: Ensure code compiles
+        args: ['./...']
+        pass_filenames: false
+
+  # Go linting (requires golangci-lint installed)
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.55.2
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        description: Run golangci-lint
+        args: ['--timeout=5m']
+        exclude: '^(pkg/msgs/.*\.gen\.go)$'
+
+  # Custom local hooks
+  - repo: local
+    hooks:
+      # Fast tests before commit
+      - id: go-test-short
+        name: go test (fast)
+        entry: bash -c 'source /opt/ros/humble/setup.bash 2>/dev/null || true; go test -short ./pkg/... -timeout 30s'
+        language: system
+        pass_filenames: false
+        files: '\.go$'
+        exclude: '^(pkg/msgs/.*\.gen\.go)$'
+
+      # Check for common debugging artifacts
+      - id: check-debug-statements
+        name: Check for debug statements
+        entry: bash -c 'if grep -rn "fmt\.Println\|TODO:\|FIXME:\|XXX:" --include="*.go" --exclude-dir=pkg/msgs .; then echo "Found debug statements or TODOs - please review"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        files: '\.go$'
+        exclude: '^(pkg/msgs/.*\.gen\.go|.*_test\.go)$'
+        stages: [manual]  # Only run when explicitly requested
+
+      # Warn if modifying CGO code
+      - id: cgo-warning
+        name: CGO change warning
+        entry: bash -c 'echo "⚠️  You modified CGO code. Remember to test on all ROS distros (humble, jazzy)!"'
+        language: system
+        files: '\.(go|h|c)$'
+        stages: [commit]
+        verbose: true
+
+# Configuration
+default_language_version:
+  python: python3
+
+fail_fast: false  # Run all hooks even if one fails
+
+# Skip hooks for generated files
+exclude: |
+  (?x)^(
+    pkg/msgs/.*\.gen\.go|
+    .*\.pb\.go|
+    vendor/.*
+  )$

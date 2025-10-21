@@ -21,5 +21,10 @@ _obj
 cgo-flags.env
 scripts/*
 /scripts/*
+# Allow git helper scripts
+!/scripts/git-rclgo.sh
+!/scripts/sync-feature.sh
+!/scripts/test-all-distros.sh
+!/scripts/README.md
 /CLAUDE.md
 /TODO.md

@@ -1,0 +1,112 @@
+name: Sync Helper
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [humble, jazzy]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  suggest-sync:
+    name: Suggest Cross-Distro Sync
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine if sync is needed
+        id: check
+        run: |
+          BASE_BRANCH="${{ github.base_ref }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_LABELS="${{ join(github.event.pull_request.labels.*.name, ',') }}"
+
+          # Check if PR is already a sync PR (don't create recursive sync suggestions)
+          if [[ "$PR_TITLE" =~ ^sync: ]] || [[ "$PR_LABELS" =~ distro-specific ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "This is a sync or distro-specific PR, skipping suggestion"
+            exit 0
+          fi
+
+          # Determine target distros based on base branch
+          case "$BASE_BRANCH" in
+            humble)
+              echo "target_distros=jazzy" >> $GITHUB_OUTPUT
+              echo "skip=false" >> $GITHUB_OUTPUT
+              ;;
+            jazzy)
+              echo "target_distros=humble" >> $GITHUB_OUTPUT
+              echo "skip=false" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "skip=true" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Comment on PR with sync suggestion
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const baseRef = '${{ github.base_ref }}';
+            const targetDistros = '${{ steps.check.outputs.target_distros }}';
+            const prNumber = context.issue.number;
+            const prTitle = '${{ github.event.pull_request.title }}';
+
+            const comment = `## 🔄 Cross-Distro Sync Suggestion
+
+This PR was merged to \`${baseRef}\`. Consider porting it to: **${targetDistros}**
+
+### How to sync:
+
+\`\`\`bash
+# Checkout target distro
+git checkout ${targetDistros}
+git pull origin ${targetDistros}
+
+# Create sync branch
+git checkout -b sync/${baseRef}-to-${targetDistros}/${prNumber}
+
+# Cherry-pick commits from this PR (adjust commit range as needed)
+git cherry-pick <commit-range>
+
+# Test on ${targetDistros}
+source /opt/ros/${targetDistros}/setup.bash
+make test
+
+# Push and create PR
+git push -u origin sync/${baseRef}-to-${targetDistros}/${prNumber}
+gh pr create --base ${targetDistros} --title "sync: ${prTitle} from ${baseRef}"
+\`\`\`
+
+### Or use the helper script:
+
+\`\`\`bash
+./scripts/sync-feature.sh ${baseRef} ${targetDistros} <commit-range>
+\`\`\`
+
+---
+
+If this feature is **distro-specific** and doesn't need syncing, you can ignore this message or add the \`distro-specific\` label to future PRs.`;
+
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+            // Add needs-sync label
+            github.rest.issues.addLabels({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['needs-sync']
+            });

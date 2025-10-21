@@ -1,0 +1,208 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [humble, jazzy, master]
+  push:
+    branches: [humble, jazzy, master]
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.24'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
+
+  test:
+    name: Test (${{ matrix.ros_distro }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ros_distro: [humble, jazzy]
+
+    container:
+      image: ros:${{ matrix.ros_distro }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install ROS 2 development dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            ros-${{ matrix.ros_distro }}-rcl \
+            ros-${{ matrix.ros_distro }}-rcl-action \
+            ros-${{ matrix.ros_distro }}-rcl-yaml-param-parser \
+            ros-${{ matrix.ros_distro }}-rcpputils \
+            ros-${{ matrix.ros_distro }}-rmw \
+            ros-${{ matrix.ros_distro }}-rosidl-runtime-c \
+            ros-${{ matrix.ros_distro }}-rosidl-typesupport-introspection-c \
+            ros-${{ matrix.ros_distro }}-test-msgs \
+            build-essential
+
+      - name: Source ROS environment
+        run: |
+          echo "source /opt/ros/${{ matrix.ros_distro }}/setup.bash" >> ~/.bashrc
+
+      - name: Build
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+          go build ./...
+
+      - name: Run tests
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.txt
+          flags: ${{ matrix.ros_distro }}
+          name: ${{ matrix.ros_distro }}
+
+  build-examples:
+    name: Build Examples (${{ matrix.ros_distro }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ros_distro: [humble, jazzy]
+
+    container:
+      image: ros:${{ matrix.ros_distro }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install ROS 2 dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            ros-${{ matrix.ros_distro }}-ros-core \
+            build-essential
+
+      - name: Build all examples
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+          for example_dir in examples/*/; do
+            echo "Building ${example_dir}..."
+            cd "${example_dir}"
+            go build ./...
+            cd -
+          done
+
+  check-generated:
+    name: Check Generated Code (${{ matrix.ros_distro }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ros_distro: [humble, jazzy]
+
+    container:
+      image: ros:${{ matrix.ros_distro }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            ros-${{ matrix.ros_distro }}-ros-core \
+            ros-${{ matrix.ros_distro }}-std-msgs \
+            ros-${{ matrix.ros_distro }}-geometry-msgs \
+            ros-${{ matrix.ros_distro }}-sensor-msgs \
+            ros-${{ matrix.ros_distro }}-nav-msgs \
+            build-essential
+
+      - name: Build rclgo-gen
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+          make build
+
+      - name: Regenerate messages
+        run: |
+          source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+          make generate
+
+      - name: Check for differences
+        run: |
+          if ! git diff --quiet pkg/msgs/; then
+            echo "❌ Generated code is out of sync!"
+            echo "Run 'make generate' and commit the changes."
+            git diff pkg/msgs/
+            exit 1
+          fi
+          echo "✅ Generated code is up to date"
+
+  label-pr:
+    name: Label PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Determine distro from base branch
+        id: distro
+        run: |
+          BASE_BRANCH="${{ github.base_ref }}"
+          case "$BASE_BRANCH" in
+            humble)
+              echo "label=distro:humble" >> $GITHUB_OUTPUT
+              ;;
+            jazzy)
+              echo "label=distro:jazzy" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "label=" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Add distro label
+        if: steps.distro.outputs.label != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['${{ steps.distro.outputs.label }}']
+            })
