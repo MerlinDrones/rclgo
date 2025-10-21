@@ -1,6 +1,9 @@
 package rclgo
 
-// #include <rcl/logging.h>
+/*
+#include <rcl/logging.h>
+#include <stdio.h>
+*/
 import "C"
 import "unsafe"
 
@@ -54,6 +57,13 @@ func DefaultLoggingOutputHandler(
 		(*C.char)(format),
 		(*C.va_list)(args),
 	)
+
+	// If realtime logging is enabled, flush stdout and stderr immediately
+	// to ensure logs are written without buffering delays.
+	if realtimeLogging {
+		C.fflush(C.stdout)
+		C.fflush(C.stderr)
+	}
 }
 
 //export loggingOutputHandler
