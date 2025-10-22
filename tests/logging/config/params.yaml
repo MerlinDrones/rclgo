@@ -1,0 +1,27 @@
+# Test parameter configuration for logging validation
+# This file tests that YAML parameters are correctly loaded by nodes
+
+param_demo:
+  ros__parameters:
+    # Camera parameters
+    camera.fps: 30
+    camera.frame_id: "test_camera"
+    camera.exposure: 0.015
+
+    # Build info
+    build.git_sha: "test_build_abc123"
+
+    # Use sim time for testing
+    use_sim_time: false
+
+publisher:
+  ros__parameters:
+    # Test parameters for publisher node
+    message_data: "hello from yaml"
+    publish_rate: 2.0
+    use_sim_time: false
+
+subscriber:
+  ros__parameters:
+    # Test parameters for subscriber node
+    use_sim_time: false

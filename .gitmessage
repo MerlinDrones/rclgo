@@ -1,0 +1,25 @@
+# type(scope): brief description
+#
+# Longer description if needed. Explain the "why", not the "what".
+#
+# Commit messages must follow Conventional Commits format:
+# type(scope): description
+#
+# Types:
+#   feat:     New feature
+#   fix:      Bug fix
+#   docs:     Documentation changes
+#   style:    Code style changes (formatting, etc.)
+#   refactor: Code refactoring
+#   test:     Adding or updating tests
+#   chore:    Maintenance tasks
+#   perf:     Performance improvements
+#   ci:       CI/CD changes
+#   build:    Build system changes
+#   revert:   Revert previous commit
+#
+# Examples:
+#   feat(skyhook): add orbit mode for circular paths
+#   fix(operator): resolve memory leak in message routing
+#   docs(readme): update build instructions for ROS 2
+#   chore(deps): update go dependencies

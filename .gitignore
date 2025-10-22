@@ -23,3 +23,23 @@ scripts/*
 /scripts/*
 /CLAUDE.md
 /TODO.md
+examples/param_demo/param_demo
+examples/*/publisher
+examples/*/subscriber
+**/__pycache__/
+
+# Local AI context (per-developer)
+/.aicontext.md
+
+# Python cache
+**/__pycache__/
+*.pyc
+
+# ROS 2 build artifacts
+build/
+install/
+log/
+
+# Go workspace (managed at parent directory level)
+go.work
+go.work.sum
