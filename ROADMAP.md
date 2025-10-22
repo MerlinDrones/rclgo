@@ -24,14 +24,16 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 * ☑ CLI compatibility: `ros2 param get/set/list/describe/undeclare` works against rclgo nodes
 * ☑ YAML preload loader (`params.LoadYAML`)
 * ☑ CLI parameter overrides (`--ros-args -p name:=value`)
-* ☐ **TODO**: Environment variable overrides (e.g., `RCL_PARAM_name=value`)
+* ☑ Environment variable overrides (`RCL_PARAM_name=value`)
 * **Definition of Done**:
   Parameters can be declared/undeclared, described, loaded from YAML.
   CLI interop passes (`ros2 param`).
   Event topic emits on declare/set/undeclare.
   Constraints and OnSet callbacks enforced.
-  CLI overrides work like rclcpp/rclpy. Env var overrides remain for future work.
-* **Status**: CLI parameter overrides complete (✅). Only env var overrides remain for full parity.
+  CLI overrides work like rclcpp/rclpy.
+  Environment variable overrides work like rclcpp/rclpy.
+  Priority order verified: CLI > Env Vars > YAML > Defaults.
+* **Status**: ✅ **COMPLETE** - Full parameter API parity achieved.
 
 ### \[P0] Actions (client & server)
 
@@ -134,7 +136,7 @@ Checkbox key: ☐ not started · ◐ in progress · ⚙ needs design · ☑ done
 
 # Milestones & Sequencing
 
-1. **M1 (Foundations)**: ✅ Parameters (CLI overrides ✅), ✅ QoS validation, ✅ ROS Time
+1. **M1 (Foundations)**: ✅ **COMPLETE** - Parameters (full parity), ✅ QoS validation, ✅ ROS Time
 2. **M2 (Core interop)**: ☐ Actions, ☐ Lifecycle, ☐ Services async/cancel
 3. **M3 (Concurrency)**: ☐ Executors + callback groups
 4. **M4 (Ecosystem)**: ☐ Graph/discovery, ⚠️ logging parity (core done, param integration pending)
