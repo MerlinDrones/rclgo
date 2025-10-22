@@ -30,3 +30,12 @@ examples/*/subscriber
 
 # Local AI context (per-developer)
 /.aicontext.md
+
+# Python cache
+**/__pycache__/
+*.pyc
+
+# ROS 2 build artifacts
+build/
+install/
+log/

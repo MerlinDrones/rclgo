@@ -1,5 +1,7 @@
 # Parameters in rclgo (Humble)
 
+> **Note**: This is a quick reference guide. For comprehensive documentation including all parameter sources (CLI, environment variables, YAML, defaults) and priority ordering, see [`pkg/rclgo/params/README.md`](../pkg/rclgo/params/README.md).
+
 This doc explains how to declare, read, update, and undeclare parameters in **rclgo**, and how they interact with ROS 2 tools.
 
 ## Quick start
@@ -41,7 +43,11 @@ ros2 param set /param_demo camera.fps 30
 * **Validation**: Per-parameter descriptor bounds are checked (`MinInt`, `MaxInt`, `AllowedStrings`, etc.); add cross-field validation in `OnSet`.
 * **Descriptors**: `DescribeParameters` now includes type, description, read-only, and constraint metadata.
 * **Undeclare**: Parameters can be removed with the `Undeclare` service.
-* **YAML preload**: `params.LoadYAML(mgr, nodeName, filePath)` loads parameters from a ROS 2 style YAML file at startup.
+* **Parameter Sources**: Full support for all parameter sources with priority order:
+  - **CLI overrides**: `--ros-args -p param:=value` (highest priority)
+  - **Environment variables**: `RCL_PARAM_name=value`
+  - **YAML files**: `params.LoadYAML(mgr, nodeName, filePath)`
+  - **Defaults**: `mgr.Declare(name, defaultValue, descriptor)` (lowest priority)
 * **Threading**: Reads from your own goroutines should copy values into local fields; the manager itself is thread-safe.
 * **Events**: `/parameter_events` emits on declare, set, and undeclare.
 * **QoS**: QoS profiles for parameter events/services align with `rclcpp` defaults (transient local, reliable).
@@ -61,8 +67,8 @@ ros2 param set /param_demo camera.fps 30
 * `/parameter_events` emits on declare, set, and undeclare.
 * YAML files can preload parameters successfully.
 
-## Remaining roadmap
+## Status
 
-* **SetParametersAtomically**: service endpoint with transactional semantics.
-* **Node-scoped service names**: switch to fully qualified names for multi-node processes.
-* **Time sources**: parameter event stamps use system time for now; switchable clocks will be supported once rclgo `Clock`/`TimeSource` are available.
+✅ **Full rclcpp/rclpy parameter parity achieved** (as of v0.5.0)
+
+See [`ROADMAP.md`](../ROADMAP.md) for implementation status and future enhancements.
