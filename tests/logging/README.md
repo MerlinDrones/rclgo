@@ -240,15 +240,33 @@ Use this checklist to systematically validate all scenarios:
 
 ### `RCLGO_REALTIME_LOGGING`
 
-When set to `1`, enables realtime (unbuffered) logging for development:
-- Logs are flushed immediately to stdout/stderr
-- No buffering delays
-- Useful for debugging crashes (ensures all logs written)
+When set to `1`, enables realtime console output for development:
+- Console logs (stdout/stderr) are flushed immediately after each message
+- No console buffering delays
+- Useful for debugging and live monitoring
+- **File logging** still buffered by RCL backend (spdlog)
 
 **Usage:**
 ```bash
 RCLGO_REALTIME_LOGGING=1 ./param_demo
 RCLGO_REALTIME_LOGGING=1 ros2 launch test_single_node.launch.py
+```
+
+⚠️ **PRODUCTION WARNING:**
+```
+DO NOT use RCLGO_REALTIME_LOGGING=1 in production!
+
+- Impacts performance due to frequent flush operations
+- Buffered logging (default) is significantly faster
+- Production should use default buffered mode
+- Logs are guaranteed to flush on clean shutdown (rclgo.Uninit())
+
+Use realtime logging ONLY for:
+✓ Local development
+✓ Debugging crashes
+✓ Live log monitoring with tail -f
+✗ Production deployments
+✗ Performance-critical applications
 ```
 
 ### `ROS_LOG_DIR`
