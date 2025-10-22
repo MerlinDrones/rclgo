@@ -1,5 +1,53 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+- **params**: add environment variable parameter support (`RCL_PARAM_*`)
+  - Scan environment for `RCL_PARAM_name=value` variables
+  - Automatic type inference from string values
+  - Support for scalar and array types with bracket syntax `[1,2,3]`
+  - Follows ROS 2 standard pattern matching rclcpp/rclpy
+- **params**: complete parameter priority system
+  - Priority order: CLI > Env Vars > YAML > Defaults
+  - YAML loader now sets existing parameters instead of failing
+  - Full integration testing for all priority combinations
+
+### Testing
+- **params**: add comprehensive CLI parameter override tests
+  - Test scalar types (bool, int, double, string)
+  - Test array types (bool[], int[], double[], string[])
+  - Test wildcard node matching (/**)
+  - Test integration with YAML loading
+  - Test nil/empty args edge cases
+- **params**: add environment variable parameter tests
+  - Test scalar and array type inference
+  - Test type detection from existing parameters
+  - Test dot notation in parameter names
+  - Test empty environment (no-op case)
+- **params**: add parameter source priority integration tests
+  - Test complete priority chain (CLI > Env > YAML > Defaults)
+  - Test partial overrides from different sources
+  - Test realistic usage patterns with all sources
+
+### Documentation
+- **ROADMAP**: mark parameters API as 100% complete with full parity
+  - Environment variable overrides complete
+  - M1 (Foundations) milestone fully complete
+- **params**: add comprehensive package README
+  - Complete API documentation with examples
+  - Document all parameter sources (defaults, env vars, YAML, CLI)
+  - Priority order examples and best practices
+  - ROS 2 CLI interaction examples
+  - Parameter constraints and OnSet callbacks
+- **param_demo**: enhance README with environment variable examples
+  - Document all parameter source combinations
+  - Add priority order examples
+  - Include expected output and usage patterns
+
+### Status
+- ✅ **Parameters API: COMPLETE** - Full rclcpp/rclpy parity achieved
+
 ## [v0.4.1] – 2025-10-19
 
 ### Features

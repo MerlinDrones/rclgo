@@ -98,7 +98,13 @@ func main() {
 		params.Descriptor{ReadOnly: true, Description: "Build commit SHA"},
 	)
 
+	// Apply environment variables (e.g., RCL_PARAM_camera.fps=30)
+	if err := params.ApplyEnvVars(mgr); err != nil {
+		log.Printf("[param_demo] ApplyEnvVars: %v", err)
+	}
+
 	// Apply CLI parameter overrides (e.g., --ros-args -p camera.fps:=30)
+	// CLI overrides have highest priority
 	if err := params.ApplyOverrides(mgr, n.Name(), rclArgs); err != nil {
 		log.Printf("[param_demo] ApplyOverrides: %v", err)
 	} else {
