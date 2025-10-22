@@ -27,3 +27,6 @@ examples/param_demo/param_demo
 examples/*/publisher
 examples/*/subscriber
 **/__pycache__/
+
+# Local AI context (per-developer)
+/.aicontext.md
