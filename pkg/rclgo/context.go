@@ -125,6 +125,10 @@ func Uninit() (err error) {
 		err = defaultContext.Close()
 		defaultContext = nil
 	}
+	// Finalize logging system to flush all buffered logs
+	if loggingErr := FiniLogging(); loggingErr != nil {
+		err = errors.Join(err, loggingErr)
+	}
 	return
 }
 

@@ -11,6 +11,7 @@ package rclgo
 
 /*
 #include <rcl/logging.h>
+#include <stdio.h>
 
 const rcutils_log_location_t zero_location = {
     .function_name = "",
@@ -41,6 +42,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"runtime"
 	"strings"
@@ -104,6 +106,9 @@ var (
 		*alloc = C.rcl_get_default_allocator()
 		return alloc
 	}()
+	// realtimeLogging enables unbuffered, immediate flush logging when true.
+	// Set via RCLGO_REALTIME_LOGGING=1 environment variable.
+	realtimeLogging = false
 )
 
 func rclInitLogging(rclArgs *Args, update bool) error {
@@ -113,6 +118,11 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 		return nil
 	}
 	loggingInitialized = true
+
+	// Check environment variable for realtime logging mode
+	if os.Getenv("RCLGO_REALTIME_LOGGING") == "1" {
+		realtimeLogging = true
+	}
 
 	// Use rcl_logging_configure instead of rcl_logging_configure_with_output_handler
 	// to ensure proper initialization of the logging backend (including filesystem logging).
@@ -132,6 +142,29 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 	C.rcutils_logging_set_output_handler((*[0]byte)(C.loggingOutputHandler))
 
 	return nil
+}
+
+// FiniLogging finalizes the logging system and flushes all buffered log messages.
+// This should be called before program termination to ensure all logs are written.
+func FiniLogging() error {
+	loggingMutex.Lock()
+	defer loggingMutex.Unlock()
+	if !loggingInitialized {
+		return nil
+	}
+	rc := C.rcl_logging_fini()
+	if rc != C.RCL_RET_OK {
+		return errorsCastC(rc, "rcl_logging_fini()")
+	}
+	loggingInitialized = false
+	return nil
+}
+
+// IsRealtimeLogging returns true if realtime (unbuffered) logging is enabled.
+func IsRealtimeLogging() bool {
+	loggingMutex.Lock()
+	defer loggingMutex.Unlock()
+	return realtimeLogging
 }
 
 var rcutilsLogFormat = C.CString("%s")
