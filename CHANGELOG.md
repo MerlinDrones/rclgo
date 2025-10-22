@@ -1,5 +1,39 @@
 # Changelog
 
+## [v0.5.0] – 2025-10-22
+
+### Features
+- merge params
+- **param_demo**: add environment variable support
+- **params**: add environment variable parameter support (RCL_PARAM_*)
+- **logging**: merge logging improvements from feature/logging
+- **logging**: add realtime logging support and fix log flush on exit
+
+### Bug Fixes
+- **tests**: resolve absolute paths in launch file for ExecuteProcess
+
+### Documentation
+- **CHANGELOG**: add unreleased section for params feature completion
+- **params**: add comprehensive documentation and usage examples
+- **ROADMAP**: mark parameters as complete with full parity
+- **logging**: add comprehensive logging improvements summary
+- **tests**: finalize test results and add production warnings
+
+### Tests
+- **params**: add priority integration tests and fix YAML override behavior
+- **params**: add comprehensive tests for CLI parameter overrides
+
+### Build
+- **gen**: regenerate ROS 2 messages
+
+### Chores
+- **gitignore**: ignore go.work files (managed at parent level)
+- bump VERSION to 0.5.0 for v0.5.0
+- **repo**: housekeeping cleanup for v0.5.0 release
+- add commit message template and ignore local AI context
+- Merge tag 'v0.4.1' into humble
+
+
 ## [Unreleased]
 
 ### Features

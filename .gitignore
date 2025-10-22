@@ -39,3 +39,7 @@ examples/*/subscriber
 build/
 install/
 log/
+
+# Go workspace (managed at parent directory level)
+go.work
+go.work.sum
