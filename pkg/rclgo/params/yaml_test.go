@@ -128,20 +128,28 @@ ros__parameters:
 	}
 }
 
-func TestLoadYAML_DuplicateDeclaration(t *testing.T) {
+func TestLoadYAML_OverrideExisting(t *testing.T) {
 	td := t.TempDir()
 	yaml := `
 ros__parameters:
-  k: 1
+  k: 10
 `
-	path := writeTemp(t, td, "dupe.yaml", yaml)
+	path := writeTemp(t, td, "override.yaml", yaml)
 
 	m := &Manager{st: newStore()}
-	// Pre-declare same name to force a duplicate error from LoadYAML
+	// Pre-declare with different value
 	_, _ = m.Declare("k", Value{Kind: KindInt64, Int64: 0}, Descriptor{})
 
+	// LoadYAML should now set the existing parameter instead of erroring
 	err := LoadYAML(m, "node", path)
-	if err == nil || !strings.Contains(err.Error(), "declare k:") {
-		t.Fatalf("expected duplicate declare error, got: %v", err)
+	if err != nil {
+		t.Fatalf("LoadYAML should set existing param, got error: %v", err)
+	}
+
+	// Verify the YAML value was set
+	if p, ok := m.Get("k"); !ok {
+		t.Fatal("parameter k not found")
+	} else if p.Value.Int64 != 10 {
+		t.Errorf("k: got %d, want 10 (YAML should override declared value)", p.Value.Int64)
 	}
 }
