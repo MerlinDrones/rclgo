@@ -185,23 +185,24 @@ func (g *Generator) GenerateCGOFlags() error {
 	PrintErrln("Generating CGO flags:", g.config.CGOFlagsPath)
 	libDirs := stringSet{}
 	includes := stringSet{}
+
 	for _, rootPath := range g.config.RootPaths {
-		libDirs.Add(libDirFlag(rootPath))
+		// Add standard ROS include paths
 		for _, dep := range rclgoROSIncludes {
-			includes.Add(includeDirFlag(rootPath, dep))
+			g.addIncludeAndLibPaths(rootPath, dep, &includes, &libDirs)
 		}
-		for pkgAndType, imports := range g.cImportsByPkgAndType {
+
+		// Add custom package paths
+		for pkgAndType := range g.cImportsByPkgAndType {
 			pkg, _, err := parsePkgAndType(pkgAndType)
 			if err != nil {
 				PrintErrf("Failed to parse package and type from %s: %v\n", pkgAndType, err)
 				continue
 			}
-			includes.Add(includeDirFlag(rootPath, pkg))
-			for imp := range imports {
-				includes.Add(includeDirFlag(rootPath, imp))
-			}
+			g.addIncludeAndLibPaths(rootPath, pkg, &includes, &libDirs)
 		}
 	}
+
 	var err error
 	out := os.Stdout
 	if g.config.CGOFlagsPath != "-" {
@@ -215,6 +216,31 @@ func (g *Generator) GenerateCGOFlags() error {
 		return err
 	}
 	return writeFlagEnv(out, "LDFLAGS", libDirs)
+}
+
+// addIncludeAndLibPaths adds include and lib paths for a package,
+// handling both merged install (install/include/pkg) and isolated install (install/pkg/include/pkg) layouts.
+func (g *Generator) addIncludeAndLibPaths(rootPath, pkg string, includes, libDirs *stringSet) {
+	// Try merged install layout: install/include/pkg
+	mergedInclude := filepath.Join(rootPath, "include", pkg)
+	if _, err := os.Stat(mergedInclude); err == nil {
+		includes.Add(fmt.Sprintf("-I%s", filepath.Join(rootPath, "include", pkg)))
+		// Merged layout uses shared lib dir
+		libDirs.Add(libDirFlag(rootPath))
+		return
+	}
+
+	// Try isolated install layout: install/pkg/include/pkg
+	isolatedInclude := filepath.Join(rootPath, pkg, "include", pkg)
+	if _, err := os.Stat(isolatedInclude); err == nil {
+		includes.Add(fmt.Sprintf("-I%s", isolatedInclude))
+		// Isolated layout has per-package lib dir
+		isolatedLib := filepath.Join(rootPath, pkg, "lib")
+		if _, err := os.Stat(isolatedLib); err == nil {
+			libDirs.Add(fmt.Sprintf("-L%[1]s -Wl,-rpath=%[1]s", isolatedLib))
+		}
+		return
+	}
 }
 
 type rosPkgRef struct {
@@ -359,61 +385,55 @@ func (g *Generator) findPackages() {
 	}
 }
 
-// FindPackagesForCgoFlags scans packages and populates C import dependencies
-// for CGO flags generation without actually generating Go bindings.
-// This is useful for the generate-cgo-flags command.
-func (g *Generator) FindPackagesForCgoFlags() {
-	g.findPackages()
+// FindPackagesForCgoFlags scans include directories to find all ROS packages
+// without parsing any files. This populates the package list for CGO flag generation.
+// Handles both isolated install (install/pkg/include/pkg/) and merged install (install/include/pkg/).
+func (g *Generator) FindPackagesForCgoFlags() error {
+	packages := stringSet{}
 
-	// If include-package filters are specified, scan those packages
-	if len(g.config.RegexIncludes) > 0 {
-		for pkg := range g.allPkgs {
-			if g.config.RegexIncludes.Includes(pkg) {
-				// Parse interfaces to populate cImportsByPkgAndType
-				g.scanPackageForCImports(pkg)
+	// Scan each root path for ROS packages
+	for _, rootPath := range g.config.RootPaths {
+		// Try merged install layout first: install/include/
+		includeDir := filepath.Join(rootPath, "include")
+		if _, err := os.Stat(includeDir); err == nil {
+			entries, err := os.ReadDir(includeDir)
+			if err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() {
+						pkgName := entry.Name()
+						if len(g.config.RegexIncludes) == 0 || g.config.RegexIncludes.Includes(pkgName) {
+							packages.Add(pkgName)
+						}
+					}
+				}
+			}
+		}
+
+		// Also try isolated install layout: install/pkg_name/include/pkg_name/
+		rootEntries, err := os.ReadDir(rootPath)
+		if err == nil {
+			for _, pkgEntry := range rootEntries {
+				if !pkgEntry.IsDir() {
+					continue
+				}
+				pkgName := pkgEntry.Name()
+				pkgIncludeDir := filepath.Join(rootPath, pkgName, "include", pkgName)
+				if _, err := os.Stat(pkgIncludeDir); err == nil {
+					if len(g.config.RegexIncludes) == 0 || g.config.RegexIncludes.Includes(pkgName) {
+						packages.Add(pkgName)
+					}
+				}
 			}
 		}
 	}
-}
 
-// scanPackageForCImports scans a package's interface files to determine
-// C dependencies without generating Go code.
-func (g *Generator) scanPackageForCImports(pkg string) {
-	ref := g.allPkgs[pkg]
-	if ref == nil {
-		return
+	// Store found packages in cImportsByPkgAndType for GenerateCGOFlags to use
+	// We use a dummy type suffix since we're not actually parsing
+	for pkg := range packages {
+		g.cImportsByPkgAndType[pkg+"_msg"] = stringSet{}
 	}
 
-	for meta, sourcePath := range ref.Interfaces {
-		content, err := os.ReadFile(sourcePath)
-		if err != nil {
-			PrintErrf("Failed to read %s: %v\n", sourcePath, err)
-			continue
-		}
-
-		// Parse to extract dependencies
-		msg := ROS2MessageNew("", "")
-		msg.Metadata = &meta
-
-		parser := parser{config: g.config}
-		err = parser.ParseROS2Message(msg, string(content))
-		if err != nil {
-			PrintErrf("Failed to parse %s: %v\n", sourcePath, err)
-			continue
-		}
-
-		// Collect C import dependencies
-		pkgAndType := meta.Package + "_" + meta.Type
-		if g.cImportsByPkgAndType[pkgAndType] == nil {
-			g.cImportsByPkgAndType[pkgAndType] = stringSet{}
-		}
-
-		for _, field := range msg.Fields {
-			if field.PkgName != "" && !field.PkgIsLocal {
-				g.cImportsByPkgAndType[pkgAndType].Add(field.PkgName)
-			}
-		}
-	}
+	return nil
 }
 
 func (g *Generator) generateMessage(md *Metadata, sourcePath string) (*ROS2Message, error) {

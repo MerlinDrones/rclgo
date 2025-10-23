@@ -81,8 +81,10 @@ include all standard ROS 2 packages plus any custom packages found.`,
 
 		gen := gogen.New(config)
 
-		// Scan for packages to populate cImportsByPkgAndType
-		gen.FindPackagesForCgoFlags()
+		// Scan include directories to find packages (no file parsing)
+		if err := gen.FindPackagesForCgoFlags(); err != nil {
+			return fmt.Errorf("failed to find packages: %w", err)
+		}
 
 		if err := gen.GenerateCGOFlags(); err != nil {
 			return fmt.Errorf("failed to generate CGO flags: %w", err)
