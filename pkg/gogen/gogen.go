@@ -359,6 +359,63 @@ func (g *Generator) findPackages() {
 	}
 }
 
+// FindPackagesForCgoFlags scans packages and populates C import dependencies
+// for CGO flags generation without actually generating Go bindings.
+// This is useful for the generate-cgo-flags command.
+func (g *Generator) FindPackagesForCgoFlags() {
+	g.findPackages()
+
+	// If include-package filters are specified, scan those packages
+	if len(g.config.RegexIncludes) > 0 {
+		for pkg := range g.allPkgs {
+			if g.config.RegexIncludes.Includes(pkg) {
+				// Parse interfaces to populate cImportsByPkgAndType
+				g.scanPackageForCImports(pkg)
+			}
+		}
+	}
+}
+
+// scanPackageForCImports scans a package's interface files to determine
+// C dependencies without generating Go code.
+func (g *Generator) scanPackageForCImports(pkg string) {
+	ref := g.allPkgs[pkg]
+	if ref == nil {
+		return
+	}
+
+	for meta, sourcePath := range ref.Interfaces {
+		content, err := os.ReadFile(sourcePath)
+		if err != nil {
+			PrintErrf("Failed to read %s: %v\n", sourcePath, err)
+			continue
+		}
+
+		// Parse to extract dependencies
+		msg := ROS2MessageNew("", "")
+		msg.Metadata = &meta
+
+		parser := parser{config: g.config}
+		err = parser.ParseROS2Message(msg, string(content))
+		if err != nil {
+			PrintErrf("Failed to parse %s: %v\n", sourcePath, err)
+			continue
+		}
+
+		// Collect C import dependencies
+		pkgAndType := meta.Package + "_" + meta.Type
+		if g.cImportsByPkgAndType[pkgAndType] == nil {
+			g.cImportsByPkgAndType[pkgAndType] = stringSet{}
+		}
+
+		for _, field := range msg.Fields {
+			if field.PkgName != "" && !field.PkgIsLocal {
+				g.cImportsByPkgAndType[pkgAndType].Add(field.PkgName)
+			}
+		}
+	}
+}
+
 func (g *Generator) generateMessage(md *Metadata, sourcePath string) (*ROS2Message, error) {
 	msg := ROS2MessageNew("", "")
 	var err error

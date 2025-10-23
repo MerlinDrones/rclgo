@@ -1,16 +1,24 @@
 #!/usr/bin/env sh
 
-# This script generates the necessary ROS2 messages for rclgo.
+# This script generates ROS2 message bindings for rclgo DEVELOPMENT.
+# This is for working on rclgo itself, using only standard ROS 2 packages.
+#
+# For ROS 2 workspace development (with custom packages like px4_msgs),
+# see gen_cgo_flags.sh instead.
 
-echo "This script will generate ROS2 message bindings using rclgo with the following settings:"
-echo "  - Root paths: /opt/ros/humble and $(pwd)"
-echo "  - Destination path: ./internal/msgs"
-echo "  - Message module prefix: github.com/merlindrones/rclgo/internal/msgs"
-echo "  - Rclgo import path: github.com/merlindrones/rclgo"
-echo "  - Included packages:"
-echo "      std_msgs, std_srvs, sensor_msgs, geometry_msgs, example_interfaces,"
-echo "      test_msgs, action_msgs, builtin_interfaces, unique_identifier_msgs,"
-echo "      rcl_interfaces, service_msgs, lifecycle_msgs"
+echo "=== rclgo Development: Generate ROS2 Message Bindings ==="
+echo ""
+echo "This script generates Go bindings for STANDARD ROS 2 packages only."
+echo "It uses the following settings:"
+echo "  - Root path: /opt/ros/humble (base ROS 2 installation)"
+echo "  - Destination: ./pkg/msgs"
+echo "  - Included packages: std_msgs, std_srvs, sensor_msgs, geometry_msgs,"
+echo "                       example_interfaces, test_msgs, action_msgs,"
+echo "                       builtin_interfaces, unique_identifier_msgs,"
+echo "                       rcl_interfaces, service_msgs, lifecycle_msgs,"
+echo "                       rosgraph_msgs"
+echo ""
+echo "This will also generate: ./cgo-flags.env (for rclgo development)"
 echo ""
 read -p "Do you want to proceed (p), view help (h), or quit (q)? [p/h/q]: " choice
 
@@ -35,7 +43,6 @@ esac
 
 go run ./cmd/rclgo-gen generate \
   --root-path /opt/ros/humble \
-  --root-path "$(pwd)" \
   --dest-path ./pkg/msgs \
   --message-module-prefix github.com/merlindrones/rclgo/pkg/msgs \
   --rclgo-import-path github.com/merlindrones/rclgo \
@@ -52,6 +59,5 @@ go run ./cmd/rclgo-gen generate \
   --include-package service_msgs \
   --include-package lifecycle_msgs \
   --include-package rosgraph_msgs \
-  --include-package px4_msgs \
   --ignore-ros-distro-mismatch
 
