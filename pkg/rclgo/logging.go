@@ -122,6 +122,13 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 	// Check environment variable for realtime logging mode
 	if os.Getenv("RCLGO_REALTIME_LOGGING") == "1" {
 		realtimeLogging = true
+
+		// Also set RCUTILS_LOGGING_BUFFERED_STREAM=0 if not already set
+		// This ensures both rclgo's stdout/stderr flushing AND rcutils console
+		// stream unbuffering are active for complete real-time console output.
+		if os.Getenv("RCUTILS_LOGGING_BUFFERED_STREAM") == "" {
+			os.Setenv("RCUTILS_LOGGING_BUFFERED_STREAM", "0")
+		}
 	}
 
 	// Use rcl_logging_configure instead of rcl_logging_configure_with_output_handler
