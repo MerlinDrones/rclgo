@@ -68,8 +68,20 @@ RCLGO_REALTIME_LOGGING=1 ./my_node
 
 **Behavior:**
 - Console output (stdout/stderr) flushed immediately after each log message
+- Automatically sets `RCUTILS_LOGGING_BUFFERED_STREAM=0` if not already set (for complete console unbuffering)
 - Useful for live monitoring with `tail -f` and debugging crashes
 - **File logging** still buffered by RCL backend (spdlog) - by design for performance
+
+**What gets flushed:**
+- ✅ rclgo's stdout/stderr (via `fflush()`)
+- ✅ rcutils console streams (via `RCUTILS_LOGGING_BUFFERED_STREAM=0`)
+- ❌ ROS log files in `~/.ros/log/` (still buffered by spdlog)
+
+**For real-time file capture:**
+Use shell redirection to capture the unbuffered console output:
+```bash
+RCLGO_REALTIME_LOGGING=1 ./my_node 2>&1 | tee my_realtime_logs.txt
+```
 
 **⚠️ Production Warning:**
 ```
@@ -206,6 +218,57 @@ tests/logging/
 
 ---
 
+## Environment Variable Comparison (2025-10-30)
+
+### Test: RCLGO_REALTIME_LOGGING vs RCUTILS_LOGGING_BUFFERED_STREAM
+
+**Question:** Does the ROS 2 standard `RCUTILS_LOGGING_BUFFERED_STREAM=0` enable real-time file logging?
+
+**Test Script:** `tests/logging/test_env_vars.sh`
+
+**Results:** ❌ No - Neither environment variable enables real-time file logging.
+
+| Environment Variable | Affects Console | Affects Files | ROS 2 Standard |
+|---------------------|-----------------|---------------|----------------|
+| `RCLGO_REALTIME_LOGGING=1` | ✅ Yes | ❌ No | ❌ No (rclgo custom) |
+| `RCUTILS_LOGGING_BUFFERED_STREAM=0` | ✅ Yes | ❌ No | ✅ Yes |
+| `RCUTILS_CONSOLE_OUTPUT_FORMAT` | ℹ️ Format only | ℹ️ Format only | ✅ Yes |
+
+**Test Details (6 scenarios tested):**
+
+All 6 tests showed:
+- **During execution:** Log files = 0 bytes (buffered)
+- **After exit:** Log files = 4676 bytes (flushed correctly)
+
+This confirms:
+1. `RCLGO_REALTIME_LOGGING=1` flushes Go's stdout/stderr buffers
+2. `RCUTILS_LOGGING_BUFFERED_STREAM=0` controls rcutils console stream buffering
+3. **File logging uses spdlog's internal buffering**, which is independent of C stdio buffering
+4. Both environment variables work for console output, neither affects file output
+5. `FiniLogging()` correctly flushes all buffered file data on shutdown
+
+**Improvement (2025-10-30):**
+`RCLGO_REALTIME_LOGGING=1` now automatically sets `RCUTILS_LOGGING_BUFFERED_STREAM=0` if not already set, providing complete console unbuffering with a single environment variable.
+
+**Why file logging remains buffered:**
+
+```
+Console Path:                    File Path:
+  Go log → C stdout/stderr        Go log → rcutils → spdlog file sink
+  ↓                              ↓
+  fflush() works ✅              fflush() doesn't reach here ❌
+  RCUTILS_* works ✅             RCUTILS_* doesn't reach here ❌
+```
+
+spdlog file sinks use `std::ofstream` with their own internal buffering, separate from C stdio.
+
+**Recommendation:**
+- Use `RCLGO_REALTIME_LOGGING=1` for complete console unbuffering (now sets both flags automatically)
+- For real-time file capture: `RCLGO_REALTIME_LOGGING=1 ./node 2>&1 | tee logfile.txt`
+- Neither environment variable enables real-time ROS log files (`~/.ros/log/`) - this is by design for performance
+
+---
+
 ## Future Work
 
 Potential enhancements for future versions:
@@ -214,7 +277,8 @@ Potential enhancements for future versions:
 2. **Signal handling:** Ensure `FiniLogging()` called on SIGTERM/SIGINT
 3. **Crash recovery:** Use `defer` in main() to catch panics and flush logs
 4. **Log rotation:** Implement rotation for long-running nodes
-5. **File realtime mode:** Investigate deeper spdlog integration for true file-level realtime logging
+5. ~~**File realtime mode:** Investigate deeper spdlog integration for true file-level realtime logging~~
+   - **Update 2025-10-30:** Tested - spdlog file buffering is independent of stdio. Would require custom file sink implementation.
 
 ---
 
@@ -270,7 +334,9 @@ RCLGO_REALTIME_LOGGING=1 ./my_node
 
 - **Test Documentation:** `tests/logging/README.md`
 - **Test Results:** `tests/logging/TEST_RESULTS.md`
+- **Environment Variable Tests:** `tests/logging/test_env_vars.sh`
 - **ROS 2 Logging Docs:** https://docs.ros.org/en/humble/Tutorials/Demos/Logging-and-logger-configuration.html
+- **ROS 2 Environment Variables:** https://docs.ros.org/en/kilted/Concepts/Intermediate/About-Logging.html#environment-variables
 - **rclgo CLAUDE.md:** Project documentation and architecture
 
 ---
@@ -278,3 +344,4 @@ RCLGO_REALTIME_LOGGING=1 ./my_node
 **Merge Status:** ✅ Complete - feature/logging merged to humble
 **All Tests:** ✅ Passing
 **Production Ready:** ✅ Yes
+**Environment Variable Analysis:** ✅ Complete (2025-10-30)

@@ -43,3 +43,5 @@ log/
 # Go workspace (managed at parent directory level)
 go.work
 go.work.sum
+.sentry-native/
+log.txt
