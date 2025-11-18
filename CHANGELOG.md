@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.5.1] – 2025-11-17
+
+(no user-facing changes)
+
+
+## [v0.5.1] – 2025-11-17
+
+(no user-facing changes)
+
+
 ## [v0.5.0] – 2025-10-22
 
 ### Features
