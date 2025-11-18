@@ -4,7 +4,6 @@ package std_srvs_srv
 
 /*
 #cgo LDFLAGS: "-L/opt/ros/humble/lib" "-Wl,-rpath=/opt/ros/humble/lib"
-#cgo LDFLAGS: "-L/home/dave/Git/merlin/Swarmos/rclgo/lib" "-Wl,-rpath=/home/dave/Git/merlin/Swarmos/rclgo/lib"
 
 #cgo LDFLAGS: -lrcl -lrosidl_runtime_c -lrosidl_typesupport_c -lrcutils -lrmw_implementation
 #cgo LDFLAGS: -lstd_srvs__rosidl_typesupport_c -lstd_srvs__rosidl_generator_c
@@ -25,22 +24,5 @@ package std_srvs_srv
 #cgo CFLAGS: "-I/opt/ros/humble/include/type_description_interfaces"
 #cgo CFLAGS: "-I/opt/ros/humble/include/unique_identifier_msgs"
 #cgo CFLAGS: "-I/opt/ros/humble/include/std_srvs"
-
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/action_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/builtin_interfaces"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/example_interfaces"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/geometry_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/rcutils"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/rosidl_dynamic_typesupport"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/rosidl_runtime_c"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/rosidl_typesupport_interface"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/sensor_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/service_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/std_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/std_srvs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/test_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/type_description_interfaces"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/unique_identifier_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/std_srvs"
 */
 import "C"
