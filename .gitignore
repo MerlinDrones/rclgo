@@ -30,6 +30,7 @@ examples/*/subscriber
 
 # Local AI context (per-developer)
 /.aicontext.md
+/.claude/
 
 # Python cache
 **/__pycache__/
