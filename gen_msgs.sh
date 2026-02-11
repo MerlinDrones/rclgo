@@ -13,7 +13,7 @@ echo "It uses the following settings:"
 echo "  - Root path: /opt/ros/humble (base ROS 2 installation)"
 echo "  - Destination: ./pkg/msgs"
 echo "  - Included packages: std_msgs, std_srvs, sensor_msgs, geometry_msgs,"
-echo "                       example_interfaces, test_msgs, action_msgs,"
+echo "                       example_interfaces, test_msgs, action_msgs, vision_msgs"
 echo "                       builtin_interfaces, unique_identifier_msgs,"
 echo "                       rcl_interfaces, service_msgs, lifecycle_msgs,"
 echo "                       rosgraph_msgs"
@@ -53,6 +53,7 @@ go run ./cmd/rclgo-gen generate \
   --include-package example_interfaces \
   --include-package test_msgs \
   --include-package action_msgs \
+  --include-package vision_msgs \
   --include-package builtin_interfaces \
   --include-package unique_identifier_msgs \
   --include-package rcl_interfaces \
