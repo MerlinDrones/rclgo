@@ -1,6 +1,6 @@
 module github.com/merlindrones/rclgo
 
-go 1.24.0
+go 1.26.1
 
 require (
 	github.com/alessio/shellescape v1.4.2
