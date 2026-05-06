@@ -113,7 +113,7 @@ func (g *Generator) GenerateRclgoFlags() error {
 func (g *Generator) GenerateTestGogenFlags() error {
 	return g.generateRclgoFile(
 		"gogen flags",
-		filepath.Join(g.config.DestPath, "test/gogen/flags.gen.go"),
+		filepath.Join(g.config.DestPath, "tests/gogen/flags.gen.go"),
 		gogenTestFlags,
 		nil,
 	)
