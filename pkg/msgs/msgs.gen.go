@@ -17,10 +17,12 @@ import (
 	_ "github.com/merlindrones/rclgo/pkg/msgs/rosgraph_msgs/msg"          //
 	_ "github.com/merlindrones/rclgo/pkg/msgs/sensor_msgs/msg"            //
 	_ "github.com/merlindrones/rclgo/pkg/msgs/sensor_msgs/srv"            //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/service_msgs/msg"           //
 	_ "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"               //
 	_ "github.com/merlindrones/rclgo/pkg/msgs/std_srvs/srv"               //
 	_ "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/action"           //
 	_ "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"              //
 	_ "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/srv"              //
 	_ "github.com/merlindrones/rclgo/pkg/msgs/unique_identifier_msgs/msg" //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/vision_msgs/msg"            //
 )

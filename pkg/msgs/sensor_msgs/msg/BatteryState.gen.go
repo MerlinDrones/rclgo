@@ -40,13 +40,15 @@ const (
 	BatteryState_POWER_SUPPLY_HEALTH_COLD                  uint8 = 6
 	BatteryState_POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE uint8 = 7
 	BatteryState_POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE   uint8 = 8
-	BatteryState_POWER_SUPPLY_TECHNOLOGY_UNKNOWN           uint8 = 0 // Power supply technology (chemistry) constants
-	BatteryState_POWER_SUPPLY_TECHNOLOGY_NIMH              uint8 = 1
-	BatteryState_POWER_SUPPLY_TECHNOLOGY_LION              uint8 = 2
-	BatteryState_POWER_SUPPLY_TECHNOLOGY_LIPO              uint8 = 3
-	BatteryState_POWER_SUPPLY_TECHNOLOGY_LIFE              uint8 = 4
-	BatteryState_POWER_SUPPLY_TECHNOLOGY_NICD              uint8 = 5
-	BatteryState_POWER_SUPPLY_TECHNOLOGY_LIMN              uint8 = 6
+	BatteryState_POWER_SUPPLY_TECHNOLOGY_UNKNOWN           uint8 = 0 // Unknown battery technology. Power supply technology (chemistry) constants
+	BatteryState_POWER_SUPPLY_TECHNOLOGY_NIMH              uint8 = 1 // Nickel-Metal Hydride battery
+	BatteryState_POWER_SUPPLY_TECHNOLOGY_LION              uint8 = 2 // Lithium-ion battery
+	BatteryState_POWER_SUPPLY_TECHNOLOGY_LIPO              uint8 = 3 // Lithium Polymer battery
+	BatteryState_POWER_SUPPLY_TECHNOLOGY_LIFE              uint8 = 4 // Lithium Iron Phosphate battery
+	BatteryState_POWER_SUPPLY_TECHNOLOGY_NICD              uint8 = 5 // Nickel-Cadmium battery
+	BatteryState_POWER_SUPPLY_TECHNOLOGY_LIMN              uint8 = 6 // Lithium Manganese Dioxide battery
+	BatteryState_POWER_SUPPLY_TECHNOLOGY_TERNARY           uint8 = 7 // Ternary Lithium battery
+	BatteryState_POWER_SUPPLY_TECHNOLOGY_VRLA              uint8 = 8 // Valve Regulated Lead-Acid battery
 )
 
 type BatteryState struct {

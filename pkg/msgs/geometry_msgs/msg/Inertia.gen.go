@@ -26,7 +26,7 @@ func init() {
 type Inertia struct {
 	M   float64 `yaml:"m"`   // Mass [kg]
 	Com Vector3 `yaml:"com"` // Center of mass [m]
-	Ixx float64 `yaml:"ixx"` // Inertia Tensor [kg-m^2]| ixx ixy ixz |I = | ixy iyy iyz || ixz iyz izz |
+	Ixx float64 `yaml:"ixx"` // Inertia Tensor [kg-m^2] about the center of mass| ixx ixy ixz |I = | ixy iyy iyz || ixz iyz izz |
 	Ixy float64 `yaml:"ixy"`
 	Ixz float64 `yaml:"ixz"`
 	Iyy float64 `yaml:"iyy"`

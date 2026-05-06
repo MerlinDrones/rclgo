@@ -20,6 +20,7 @@ const (
 	ReliabilityReliable
 	ReliabilityBestEffort
 	ReliabilityUnknown
+	ReliabilityBestAvailable
 )
 
 type DurabilityPolicy int
@@ -29,6 +30,7 @@ const (
 	DurabilityTransientLocal
 	DurabilityVolatile
 	DurabilityUnknown
+	DurabilityBestAvailable
 )
 
 type LivelinessPolicy int
@@ -39,6 +41,7 @@ const (
 	_
 	LivelinessManualByTopic
 	LivelinessUnknown
+	LivelinessBestAvailable
 )
 
 // Duration defaults match your current constants.

@@ -10,7 +10,7 @@ echo "=== rclgo Development: Generate ROS2 Message Bindings ==="
 echo ""
 echo "This script generates Go bindings for STANDARD ROS 2 packages only."
 echo "It uses the following settings:"
-echo "  - Root path: /opt/ros/humble (base ROS 2 installation)"
+echo "  - Root path: /opt/ros/jazzy (base ROS 2 installation)"
 echo "  - Destination: ./pkg/msgs"
 echo "  - Included packages: std_msgs, std_srvs, sensor_msgs, geometry_msgs,"
 echo "                       example_interfaces, test_msgs, action_msgs, vision_msgs"
@@ -42,12 +42,13 @@ case "$choice" in
 esac
 
 go run ./cmd/rclgo-gen generate \
-  --root-path /opt/ros/humble \
+  --root-path /opt/ros/jazzy \
   --dest-path ./pkg/msgs \
   --message-module-prefix github.com/merlindrones/rclgo/pkg/msgs \
   --rclgo-import-path github.com/merlindrones/rclgo \
   --include-package std_msgs \
   --include-package std_srvs \
+  --include-package service_msgs \
   --include-package sensor_msgs \
   --include-package geometry_msgs \
   --include-package example_interfaces \
@@ -57,8 +58,6 @@ go run ./cmd/rclgo-gen generate \
   --include-package builtin_interfaces \
   --include-package unique_identifier_msgs \
   --include-package rcl_interfaces \
-  --include-package service_msgs \
   --include-package lifecycle_msgs \
   --include-package rosgraph_msgs \
   --ignore-ros-distro-mismatch
-

@@ -36,6 +36,7 @@ type Range struct {
 	MinRange      float32             `yaml:"min_range"`      // minimum range value [m]
 	MaxRange      float32             `yaml:"max_range"`      // maximum range value [m]
 	Range         float32             `yaml:"range"`          // range data [m]
+	Variance      float32             `yaml:"variance"`       // variance of the range sensor
 }
 
 // NewRange creates a new Range with default values.
@@ -53,6 +54,7 @@ func (t *Range) Clone() *Range {
 	c.MinRange = t.MinRange
 	c.MaxRange = t.MaxRange
 	c.Range = t.Range
+	c.Variance = t.Variance
 	return c
 }
 
@@ -67,6 +69,7 @@ func (t *Range) SetDefaults() {
 	t.MinRange = 0
 	t.MaxRange = 0
 	t.Range = 0
+	t.Variance = 0
 }
 
 func (t *Range) GetTypeSupport() types.MessageTypeSupport {
@@ -156,6 +159,7 @@ func (t _RangeTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	mem.min_range = C.float(m.MinRange)
 	mem.max_range = C.float(m.MaxRange)
 	mem._range = C.float(m.Range)
+	mem.variance = C.float(m.Variance)
 }
 
 func (t _RangeTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -167,6 +171,7 @@ func (t _RangeTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer uns
 	m.MinRange = float32(mem.min_range)
 	m.MaxRange = float32(mem.max_range)
 	m.Range = float32(mem._range)
+	m.Variance = float32(mem.variance)
 }
 
 func (t _RangeTypeSupport) TypeSupport() unsafe.Pointer {

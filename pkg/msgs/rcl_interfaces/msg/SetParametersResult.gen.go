@@ -26,7 +26,7 @@ func init() {
 
 type SetParametersResult struct {
 	Successful bool   `yaml:"successful"` // A true value of the same index indicates that the parameter was setsuccessfully. A false value indicates the change was rejected.
-	Reason     string `yaml:"reason"`     // Reason why the setting was either successful or a failure. This should only beused for logging and user interfaces.
+	Reason     string `yaml:"reason"`     // Reason why the setting was a failure. On success, the contents of this fieldare undefined.  This should only be used for logging and user interfaces.
 }
 
 // NewSetParametersResult creates a new SetParametersResult with default values.
