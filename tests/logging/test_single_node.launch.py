@@ -55,7 +55,7 @@ def generate_launch_description():
         raise RuntimeError(f"Executable not found: {param_demo_exe}\n"
                          f"Please build it first:\n"
                          f"  cd {rclgo_root}/examples/param_demo\n"
-                         f"  source /opt/ros/humble/setup.bash\n"
+                         f"  source /opt/ros/$ROS_DISTRO/setup.bash\n"
                          f"  source ../../cgo-flags.env\n"
                          f"  go build -o param_demo")
 

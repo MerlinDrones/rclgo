@@ -4,8 +4,15 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Dependency directories
+vendor/
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
 # compiled binary
 cmd/rclgo-gen/rclgo-gen
@@ -15,33 +22,48 @@ cmd/ros2ctest/roslogging
 #go tool cgo output
 _obj
 
+# build and dist directory
+build/
+dist/
+
 # Local VS Code configuration
-.vscode/bookmarks.json
-.idea
+.vscode/*
+.idea/
+
 cgo-flags.env
 scripts/*
 /scripts/*
 /CLAUDE.md
 /TODO.md
+/Releases.md
 examples/param_demo/param_demo
 examples/*/publisher
 examples/*/subscriber
-**/__pycache__/
 
 # Local AI context (per-developer)
 /.aicontext.md
+/.claude/
 
 # Python cache
 **/__pycache__/
 *.pyc
 
 # ROS 2 build artifacts
-build/
 install/
 log/
 
 # Go workspace (managed at parent directory level)
 go.work
 go.work.sum
+
+# Misc local dirs
+pkg/scratch/*
+data/*
+uploads/*
+reports/*
+
+# Misc
 .sentry-native/
 log.txt
+test.log
+VERSION

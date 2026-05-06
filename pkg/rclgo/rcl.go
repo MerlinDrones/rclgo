@@ -685,13 +685,14 @@ func (c *Context) NewTimer(timeout time.Duration, timer_callback func(*Timer)) (
 	*timer.rcl_timer_t = C.rcl_get_zero_initialized_timer()
 	defer onErr(&err, timer.Close)
 
-	rc := C.rcl_timer_init(
+	rc := C.rcl_timer_init2(
 		timer.rcl_timer_t,
 		c.Clock().rcl_clock_t,
 		c.rcl_context_t,
 		C.int64_t(timeout),
 		nil,
 		*c.rcl_allocator_t,
+		C.bool(true),
 	)
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCast(rc)
@@ -923,13 +924,13 @@ func (c *guardCondition) Trigger() error {
 }
 
 type RequestID struct {
-	WriterGUID     [16]int8
+	WriterGUID     [16]byte
 	SequenceNumber int64
 }
 
 func newRequestID(reqID *C.rmw_request_id_t) RequestID {
 	return RequestID{
-		WriterGUID:     *(*[16]int8)(unsafe.Pointer(&reqID.writer_guid)),
+		WriterGUID:     *(*[16]byte)(unsafe.Pointer(&reqID.writer_guid)),
 		SequenceNumber: int64(reqID.sequence_number),
 	}
 }

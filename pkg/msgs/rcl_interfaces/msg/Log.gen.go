@@ -26,11 +26,11 @@ func init() {
 }
 
 const (
-	Log_DEBUG byte = 10 // Debug is for pedantic information, which is useful when debugging issues.
-	Log_INFO  byte = 20 // Info is the standard informational level and is used to report expectedinformation.
-	Log_WARN  byte = 30 // Warning is for information that may potentially cause issues or possibly unexpectedbehavior.
-	Log_ERROR byte = 40 // Error is for information that this node cannot resolve.
-	Log_FATAL byte = 50 // Information about a impending node shutdown.
+	Log_DEBUG uint8 = 10 // Debug is for pedantic information, which is useful when debugging issues.
+	Log_INFO  uint8 = 20 // Info is the standard informational level and is used to report expectedinformation.
+	Log_WARN  uint8 = 30 // Warning is for information that may potentially cause issues or possibly unexpectedbehavior.
+	Log_ERROR uint8 = 40 // Error is for information that this node cannot resolve.
+	Log_FATAL uint8 = 50 // Information about a impending node shutdown.
 )
 
 type Log struct {

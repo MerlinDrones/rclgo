@@ -20,7 +20,7 @@ source install/setup.bash
 
 ```bash
 cd examples/param_demo
-source /opt/ros/humble/setup.bash
+source /opt/ros/${ROS_DISTRO}/setup.bash
 source ../../cgo-flags.env
 go build -o param_demo
 ```

@@ -431,7 +431,7 @@ The params package includes comprehensive tests:
 
 ```bash
 # Run all params tests
-source /opt/ros/humble/setup.bash
+source /opt/ros/${ROS_DISTRO}/setup.bash
 go test ./pkg/rclgo/params -v
 
 # Test specific functionality

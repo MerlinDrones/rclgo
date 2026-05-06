@@ -116,7 +116,7 @@ installation and your workspace overlay.
 2. Build your workspace to populate the `install/` directory:
    ```bash
    cd ${ROS_WS}
-   source /opt/ros/humble/setup.bash
+   source /opt/ros/${ROS_DISTRO}/setup.bash
    colcon build
    ```
 
@@ -146,7 +146,7 @@ You can also use `rclgo-gen generate-cgo-flags` directly:
 
 ```bash
 go run github.com/merlindrones/rclgo/cmd/rclgo-gen generate-cgo-flags \
-  --root-path /opt/ros/humble \
+  --root-path /opt/ros/${ROS_DISTRO} \
   --root-path ${ROS_WS}/install \
   --output ${ROS_WS}/cgo-flags.env \
   --include-package px4_msgs \

@@ -51,7 +51,7 @@ Example usage:
 
   # Generate cgo-flags.env for a workspace with custom packages
   rclgo-gen generate-cgo-flags \
-    --root-path /opt/ros/humble \
+    --root-path /opt/ros/$ROS_DISTRO \
     --root-path $ROS_WS/install \
     --output $ROS_WS/cgo-flags.env \
     --include-package px4_msgs \
@@ -59,7 +59,7 @@ Example usage:
 
   # Generate to stdout
   rclgo-gen generate-cgo-flags \
-    --root-path /opt/ros/humble \
+    --root-path /opt/ros/$ROS_DISTRO \
     --root-path $ROS_WS/install \
     --output - \
     --include-package px4_msgs

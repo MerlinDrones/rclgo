@@ -1,4 +1,4 @@
-# Parameters in rclgo (Humble)
+# Parameters in rclgo (Jazzy)
 
 > **Note**: This is a quick reference guide. For comprehensive documentation including all parameter sources (CLI, environment variables, YAML, defaults) and priority ordering, see [`pkg/rclgo/params/README.md`](../pkg/rclgo/params/README.md).
 

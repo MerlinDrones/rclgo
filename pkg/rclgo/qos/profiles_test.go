@@ -35,6 +35,22 @@ func TestNewSensorDataProfile(t *testing.T) {
 	}
 }
 
+func TestNewBestAvailableProfile(t *testing.T) {
+	p := NewBestAvailableProfile()
+	if p.History != HistoryKeepLast || p.Depth != 10 {
+		t.Fatalf("History/Depth=%v/%d", p.History, p.Depth)
+	}
+	if p.Reliability != ReliabilityBestAvailable {
+		t.Fatalf("Reliability=%v", p.Reliability)
+	}
+	if p.Durability != DurabilityBestAvailable {
+		t.Fatalf("Durability=%v", p.Durability)
+	}
+	if p.Liveliness != LivelinessBestAvailable {
+		t.Fatalf("Liveliness=%v", p.Liveliness)
+	}
+}
+
 func TestNewParameterEventsProfile(t *testing.T) {
 	p := NewParameterEventsProfile()
 	if p.History != HistoryKeepAll || p.Depth != 0 {

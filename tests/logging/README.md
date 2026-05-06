@@ -34,7 +34,7 @@ tests/logging/
 1. **Build rclgo examples:**
    ```bash
    cd /home/dave/Git/merlin/Swarmos/rclgo
-   source /opt/ros/humble/setup.bash
+   source /opt/ros/${ROS_DISTRO}/setup.bash
    source cgo-flags.env
 
    # Build param_demo
@@ -50,7 +50,7 @@ tests/logging/
 
 2. **Source ROS 2 environment:**
    ```bash
-   source /opt/ros/humble/setup.bash
+   source /opt/ros/${ROS_DISTRO}/setup.bash
    ```
 
 ## Test Scenarios
@@ -408,6 +408,6 @@ Use this template to document test results:
 
 ## References
 
-- [ROS 2 Logging Documentation](https://docs.ros.org/en/humble/Tutorials/Demos/Logging-and-logger-configuration.html)
-- [Launch File Logging](https://docs.ros.org/en/humble/How-To-Guides/Launch-file-different-formats.html#parameters-arguments-and-substitutions)
+- [ROS 2 Logging Documentation](https://docs.ros.org/en/jazzy/Tutorials/Demos/Logging-and-logger-configuration.html)
+- [Launch File Logging](https://docs.ros.org/en/jazzy/How-To-Guides/Launch-file-different-formats.html#parameters-arguments-and-substitutions)
 - [rclgo CLAUDE.md](../../CLAUDE.md)

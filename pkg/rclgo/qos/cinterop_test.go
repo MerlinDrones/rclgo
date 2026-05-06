@@ -7,6 +7,22 @@ import (
 	"time"
 )
 
+// TestBestAvailableProfile_RoundTrip verifies that the BestAvailable Go enum values
+// match the jazzy C enum values by round-tripping through the C struct.
+func TestBestAvailableProfile_RoundTrip(t *testing.T) {
+	in := NewBestAvailableProfile()
+	out := roundTripProfileForTest(in)
+	if out.Reliability != ReliabilityBestAvailable {
+		t.Fatalf("Reliability: got %v (%d) want ReliabilityBestAvailable (%d)", out.Reliability, out.Reliability, ReliabilityBestAvailable)
+	}
+	if out.Durability != DurabilityBestAvailable {
+		t.Fatalf("Durability: got %v (%d) want DurabilityBestAvailable (%d)", out.Durability, out.Durability, DurabilityBestAvailable)
+	}
+	if out.Liveliness != LivelinessBestAvailable {
+		t.Fatalf("Liveliness: got %v (%d) want LivelinessBestAvailable (%d)", out.Liveliness, out.Liveliness, LivelinessBestAvailable)
+	}
+}
+
 func TestProfile_AsCStruct_FromCStruct_RoundTrip(t *testing.T) {
 	in := Profile{
 		History:                      HistoryKeepLast,

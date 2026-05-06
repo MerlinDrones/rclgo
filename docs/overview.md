@@ -8,7 +8,7 @@
 - Expose idiomatic Go APIs (contexts, channels, type‑safe messages).
 - Interoperate with existing ROS 2 systems — you can run a Go node alongside C++ and Python nodes in the same graph.
 
-Currently supported in Humble:
+Currently supported in Jazzy:
 - Node creation/destruction
 - Publishers and subscriptions for generated message types
 - Services (servers and clients)

@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # This script generates cgo-flags.env for ROS 2 WORKSPACE development.
 # Use this when building ROS 2 nodes that need both base ROS 2 and workspace overlay packages.
@@ -50,7 +50,7 @@ echo "Configuration:"
 echo "  - Workspace: ${ROS_WS}"
 echo "  - Output file: ${ROS_WS}/cgo-flags.env"
 echo "  - Root paths:"
-echo "      1. /opt/ros/humble (base ROS 2)"
+echo "      1. /opt/ros/jazzy (base ROS 2)"
 echo "      2. ${ROS_WS}/install (workspace overlay)"
 if [ -n "$PACKAGES" ]; then
     echo "  - Custom packages to scan: ${PACKAGES}"
@@ -81,7 +81,7 @@ esac
 
 # Build the command with --include-package flags for each package
 CMD="go run ./cmd/rclgo-gen generate-cgo-flags \
-  --root-path /opt/ros/humble \
+  --root-path /opt/ros/jazzy \
   --root-path ${ROS_WS}/install \
   --output ${ROS_WS}/cgo-flags.env"
 

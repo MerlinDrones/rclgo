@@ -1,0 +1,84 @@
+version: '3'
+
+vars:
+  ROS_DISTRO: jazzy
+  ROS_LIB: /opt/ros/{{.ROS_DISTRO}}/lib
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  build:
+    desc: Build rclgo-gen tool
+    cmds:
+      - cd cmd/rclgo-gen && go build
+
+  install:
+    desc: Install rclgo-gen globally
+    cmds:
+      - cd cmd/rclgo-gen && go install
+
+  test:
+    desc: Run all tests with a clean jazzy-only LD_LIBRARY_PATH to avoid humble/jazzy conflicts
+    env:
+      LD_LIBRARY_PATH: "{{.ROS_LIB}}/x86_64-linux-gnu:{{.ROS_LIB}}"
+    cmds:
+      - go test -count=1 ./...
+
+  'test:verbose':
+    desc: Run all tests with verbose output
+    env:
+      LD_LIBRARY_PATH: "{{.ROS_LIB}}/x86_64-linux-gnu:{{.ROS_LIB}}"
+    cmds:
+      - go test -v -count=1 ./...
+
+  'test:pkg':
+    desc: Run tests for a specific package (e.g. task test:pkg -- ./pkg/rclgo/...)
+    env:
+      LD_LIBRARY_PATH: "{{.ROS_LIB}}/x86_64-linux-gnu:{{.ROS_LIB}}"
+    cmds:
+      - go test -count=1 {{.CLI_ARGS}}
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  fmt:
+    desc: Format Go code
+    cmds:
+      - go fmt ./...
+
+  generate:
+    desc: Regenerate ROS 2 message bindings (runs gen_msgs.sh)
+    cmds:
+      - ./gen_msgs.sh
+
+  tidy:
+    desc: Tidy Go modules
+    cmds:
+      - go mod tidy
+
+  'release:start':
+    desc: Start a new release (major|minor|patch)
+    vars:
+      RELEASE_TYPE: '{{.RELEASE_TYPE | default "patch"}}'
+    cmds:
+      - ./scripts/startRelease.sh {{.RELEASE_TYPE}}
+    preconditions:
+      - sh: test -f ./scripts/startRelease.sh
+        msg: startRelease.sh not found in scripts/
+      - sh: command -v git-flow >/dev/null 2>&1
+        msg: git-flow not found
+
+  'release:finish':
+    desc: Finish the current release
+    cmds:
+      - ./scripts/finishRelease.sh
+    preconditions:
+      - sh: test -f ./scripts/finishRelease.sh
+        msg: finishRelease.sh not found in scripts/
+      - sh: git rev-parse --abbrev-ref HEAD | grep -q '^release/'
+        msg: Not on a release branch. Run 'task release:start' first

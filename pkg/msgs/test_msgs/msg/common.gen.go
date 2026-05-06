@@ -3,49 +3,29 @@
 package test_msgs_msg
 
 /*
-#cgo LDFLAGS: "-L/opt/ros/humble/lib" "-Wl,-rpath=/opt/ros/humble/lib"
-#cgo LDFLAGS: "-L/home/dave/Git/merlin/Swarmos/rclgo/lib" "-Wl,-rpath=/home/dave/Git/merlin/Swarmos/rclgo/lib"
+#cgo LDFLAGS: "-L/opt/ros/jazzy/lib" "-Wl,-rpath=/opt/ros/jazzy/lib"
 
 #cgo LDFLAGS: -lrcl -lrosidl_runtime_c -lrosidl_typesupport_c -lrcutils -lrmw_implementation
 #cgo LDFLAGS: -ltest_msgs__rosidl_typesupport_c -ltest_msgs__rosidl_generator_c
 #cgo LDFLAGS: -lbuiltin_interfaces__rosidl_typesupport_c -lbuiltin_interfaces__rosidl_generator_c
 
-#cgo CFLAGS: "-I/opt/ros/humble/include/action_msgs"
-#cgo CFLAGS: "-I/opt/ros/humble/include/builtin_interfaces"
-#cgo CFLAGS: "-I/opt/ros/humble/include/example_interfaces"
-#cgo CFLAGS: "-I/opt/ros/humble/include/geometry_msgs"
-#cgo CFLAGS: "-I/opt/ros/humble/include/rcutils"
-#cgo CFLAGS: "-I/opt/ros/humble/include/rosidl_dynamic_typesupport"
-#cgo CFLAGS: "-I/opt/ros/humble/include/rosidl_runtime_c"
-#cgo CFLAGS: "-I/opt/ros/humble/include/rosidl_typesupport_interface"
-#cgo CFLAGS: "-I/opt/ros/humble/include/sensor_msgs"
-#cgo CFLAGS: "-I/opt/ros/humble/include/service_msgs"
-#cgo CFLAGS: "-I/opt/ros/humble/include/std_msgs"
-#cgo CFLAGS: "-I/opt/ros/humble/include/std_srvs"
-#cgo CFLAGS: "-I/opt/ros/humble/include/test_msgs"
-#cgo CFLAGS: "-I/opt/ros/humble/include/type_description_interfaces"
-#cgo CFLAGS: "-I/opt/ros/humble/include/unique_identifier_msgs"
-#cgo CFLAGS: "-I/opt/ros/humble/include/builtin_interfaces"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/action_msgs"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/builtin_interfaces"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/example_interfaces"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/geometry_msgs"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/rcutils"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/rosidl_dynamic_typesupport"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/rosidl_runtime_c"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/rosidl_typesupport_interface"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/sensor_msgs"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/service_msgs"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/std_msgs"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/std_srvs"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/test_msgs"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/type_description_interfaces"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/unique_identifier_msgs"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/builtin_interfaces"
 
-#cgo CFLAGS: "-I/opt/ros/humble/include/test_msgs"
-
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/action_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/builtin_interfaces"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/example_interfaces"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/geometry_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/rcutils"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/rosidl_dynamic_typesupport"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/rosidl_runtime_c"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/rosidl_typesupport_interface"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/sensor_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/service_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/std_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/std_srvs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/test_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/type_description_interfaces"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/unique_identifier_msgs"
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/builtin_interfaces"
-
-#cgo CFLAGS: "-I/home/dave/Git/merlin/Swarmos/rclgo/include/test_msgs"
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/test_msgs"
 */
 import "C"

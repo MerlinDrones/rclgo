@@ -3,7 +3,7 @@
 package qos
 
 /*
-#cgo CFLAGS:  -I/opt/ros/humble/include -I/opt/ros/humble/include/rmw -I/opt/ros/humble/include/rcutils
-#cgo LDFLAGS: -L/opt/ros/humble/lib -Wl,-rpath,/opt/ros/humble/lib
+#cgo CFLAGS:  -I/opt/ros/jazzy/include -I/opt/ros/jazzy/include/rmw -I/opt/ros/jazzy/include/rcutils
+#cgo LDFLAGS: -L/opt/ros/jazzy/lib -Wl,-rpath,/opt/ros/jazzy/lib
 */
 import "C"
