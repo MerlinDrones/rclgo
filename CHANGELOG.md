@@ -1,5 +1,30 @@
 # Changelog
 
+## [v0.6.0] – 2026-05-06
+
+### Features
+- port rclgo to ROS 2 Jazzy
+- port rclgo to ROS 2 Jazzy
+
+### Documentation
+- **changelog**: prepare Unreleased section for v0.6.0 jazzy release
+
+### Tests
+- add jazzy compatibility tests and Taskfile
+
+### Chores
+- merge .gitignore from origin/jazzy
+- bump VERSION to 0.6.0 for v0.6.0
+- fix remaining humble references in logging tests
+- regenerate message bindings and fix generator path
+- replace humble references with jazzy / \$ROS_DISTRO
+- sync Go version to 1.26.1 via swarmos-sync-go-mods
+- regenerate message bindings and update dependencies
+- ignore .claude dir
+- Merge tag 'v0.5.1' into humble
+- Added additional ignore paths
+
+
 ## [v0.5.1] – 2025-11-17
 
 (no user-facing changes)
