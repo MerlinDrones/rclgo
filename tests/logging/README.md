@@ -408,6 +408,6 @@ Use this template to document test results:
 
 ## References
 
-- [ROS 2 Logging Documentation](https://docs.ros.org/en/humble/Tutorials/Demos/Logging-and-logger-configuration.html)
-- [Launch File Logging](https://docs.ros.org/en/humble/How-To-Guides/Launch-file-different-formats.html#parameters-arguments-and-substitutions)
+- [ROS 2 Logging Documentation](https://docs.ros.org/en/jazzy/Tutorials/Demos/Logging-and-logger-configuration.html)
+- [Launch File Logging](https://docs.ros.org/en/jazzy/How-To-Guides/Launch-file-different-formats.html#parameters-arguments-and-substitutions)
 - [rclgo CLAUDE.md](../../CLAUDE.md)
