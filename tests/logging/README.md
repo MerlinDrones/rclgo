@@ -34,7 +34,7 @@ tests/logging/
 1. **Build rclgo examples:**
    ```bash
    cd /home/dave/Git/merlin/Swarmos/rclgo
-   source /opt/ros/humble/setup.bash
+   source /opt/ros/${ROS_DISTRO}/setup.bash
    source cgo-flags.env
 
    # Build param_demo
@@ -50,7 +50,7 @@ tests/logging/
 
 2. **Source ROS 2 environment:**
    ```bash
-   source /opt/ros/humble/setup.bash
+   source /opt/ros/${ROS_DISTRO}/setup.bash
    ```
 
 ## Test Scenarios

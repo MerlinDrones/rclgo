@@ -1,6 +1,6 @@
-# rclgo ↔ rclcpp/rclpy Parity Roadmap (ROS 2 Humble)
+# rclgo ↔ rclcpp/rclpy Parity Roadmap (ROS 2 Jazzy)
 
-> Target: ROS 2 **Humble** APIs; production-grade gaps first, then nice-to-haves.
+> Target: ROS 2 **Jazzy** APIs; production-grade gaps first, then nice-to-haves.
 
 ---
 

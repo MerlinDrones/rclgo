@@ -46,7 +46,18 @@
 
 ## [Unreleased]
 
-(no changes yet)
+### Documentation
+- **jazzy**: replace all remaining `humble` references with `jazzy` or `$ROS_DISTRO`
+- **ROADMAP**: update target distro from Humble to Jazzy
+- **overview, parameters, qos**: update distro references to Jazzy
+
+### Build
+- **gen_msgs**: remove `--ignore-ros-distro-mismatch` flag (no longer needed on Jazzy)
+- **gen_cgo_flags, gen_msgs**: switch shebang from `sh` to `bash`
+- **qos**: update fallback CGO flags from humble to jazzy paths
+
+### Bug Fixes
+- **test_script_launch**: use `$ROS_DISTRO` env var instead of hardcoded humble path
 
 ## [v0.4.1] – 2025-10-19
 

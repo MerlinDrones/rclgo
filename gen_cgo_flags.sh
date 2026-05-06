@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # This script generates cgo-flags.env for ROS 2 WORKSPACE development.
 # Use this when building ROS 2 nodes that need both base ROS 2 and workspace overlay packages.

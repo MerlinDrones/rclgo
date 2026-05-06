@@ -17,11 +17,12 @@ echo "SCRIPT_DIR: ${SCRIPT_DIR}"
 echo ""
 
 # Source ROS 2 environment
-if [ -f "/opt/ros/humble/setup.bash" ]; then
-    echo "Sourcing ROS 2 Humble environment..."
-    source /opt/ros/humble/setup.bash
+ROS_DISTRO="${ROS_DISTRO:-jazzy}"
+if [ -f "/opt/ros/${ROS_DISTRO}/setup.bash" ]; then
+    echo "Sourcing ROS 2 ${ROS_DISTRO} environment..."
+    source /opt/ros/${ROS_DISTRO}/setup.bash
 else
-    echo "ERROR: ROS 2 Humble not found at /opt/ros/humble/setup.bash"
+    echo "ERROR: ROS 2 ${ROS_DISTRO} not found at /opt/ros/${ROS_DISTRO}/setup.bash"
     exit 1
 fi
 

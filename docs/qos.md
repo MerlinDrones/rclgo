@@ -112,8 +112,8 @@ If you mix profiles across publishers/subscribers on the same topic, ROS 2 uses 
 
     * `CGO_ENABLED=1`
     * `CC=/usr/bin/gcc`, `CXX=/usr/bin/g++`
-    * `C_INCLUDE_PATH=/opt/ros/humble/include`
-    * `LIBRARY_PATH` and `LD_LIBRARY_PATH` to include `/opt/ros/humble/lib` and (if present) `/opt/ros/humble/lib/x86_64-linux-gnu`
+    * `C_INCLUDE_PATH=/opt/ros/${ROS_DISTRO}/include`
+    * `LIBRARY_PATH` and `LD_LIBRARY_PATH` to include `/opt/ros/${ROS_DISTRO}/lib` and (if present) `/opt/ros/${ROS_DISTRO}/lib/x86_64-linux-gnu`
     * `GOCACHE` to a writable path (e.g., `$USER_HOME$/.cache/go-build` in GoLand with “process path macros” enabled)
 * Our tests avoid `pkg-config` by setting `PKG_CONFIG=/bin/true` and feeding include/library paths directly.
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # This script generates ROS2 message bindings for rclgo DEVELOPMENT.
 # This is for working on rclgo itself, using only standard ROS 2 packages.
@@ -59,5 +59,4 @@ go run ./cmd/rclgo-gen generate \
   --include-package unique_identifier_msgs \
   --include-package rcl_interfaces \
   --include-package lifecycle_msgs \
-  --include-package rosgraph_msgs \
-  --ignore-ros-distro-mismatch
+  --include-package rosgraph_msgs
