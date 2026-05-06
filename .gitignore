@@ -31,8 +31,8 @@ dist/
 .idea/
 
 cgo-flags.env
-scripts/*
-/scripts/*
+/scripts/__pycache__/
+/scripts/*.pyc
 /CLAUDE.md
 /TODO.md
 /Releases.md
