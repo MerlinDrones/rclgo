@@ -2,27 +2,30 @@
 
 ## [v0.6.0] – 2026-05-06
 
+### ⚠️ Breaking Change: ROS 2 Jazzy Only
+
+**This release drops support for ROS 2 Humble. The minimum supported ROS 2 version is now Jazzy (LTS).**
+
+All library paths, CGO flags, and generated bindings target `/opt/ros/jazzy`. If you are still on Humble, stay on v0.5.x.
+
 ### Features
-- port rclgo to ROS 2 Jazzy
-- port rclgo to ROS 2 Jazzy
+- **jazzy**: port rclgo to ROS 2 Jazzy — new `rcl_timer_init2` API (adds `autostart` param), `RequestID.WriterGUID` type changed to `[16]byte`, new QoS constants (`BestAvailable` reliability/durability/liveliness) and `NewBestAvailableProfile()` helper
+- **jazzy**: new generated message packages: `service_msgs`, `type_description_interfaces`, `rosidl_dynamic_typesupport`
+- **jazzy**: add Jazzy compatibility test suite (`Taskfile.yml` in tests)
+
+### Build
+- **gen_msgs**: remove `--ignore-ros-distro-mismatch` flag (not needed on Jazzy)
+- **gen_cgo_flags, gen_msgs**: switch shebang from `sh` to `bash`
+- **qos**: update fallback CGO flags to `/opt/ros/jazzy` paths
+- **gogen**: fix generator output path for `tests/gogen/flags.gen.go`
+- **msgs**: regenerate all message bindings for Jazzy
+
+### Bug Fixes
+- **test_script_launch**: use `$ROS_DISTRO` env var instead of hardcoded path
 
 ### Documentation
-- **changelog**: prepare Unreleased section for v0.6.0 jazzy release
-
-### Tests
-- add jazzy compatibility tests and Taskfile
-
-### Chores
-- merge .gitignore from origin/jazzy
-- bump VERSION to 0.6.0 for v0.6.0
-- fix remaining humble references in logging tests
-- regenerate message bindings and fix generator path
-- replace humble references with jazzy / \$ROS_DISTRO
-- sync Go version to 1.26.1 via swarmos-sync-go-mods
-- regenerate message bindings and update dependencies
-- ignore .claude dir
-- Merge tag 'v0.5.1' into humble
-- Added additional ignore paths
+- Replace all `humble` path references with `jazzy` or `$ROS_DISTRO` throughout docs, READMEs, and examples
+- Update ROADMAP, overview, and parameter docs to target Jazzy
 
 
 ## [v0.5.1] – 2025-11-17
@@ -68,33 +71,6 @@
 - add commit message template and ignore local AI context
 - Merge tag 'v0.4.1' into humble
 
-
-## [Unreleased]
-
-### ⚠️ Breaking Change: ROS 2 Jazzy Only
-
-**This release drops support for ROS 2 Humble. The minimum supported ROS 2 version is now Jazzy (LTS).**
-
-All library paths, CGO flags, and generated bindings target `/opt/ros/jazzy`. If you are still on Humble, stay on v0.5.x.
-
-### Features
-- **jazzy**: port rclgo to ROS 2 Jazzy — new `rcl_timer_init2` API (adds `autostart` param), `RequestID.WriterGUID` type changed to `[16]byte`, new QoS constants (`BestAvailable` reliability/durability/liveliness) and `NewBestAvailableProfile()` helper
-- **jazzy**: new generated message packages: `service_msgs`, `type_description_interfaces`, `rosidl_dynamic_typesupport`
-- **jazzy**: add Jazzy compatibility test suite (`Taskfile.yml` in tests)
-
-### Build
-- **gen_msgs**: remove `--ignore-ros-distro-mismatch` flag (not needed on Jazzy)
-- **gen_cgo_flags, gen_msgs**: switch shebang from `sh` to `bash`
-- **qos**: update fallback CGO flags to `/opt/ros/jazzy` paths
-- **gogen**: fix generator output path for `tests/gogen/flags.gen.go`
-- **msgs**: regenerate all message bindings for Jazzy
-
-### Bug Fixes
-- **test_script_launch**: use `$ROS_DISTRO` env var instead of hardcoded path
-
-### Documentation
-- Replace all `humble` path references with `jazzy` or `$ROS_DISTRO` throughout docs, READMEs, and examples
-- Update ROADMAP, overview, and parameter docs to target Jazzy
 
 ## [v0.4.1] – 2025-10-19
 
