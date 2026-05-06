@@ -46,3 +46,4 @@ go.work
 go.work.sum
 .sentry-native/
 log.txt
+test.log

@@ -3,6 +3,8 @@ GO111MODULE = on
 .ONESHELL:
 SHELL = /bin/bash
 
+ROS_DISTRO ?= jazzy
+
 all: configure build #default make target
 
 configure:
@@ -16,10 +18,12 @@ install:
 
 .PHONY: test
 test:
+	export LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH
 	go test -count=1 ./...
 
 .PHONY: test-verbose
 test-verbose:
+	export LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH
 	go test -v -count=1 ./...
 
 generate:
