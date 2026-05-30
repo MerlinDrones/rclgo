@@ -6,7 +6,7 @@
 
 # Dependency directories
 vendor/
-
+scripts/
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -67,3 +67,4 @@ reports/*
 log.txt
 test.log
 VERSION
+.gitflow-release
