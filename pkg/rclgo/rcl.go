@@ -21,6 +21,8 @@ package rclgo
 #include <rcl/service.h>
 #include <rcl/timer.h>
 #include <rcl/expand_topic_name.h>
+#include <rcl/logging.h>
+#include <rcl/logging_rosout.h>
 #include <rcl_action/wait.h>
 #include <rcl_yaml_param_parser/parser.h>
 #include <rmw/rmw.h>
@@ -354,6 +356,9 @@ type Node struct {
 	namespace          string
 	fullyQualifiedName string
 	logger             *Logger
+	// rosoutInitialized is true when this node created a /rosout log
+	// publisher that must be finalized when the node is closed.
+	rosoutInitialized bool
 }
 
 func NewNode(nodeName, namespace string) (*Node, error) {
@@ -407,6 +412,22 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 	}
 	node.logger = GetLogger(C.GoString(loggerName))
 
+	// Create the /rosout log publisher for this node so that its log messages
+	// are visible to /rosout subscribers (e.g. rqt_console), matching the
+	// behavior of rclcpp and rclpy nodes.
+	//
+	// Since rcl 9.x (Jazzy) rcl_node_init no longer creates this publisher
+	// itself; the client library is responsible for it. rcl_node_options
+	// enables rosout by default (enable_rosout = true), so the only remaining
+	// gate is whether rosout logging is enabled globally.
+	if bool(C.rcl_logging_rosout_enabled()) && bool(rcl_node_options.enable_rosout) {
+		rc = C.rcl_logging_rosout_init_publisher_for_node(node.rcl_node_t)
+		if rc != C.RCL_RET_OK {
+			return nil, errorsCastC(rc, "failed to initialize rosout publisher")
+		}
+		node.rosoutInitialized = true
+	}
+
 	c.addResource(node)
 	return node, nil
 }
@@ -421,6 +442,15 @@ func (n *Node) Close() error {
 	n.context.removeResource(n)
 
 	err := n.rosResourceStore.Close()
+
+	// Finalize the /rosout log publisher before finalizing the node, mirroring
+	// the initialization done in NewNode.
+	if n.rosoutInitialized {
+		if rc := C.rcl_logging_rosout_fini_publisher_for_node(n.rcl_node_t); rc != C.RCL_RET_OK {
+			err = errors.Join(err, errorsCastC(rc, "failed to finalize rosout publisher"))
+		}
+		n.rosoutInitialized = false
+	}
 
 	rc := C.rcl_node_fini(n.rcl_node_t)
 	if rc != C.RCL_RET_OK {
