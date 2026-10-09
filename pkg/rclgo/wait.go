@@ -168,9 +168,16 @@ func (w *WaitSet) addResources(res *rosResourceStore) {
 	for _, res := range res.resources {
 		switch res := res.(type) {
 		case *Subscription:
-			w.AddSubscriptions(res)
+			// A subscription without a callback is read by its owner with
+			// TakeMessage. Waiting on it would make Spin consume or spin
+			// on messages the owner is polling for.
+			if res.Callback != nil {
+				w.AddSubscriptions(res)
+			}
 		case *Timer:
-			w.AddTimers(res)
+			if res.Callback != nil {
+				w.AddTimers(res)
+			}
 		case *Service:
 			w.AddServices(res)
 		case *Client:
@@ -235,12 +242,14 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		for i, t := range w.Timers {
 			if timers[i] != nil {
 				t.Reset() //nolint:errcheck
-				t.Callback(t)
+				if t.Callback != nil {
+					t.Callback(t)
+				}
 			}
 		}
 		subs := unsafe.Slice(w.rcl_wait_set_t.subscriptions, len(w.Subscriptions))
 		for i, s := range w.Subscriptions {
-			if subs[i] != nil {
+			if subs[i] != nil && s.Callback != nil {
 				s.Callback(s)
 			}
 		}

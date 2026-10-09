@@ -91,11 +91,17 @@ type ClassificationSubscriptionCallback func(msg *Classification, info *rclgo.Me
 
 // NewClassificationSubscription creates and returns a new subscription for the
 // Classification
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewClassificationSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ClassificationSubscriptionCallback) (*ClassificationSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Classification
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Classification
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ClassificationTypeSupport, opts, callback)
 	if err != nil {

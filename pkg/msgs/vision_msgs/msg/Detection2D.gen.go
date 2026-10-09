@@ -98,11 +98,17 @@ type Detection2DSubscriptionCallback func(msg *Detection2D, info *rclgo.MessageI
 
 // NewDetection2DSubscription creates and returns a new subscription for the
 // Detection2D
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewDetection2DSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Detection2DSubscriptionCallback) (*Detection2DSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Detection2D
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Detection2D
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Detection2DTypeSupport, opts, callback)
 	if err != nil {

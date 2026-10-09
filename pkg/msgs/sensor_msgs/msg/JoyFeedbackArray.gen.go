@@ -87,11 +87,17 @@ type JoyFeedbackArraySubscriptionCallback func(msg *JoyFeedbackArray, info *rclg
 
 // NewJoyFeedbackArraySubscription creates and returns a new subscription for the
 // JoyFeedbackArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewJoyFeedbackArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback JoyFeedbackArraySubscriptionCallback) (*JoyFeedbackArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg JoyFeedbackArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg JoyFeedbackArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, JoyFeedbackArrayTypeSupport, opts, callback)
 	if err != nil {

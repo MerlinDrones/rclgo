@@ -94,11 +94,17 @@ type LabelInfoSubscriptionCallback func(msg *LabelInfo, info *rclgo.MessageInfo,
 
 // NewLabelInfoSubscription creates and returns a new subscription for the
 // LabelInfo
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewLabelInfoSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback LabelInfoSubscriptionCallback) (*LabelInfoSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg LabelInfo
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg LabelInfo
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, LabelInfoTypeSupport, opts, callback)
 	if err != nil {

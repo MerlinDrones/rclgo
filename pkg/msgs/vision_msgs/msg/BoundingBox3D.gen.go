@@ -88,11 +88,17 @@ type BoundingBox3DSubscriptionCallback func(msg *BoundingBox3D, info *rclgo.Mess
 
 // NewBoundingBox3DSubscription creates and returns a new subscription for the
 // BoundingBox3D
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBoundingBox3DSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BoundingBox3DSubscriptionCallback) (*BoundingBox3DSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BoundingBox3D
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BoundingBox3D
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BoundingBox3DTypeSupport, opts, callback)
 	if err != nil {

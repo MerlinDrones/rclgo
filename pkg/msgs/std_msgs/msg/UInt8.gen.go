@@ -84,11 +84,17 @@ type UInt8SubscriptionCallback func(msg *UInt8, info *rclgo.MessageInfo, err err
 
 // NewUInt8Subscription creates and returns a new subscription for the
 // UInt8
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewUInt8Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback UInt8SubscriptionCallback) (*UInt8Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg UInt8
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg UInt8
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, UInt8TypeSupport, opts, callback)
 	if err != nil {

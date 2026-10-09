@@ -84,11 +84,17 @@ type CharSubscriptionCallback func(msg *Char, info *rclgo.MessageInfo, err error
 
 // NewCharSubscription creates and returns a new subscription for the
 // Char
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewCharSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback CharSubscriptionCallback) (*CharSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Char
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Char
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, CharTypeSupport, opts, callback)
 	if err != nil {

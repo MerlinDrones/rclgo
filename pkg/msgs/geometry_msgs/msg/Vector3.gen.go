@@ -90,11 +90,17 @@ type Vector3SubscriptionCallback func(msg *Vector3, info *rclgo.MessageInfo, err
 
 // NewVector3Subscription creates and returns a new subscription for the
 // Vector3
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewVector3Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Vector3SubscriptionCallback) (*Vector3Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Vector3
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Vector3
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Vector3TypeSupport, opts, callback)
 	if err != nil {

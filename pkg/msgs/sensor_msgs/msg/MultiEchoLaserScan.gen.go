@@ -118,11 +118,17 @@ type MultiEchoLaserScanSubscriptionCallback func(msg *MultiEchoLaserScan, info *
 
 // NewMultiEchoLaserScanSubscription creates and returns a new subscription for the
 // MultiEchoLaserScan
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewMultiEchoLaserScanSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback MultiEchoLaserScanSubscriptionCallback) (*MultiEchoLaserScanSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg MultiEchoLaserScan
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg MultiEchoLaserScan
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, MultiEchoLaserScanTypeSupport, opts, callback)
 	if err != nil {

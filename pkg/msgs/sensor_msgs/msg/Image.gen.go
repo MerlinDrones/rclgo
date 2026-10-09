@@ -107,11 +107,17 @@ type ImageSubscriptionCallback func(msg *Image, info *rclgo.MessageInfo, err err
 
 // NewImageSubscription creates and returns a new subscription for the
 // Image
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewImageSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ImageSubscriptionCallback) (*ImageSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Image
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Image
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ImageTypeSupport, opts, callback)
 	if err != nil {

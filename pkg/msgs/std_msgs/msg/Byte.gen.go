@@ -84,11 +84,17 @@ type ByteSubscriptionCallback func(msg *Byte, info *rclgo.MessageInfo, err error
 
 // NewByteSubscription creates and returns a new subscription for the
 // Byte
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewByteSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ByteSubscriptionCallback) (*ByteSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Byte
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Byte
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ByteTypeSupport, opts, callback)
 	if err != nil {

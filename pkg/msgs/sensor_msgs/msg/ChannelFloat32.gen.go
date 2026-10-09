@@ -91,11 +91,17 @@ type ChannelFloat32SubscriptionCallback func(msg *ChannelFloat32, info *rclgo.Me
 
 // NewChannelFloat32Subscription creates and returns a new subscription for the
 // ChannelFloat32
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewChannelFloat32Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ChannelFloat32SubscriptionCallback) (*ChannelFloat32Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ChannelFloat32
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ChannelFloat32
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ChannelFloat32TypeSupport, opts, callback)
 	if err != nil {

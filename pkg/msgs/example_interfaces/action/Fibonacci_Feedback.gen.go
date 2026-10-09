@@ -88,11 +88,17 @@ type Fibonacci_FeedbackSubscriptionCallback func(msg *Fibonacci_Feedback, info *
 
 // NewFibonacci_FeedbackSubscription creates and returns a new subscription for the
 // Fibonacci_Feedback
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFibonacci_FeedbackSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Fibonacci_FeedbackSubscriptionCallback) (*Fibonacci_FeedbackSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Fibonacci_Feedback
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Fibonacci_Feedback
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Fibonacci_FeedbackTypeSupport, opts, callback)
 	if err != nil {

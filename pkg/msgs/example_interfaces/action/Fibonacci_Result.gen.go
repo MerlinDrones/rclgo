@@ -88,11 +88,17 @@ type Fibonacci_ResultSubscriptionCallback func(msg *Fibonacci_Result, info *rclg
 
 // NewFibonacci_ResultSubscription creates and returns a new subscription for the
 // Fibonacci_Result
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFibonacci_ResultSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Fibonacci_ResultSubscriptionCallback) (*Fibonacci_ResultSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Fibonacci_Result
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Fibonacci_Result
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Fibonacci_ResultTypeSupport, opts, callback)
 	if err != nil {

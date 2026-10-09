@@ -89,11 +89,17 @@ type GoalInfoSubscriptionCallback func(msg *GoalInfo, info *rclgo.MessageInfo, e
 
 // NewGoalInfoSubscription creates and returns a new subscription for the
 // GoalInfo
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewGoalInfoSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback GoalInfoSubscriptionCallback) (*GoalInfoSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg GoalInfo
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg GoalInfo
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, GoalInfoTypeSupport, opts, callback)
 	if err != nil {

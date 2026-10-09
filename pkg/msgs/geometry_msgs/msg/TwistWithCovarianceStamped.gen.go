@@ -88,11 +88,17 @@ type TwistWithCovarianceStampedSubscriptionCallback func(msg *TwistWithCovarianc
 
 // NewTwistWithCovarianceStampedSubscription creates and returns a new subscription for the
 // TwistWithCovarianceStamped
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTwistWithCovarianceStampedSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TwistWithCovarianceStampedSubscriptionCallback) (*TwistWithCovarianceStampedSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg TwistWithCovarianceStamped
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg TwistWithCovarianceStamped
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TwistWithCovarianceStampedTypeSupport, opts, callback)
 	if err != nil {

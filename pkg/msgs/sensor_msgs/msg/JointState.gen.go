@@ -110,11 +110,17 @@ type JointStateSubscriptionCallback func(msg *JointState, info *rclgo.MessageInf
 
 // NewJointStateSubscription creates and returns a new subscription for the
 // JointState
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewJointStateSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback JointStateSubscriptionCallback) (*JointStateSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg JointState
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg JointState
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, JointStateTypeSupport, opts, callback)
 	if err != nil {

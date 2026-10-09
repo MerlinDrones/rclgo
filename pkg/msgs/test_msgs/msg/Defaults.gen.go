@@ -120,11 +120,17 @@ type DefaultsSubscriptionCallback func(msg *Defaults, info *rclgo.MessageInfo, e
 
 // NewDefaultsSubscription creates and returns a new subscription for the
 // Defaults
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewDefaultsSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback DefaultsSubscriptionCallback) (*DefaultsSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Defaults
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Defaults
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, DefaultsTypeSupport, opts, callback)
 	if err != nil {

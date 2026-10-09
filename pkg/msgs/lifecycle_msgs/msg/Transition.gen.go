@@ -121,11 +121,17 @@ type TransitionSubscriptionCallback func(msg *Transition, info *rclgo.MessageInf
 
 // NewTransitionSubscription creates and returns a new subscription for the
 // Transition
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTransitionSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TransitionSubscriptionCallback) (*TransitionSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Transition
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Transition
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TransitionTypeSupport, opts, callback)
 	if err != nil {
