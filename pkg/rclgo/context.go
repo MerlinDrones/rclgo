@@ -56,11 +56,15 @@ type rosResourceStore struct {
 	mutex     sync.Mutex
 	resources map[uint64]rosResource
 	idCounter uint64
+
+	// onChange, if set, is called after a resource that Spin services is
+	// added to or removed from the store. It is called without the store's
+	// mutex held.
+	onChange func()
 }
 
 func (s *rosResourceStore) addResource(r rosResource) {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
 	if s.resources == nil {
 		s.resources = make(map[uint64]rosResource)
 		// The counter starts at one to allow removing zero-initialized
@@ -70,12 +74,25 @@ func (s *rosResourceStore) addResource(r rosResource) {
 	r.setID(s.idCounter)
 	s.resources[s.idCounter] = r
 	s.idCounter++
+	s.mutex.Unlock()
+	s.changed(r)
 }
 
 func (s *rosResourceStore) removeResource(r rosResource) {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
 	delete(s.resources, r.getID())
+	s.mutex.Unlock()
+	s.changed(r)
+}
+
+func (s *rosResourceStore) changed(r rosResource) {
+	if s.onChange == nil {
+		return
+	}
+	switch r.(type) {
+	case *Subscription, *Timer, *Service, *Client, *ActionServer, *ActionClient, *Node:
+		s.onChange()
+	}
 }
 
 func (s *rosResourceStore) Close() (err error) {
@@ -168,6 +185,13 @@ type Context struct {
 	clock           *Clock
 
 	rosResourceStore
+
+	// spinners are the wait sets that follow a resource store (see
+	// WaitSet.followResources). They are told to rebuild their entity lists
+	// whenever a resource is added to or removed from the context or one of
+	// its nodes.
+	spinnersMu sync.Mutex
+	spinners   map[*WaitSet]struct{}
 }
 
 // NewContext calls NewContextWithOpts with default options except for
@@ -196,6 +220,7 @@ If opts is nil, default options are used.
 */
 func NewContextWithOpts(rclArgs *Args, opts *ContextOptions) (ctx *Context, err error) {
 	ctx = &Context{}
+	ctx.rosResourceStore.onChange = ctx.resourcesChanged
 	defer onErr(&err, ctx.Close)
 
 	if rclArgs == nil {
@@ -276,14 +301,49 @@ func (c *Context) SetClock(newClock *Clock) {
 }
 
 // Spin starts and waits for all ROS resources in the context that need waiting
-// such as nodes and subscriptions. Spin returns when an error occurs or ctx is
-// canceled.
+// such as nodes and subscriptions. Resources created while Spin is running are
+// picked up as well. Spin returns when an error occurs or ctx is canceled.
 func (c *Context) Spin(ctx context.Context) error {
+	return spinErr("context", c.spin(ctx, &c.rosResourceStore))
+}
+
+// spin waits for and handles the resources in store, following changes to it,
+// until an error occurs or ctx is canceled.
+func (c *Context) spin(ctx context.Context, store *rosResourceStore) error {
 	ws, err := c.NewWaitSet()
 	if err != nil {
-		return spinErr("context", err)
+		return err
 	}
 	defer ws.Close()
-	ws.addResources(&c.rosResourceStore)
-	return spinErr("context", ws.Run(ctx))
+	if err := ws.followResources(store); err != nil {
+		return err
+	}
+	return ws.Run(ctx)
+}
+
+// resourcesChanged tells every spinning wait set to rebuild its entity lists.
+func (c *Context) resourcesChanged() {
+	c.spinnersMu.Lock()
+	defer c.spinnersMu.Unlock()
+	for ws := range c.spinners {
+		// A failed trigger only delays the refresh until the wait set
+		// wakes for another reason, so there is nothing better to do with
+		// the error.
+		ws.refresh.Trigger() //nolint:errcheck
+	}
+}
+
+func (c *Context) addSpinner(ws *WaitSet) {
+	c.spinnersMu.Lock()
+	defer c.spinnersMu.Unlock()
+	if c.spinners == nil {
+		c.spinners = make(map[*WaitSet]struct{})
+	}
+	c.spinners[ws] = struct{}{}
+}
+
+func (c *Context) removeSpinner(ws *WaitSet) {
+	c.spinnersMu.Lock()
+	defer c.spinnersMu.Unlock()
+	delete(c.spinners, ws)
 }

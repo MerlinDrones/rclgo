@@ -45,6 +45,11 @@ type WaitSet struct {
 	rcl_wait_set_t  C.rcl_wait_set_t
 	cancelWait      *guardCondition
 	context         *Context
+
+	// source, if set, is the resource store the entity lists are rebuilt
+	// from whenever refresh is triggered (see followResources).
+	source  *rosResourceStore
+	refresh *guardCondition
 }
 
 func NewWaitSet() (*WaitSet, error) {
@@ -128,7 +133,38 @@ func (w *WaitSet) addGuardConditions(guardConditions ...*guardCondition) {
 	w.guardConditions = append(w.guardConditions, guardConditions...)
 }
 
+// followResources makes w wait for the resources in store and rebuild its
+// entity lists whenever a resource is added to or removed from store or the
+// stores of its nodes.
+func (w *WaitSet) followResources(store *rosResourceStore) (err error) {
+	w.refresh, err = w.context.newGuardCondition()
+	if err != nil {
+		return err
+	}
+	w.addGuardConditions(w.refresh)
+	w.source = store
+	// Register before the first sync so that a resource added in between
+	// still triggers a refresh.
+	w.context.addSpinner(w)
+	w.syncResources()
+	return nil
+}
+
+// syncResources replaces the entity lists of w with the resources currently in
+// w.source.
+func (w *WaitSet) syncResources() {
+	w.Subscriptions = w.Subscriptions[:0]
+	w.Timers = w.Timers[:0]
+	w.Services = w.Services[:0]
+	w.Clients = w.Clients[:0]
+	w.ActionServers = w.ActionServers[:0]
+	w.ActionClients = w.ActionClients[:0]
+	w.addResources(w.source)
+}
+
 func (w *WaitSet) addResources(res *rosResourceStore) {
+	res.mutex.Lock()
+	defer res.mutex.Unlock()
 	for _, res := range res.resources {
 		switch res := res.(type) {
 		case *Subscription:
@@ -155,41 +191,8 @@ Run causes the current goroutine to block on this given WaitSet.
 WaitSet executes the given timers and subscriptions and calls their callbacks on new events.
 */
 func (w *WaitSet) Run(ctx context.Context) (err error) {
-	for _, subscription := range w.Subscriptions {
-		if subscription.waitable.reserve() {
-			defer subscription.waitable.release()
-		}
-	}
-	for _, timer := range w.Timers {
-		if timer.waitable.reserve() {
-			defer timer.waitable.release()
-		}
-	}
-	for _, service := range w.Services {
-		if service.waitable.reserve() {
-			defer service.waitable.release()
-		}
-	}
-	for _, client := range w.Clients {
-		if client.waitable.reserve() {
-			defer client.waitable.release()
-		}
-	}
-	for _, actionClient := range w.ActionClients {
-		if actionClient.waitable.reserve() {
-			defer actionClient.waitable.release()
-		}
-	}
-	for _, actionServer := range w.ActionServers {
-		if actionServer.waitable.reserve() {
-			defer actionServer.waitable.release()
-		}
-	}
-	for _, guardCondition := range w.guardConditions {
-		if guardCondition.waitable.reserve() {
-			defer guardCondition.waitable.release()
-		}
-	}
+	release := w.reserve()
+	defer func() { release() }()
 	if ctx == nil {
 		return errors.New("context must not be nil")
 	}
@@ -204,7 +207,14 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		<-errctx.Done()
 		errs <- w.cancelWait.Trigger()
 	}()
+	refresh := false
 	for {
+		if refresh {
+			release()
+			w.syncResources()
+			release = w.reserve()
+			refresh = false
+		}
 		if err := w.initEntities(); err != nil {
 			return err
 		}
@@ -213,8 +223,12 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		}
 		guardConditions := unsafe.Slice(w.rcl_wait_set_t.guard_conditions, len(w.guardConditions))
 		for i := range w.guardConditions {
-			if guardConditions[i] == w.cancelWait.rclGuardCondition {
+			switch {
+			case guardConditions[i] == nil:
+			case guardConditions[i] == w.cancelWait.rclGuardCondition:
 				return ctx.Err()
+			case w.refresh != nil && guardConditions[i] == w.refresh.rclGuardCondition:
+				refresh = true
 			}
 		}
 		timers := unsafe.Slice(w.rcl_wait_set_t.timers, len(w.Timers))
@@ -247,6 +261,43 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		}
 		for _, c := range w.ActionClients {
 			c.handleReadyEntities(w)
+		}
+	}
+}
+
+// reserve marks the entities of w as waited on and returns a function that
+// releases the marks it set.
+func (w *WaitSet) reserve() (release func()) {
+	var held []*singleUse
+	hold := func(s *singleUse) {
+		if s.reserve() {
+			held = append(held, s)
+		}
+	}
+	for _, s := range w.Subscriptions {
+		hold(&s.waitable)
+	}
+	for _, t := range w.Timers {
+		hold(&t.waitable)
+	}
+	for _, s := range w.Services {
+		hold(&s.waitable)
+	}
+	for _, c := range w.Clients {
+		hold(&c.waitable)
+	}
+	for _, c := range w.ActionClients {
+		hold(&c.waitable)
+	}
+	for _, s := range w.ActionServers {
+		hold(&s.waitable)
+	}
+	for _, g := range w.guardConditions {
+		hold(&g.waitable)
+	}
+	return func() {
+		for _, s := range held {
+			s.release()
 		}
 	}
 }
@@ -323,6 +374,7 @@ func (w *WaitSet) Close() (err error) {
 	if w.context == nil {
 		return closeErr("wait set")
 	}
+	w.context.removeSpinner(w)
 	w.context.removeResource(w)
 	w.context = nil
 	rc := C.rcl_wait_set_fini(&w.rcl_wait_set_t)
@@ -333,6 +385,12 @@ func (w *WaitSet) Close() (err error) {
 	cancelWaitErr := w.cancelWait.Close()
 	if cancelWaitErr != nil && !errors.As(cancelWaitErr, &closeError) {
 		err = errors.Join(err, cancelWaitErr)
+	}
+	if w.refresh != nil {
+		refreshErr := w.refresh.Close()
+		if refreshErr != nil && !errors.As(refreshErr, &closeError) {
+			err = errors.Join(err, refreshErr)
+		}
 	}
 	return err
 }
