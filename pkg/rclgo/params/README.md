@@ -25,6 +25,11 @@ Parameters can be set from multiple sources. The priority order (highest to lowe
 3. **YAML files** (`--params-file config.yaml`)
 4. **Declared defaults** (in code) - Lowest priority
 
+### Nested YAML
+
+Nested maps under `ros__parameters` are flattened into dotted names, as in rclcpp: `ipc: {port: 5600}` loads the
+parameter `ipc.port`.
+
 ### Overrides and declarations
 
 An override (YAML file, CLI `-p`, or `RCL_PARAM_*`) may set a parameter before or after the code declares it; the
