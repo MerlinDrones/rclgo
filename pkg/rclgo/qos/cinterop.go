@@ -22,41 +22,46 @@ static inline void rclgo_qos_set(
   size_t depth,
   uint32_t reliability,
   uint32_t durability,
-  uint64_t deadline,
-  uint64_t lifespan,
+  uint64_t deadline_sec, uint64_t deadline_nsec,
+  uint64_t lifespan_sec, uint64_t lifespan_nsec,
   uint32_t liveliness,
-  uint64_t liveliness_lease_duration,
+  uint64_t lease_sec, uint64_t lease_nsec,
   _Bool avoid_ns
 ) {
   dst->history = (rmw_qos_history_policy_t)history;
   dst->depth = depth;
   dst->reliability = (rmw_qos_reliability_policy_t)reliability;
   dst->durability = (rmw_qos_durability_policy_t)durability;
-  dst->deadline.nsec = deadline;
-  dst->lifespan.nsec = lifespan;
+  dst->deadline.sec = deadline_sec;
+  dst->deadline.nsec = deadline_nsec;
+  dst->lifespan.sec = lifespan_sec;
+  dst->lifespan.nsec = lifespan_nsec;
   dst->liveliness = (rmw_qos_liveliness_policy_t)liveliness;
-  dst->liveliness_lease_duration.nsec = liveliness_lease_duration;
+  dst->liveliness_lease_duration.sec = lease_sec;
+  dst->liveliness_lease_duration.nsec = lease_nsec;
   dst->avoid_ros_namespace_conventions = avoid_ns;
 }
 */
 import "C"
-import "time"
 
 // AsCStruct writes p into a C rmw_qos_profile_t.
 func (p Profile) AsCStruct(dst *C.rmw_qos_profile_t) {
 	if dst == nil {
 		return
 	}
+	deadlineSec, deadlineNsec := DurationToRMW(p.Deadline)
+	lifespanSec, lifespanNsec := DurationToRMW(p.Lifespan)
+	leaseSec, leaseNsec := DurationToRMW(p.LivelinessLeaseDuration)
 	C.rclgo_qos_set(
 		dst,
 		C.uint32_t(p.History),
 		C.size_t(p.Depth),
 		C.uint32_t(p.Reliability),
 		C.uint32_t(p.Durability),
-		C.uint64_t(p.Deadline),
-		C.uint64_t(p.Lifespan),
+		C.uint64_t(deadlineSec), C.uint64_t(deadlineNsec),
+		C.uint64_t(lifespanSec), C.uint64_t(lifespanNsec),
 		C.uint32_t(p.Liveliness),
-		C.uint64_t(p.LivelinessLeaseDuration),
+		C.uint64_t(leaseSec), C.uint64_t(leaseNsec),
 		C.bool(p.AvoidROSNamespaceConventions),
 	)
 }
@@ -71,10 +76,10 @@ func (p *Profile) FromCStruct(src *C.rmw_qos_profile_t) {
 		Depth:                        int(src.depth),
 		Reliability:                  ReliabilityPolicy(src.reliability),
 		Durability:                   DurabilityPolicy(src.durability),
-		Deadline:                     time.Duration(src.deadline.nsec),
-		Lifespan:                     time.Duration(src.lifespan.nsec),
+		Deadline:                     DurationFromRMW(uint64(src.deadline.sec), uint64(src.deadline.nsec)),
+		Lifespan:                     DurationFromRMW(uint64(src.lifespan.sec), uint64(src.lifespan.nsec)),
 		Liveliness:                   LivelinessPolicy(src.liveliness),
-		LivelinessLeaseDuration:      time.Duration(src.liveliness_lease_duration.nsec),
+		LivelinessLeaseDuration:      DurationFromRMW(uint64(src.liveliness_lease_duration.sec), uint64(src.liveliness_lease_duration.nsec)),
 		AvoidROSNamespaceConventions: bool(src.avoid_ros_namespace_conventions),
 	}
 }
