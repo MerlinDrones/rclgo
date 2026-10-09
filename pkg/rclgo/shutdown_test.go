@@ -12,6 +12,7 @@ package rclgo_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -217,5 +218,26 @@ func TestConcurrentTimersOnOneClock(t *testing.T) {
 	}
 	for range 8 {
 		require.NoError(t, <-errs)
+	}
+}
+
+// Context.Close while Spin is busy (a 1 ms timer keeps it waking up): Spin
+// must still see that its wait set was closed and return.
+func TestContextCloseWhileSpinningBusy(t *testing.T) {
+	for i := range 50 {
+		rclctx, err := newDefaultRCLContext()
+		require.NoError(t, err)
+		node := populateNode(t, rclctx, fmt.Sprintf("busy_%d", i))
+		_, err = rclctx.NewTimer(time.Millisecond, func(*rclgo.Timer) {})
+		require.NoError(t, err)
+		errs, cancel := spinErrors(node.Context().Spin)
+		require.NoError(t, requireReturns(t, "Context.Close", rclctx.Close))
+		select {
+		case <-errs:
+		case <-time.After(closeTimeout):
+			cancel()
+			t.Fatalf("iteration %d: Spin did not return after its context was closed", i)
+		}
+		cancel()
 	}
 }

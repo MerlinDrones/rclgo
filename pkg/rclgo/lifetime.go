@@ -10,9 +10,18 @@ Licensed under the Apache License, Version 2.0 (the "License");
 package rclgo
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 )
+
+// ErrClosed is returned, wrapped, by calls on an entity that has been closed,
+// for example TakeMessage on a closed subscription.
+var ErrClosed = errors.New("rclgo: entity is closed")
+
+func closedErr(kind string) error {
+	return fmt.Errorf("%s: %w", kind, ErrClosed)
+}
 
 // lifetime keeps the rcl handle of an entity alive while wait sets use it.
 //
