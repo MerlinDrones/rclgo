@@ -22,6 +22,9 @@ type Manager struct {
 	// Optional provider for simulated time. If nil, wall clock is used.
 	// When 'use_sim_time' is true and nowProvider != nil, event stamps use nowProvider().
 	nowProvider func() builtin_interfaces_msg.Time
+
+	// eventSink, if set, receives every parameter event (for tests).
+	eventSink func(*rcl_interfaces_msg2.ParameterEvent)
 }
 
 func NewManager(n *rclgo.Node) (*Manager, error) {
@@ -74,20 +77,42 @@ func NewManager(n *rclgo.Node) (*Manager, error) {
 
 // Public API
 
+// Declare declares a parameter with default value v and descriptor d.
+//
+// If an override (parameter file, command line or environment variable)
+// already set the parameter, Declare keeps the override's value instead of v,
+// converted to v's type (an integer widens to a double), and attaches d. It
+// returns an error if the override has an incompatible type or violates d.
 func (m *Manager) Declare(name string, v Value, d Descriptor) (Parameter, error) {
-	p, err := m.st.declare(name, v, d)
-	if err == nil {
+	p, claimed, err := m.st.declareOrClaim(name, v, d)
+	if err == nil && !claimed {
 		m.publishEvent([]Parameter{p}, nil)
 	}
 	return p, err
 }
 
+// DeclareIfMissing is like Declare but does nothing if code already declared
+// the parameter.
 func (m *Manager) DeclareIfMissing(name string, v Value, d Descriptor) error {
-	if _, ok := m.Get(name); ok {
+	if _, ok := m.Get(name); ok && !m.st.isOverrideOnly(name) {
 		return nil
 	}
 	_, err := m.Declare(name, v, d)
 	return err
+}
+
+// applyOverride sets a parameter from an override source. See store.applyOverride.
+func (m *Manager) applyOverride(name string, v Value, d Descriptor) error {
+	p, created, err := m.st.applyOverride(name, v, d)
+	if err != nil {
+		return err
+	}
+	if created {
+		m.publishEvent([]Parameter{p}, nil)
+	} else {
+		m.publishEvent(nil, []Parameter{p})
+	}
+	return nil
 }
 
 func (m *Manager) Get(name string) (Parameter, bool) { return m.st.get(name) }
@@ -97,9 +122,9 @@ func (m *Manager) OnSet(cb OnSetCallback)            { m.st.cb = cb }
 // Set updates one or more existing parameters. Returns SetResult indicating success/failure.
 // All parameters must already be declared, and constraints will be validated.
 func (m *Manager) Set(params ...Parameter) (SetResult, error) {
-	result, old, newp := m.st.set(params)
+	result, _, newp := m.st.set(params)
 	if result.Successful {
-		m.publishEvent(newp, old)
+		m.publishEvent(nil, newp)
 	}
 	if !result.Successful {
 		return result, fmt.Errorf("set failed: %s", result.Reason)
@@ -161,7 +186,7 @@ func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 	for _, p := range req.Parameters {
 		incoming = append(incoming, Parameter{Name: p.Name, Value: fromRclValue(p.Value)})
 	}
-	result, old, newp := m.st.set(incoming)
+	result, _, newp := m.st.set(incoming)
 
 	// Per-item results: mirror ROS 2 semantics (one result per requested parameter)
 	results := make([]rcl_interfaces_msg2.SetParametersResult, len(req.Parameters))
@@ -174,7 +199,7 @@ func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 	resp.Results = results
 
 	if result.Successful {
-		m.publishEvent(newp, old)
+		m.publishEvent(nil, newp)
 	}
 	_ = send.SendResponse(resp)
 }
@@ -296,44 +321,58 @@ func (m *Manager) stampNow() builtin_interfaces_msg.Time {
 	}
 }
 
-func (m *Manager) publishEvent(newp, old []Parameter) {
-	if m.pub == nil {
+// publishEvent publishes a ParameterEvent with declared parameters in
+// new_parameters and the new values of changed parameters in
+// changed_parameters.
+func (m *Manager) publishEvent(declared, changed []Parameter) {
+	if m.pub == nil && m.eventSink == nil {
 		return
 	}
-	evt := &rcl_interfaces_msg2.ParameterEvent{
-		Stamp: m.stampNow(),
-		Node:  m.n.FullyQualifiedName(),
-	}
-	for _, p := range newp {
+	evt := m.newEvent()
+	for _, p := range declared {
 		evt.NewParameters = append(evt.NewParameters, rcl_interfaces_msg2.Parameter{
 			Name:  p.Name,
 			Value: toRclValue(p.Value),
 		})
 	}
-	for _, p := range old {
+	for _, p := range changed {
 		evt.ChangedParameters = append(evt.ChangedParameters, rcl_interfaces_msg2.Parameter{
 			Name:  p.Name,
 			Value: toRclValue(p.Value),
 		})
 	}
-	_ = m.pub.Publish(evt)
+	m.emit(evt)
 }
 
 func (m *Manager) publishDelete(del []Parameter) {
-	if m.pub == nil {
+	if m.pub == nil && m.eventSink == nil {
 		return
 	}
-	evt := &rcl_interfaces_msg2.ParameterEvent{
-		Stamp: m.stampNow(),
-		Node:  m.n.FullyQualifiedName(),
-	}
+	evt := m.newEvent()
 	for _, p := range del {
 		evt.DeletedParameters = append(evt.DeletedParameters, rcl_interfaces_msg2.Parameter{
 			Name:  p.Name,
 			Value: toRclValue(p.Value),
 		})
 	}
-	_ = m.pub.Publish(evt)
+	m.emit(evt)
+}
+
+func (m *Manager) newEvent() *rcl_interfaces_msg2.ParameterEvent {
+	evt := &rcl_interfaces_msg2.ParameterEvent{Stamp: m.stampNow()}
+	if m.n != nil {
+		evt.Node = m.n.FullyQualifiedName()
+	}
+	return evt
+}
+
+func (m *Manager) emit(evt *rcl_interfaces_msg2.ParameterEvent) {
+	if m.eventSink != nil {
+		m.eventSink(evt)
+	}
+	if m.pub != nil {
+		_ = m.pub.Publish(evt)
+	}
 }
 
 // --- Converters between Value and rcl_interfaces/ParameterValue ---
