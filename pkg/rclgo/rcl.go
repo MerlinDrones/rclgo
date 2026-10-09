@@ -373,6 +373,7 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 		rcl_node_t: (*C.rcl_node_t)(C.malloc(C.sizeof_rcl_node_t)),
 		context:    c,
 	}
+	node.rosResourceStore.onChange = c.resourcesChanged
 	*node.rcl_node_t = C.rcl_get_zero_initialized_node()
 	defer onErr(&err, node.Close)
 
@@ -496,15 +497,10 @@ func spinErr(spinner string, err error) error {
 }
 
 // Spin starts and waits for all ROS resources in the node that need waiting
-// such as subscriptions. Spin returns when an error occurs or ctx is canceled.
+// such as subscriptions. Resources created on the node while Spin is running
+// are picked up as well. Spin returns when an error occurs or ctx is canceled.
 func (n *Node) Spin(ctx context.Context) error {
-	ws, err := n.context.NewWaitSet()
-	if err != nil {
-		return spinErr("node", err)
-	}
-	defer ws.Close()
-	ws.addResources(&n.rosResourceStore)
-	return spinErr("node", ws.Run(ctx))
+	return spinErr("node", n.context.spin(ctx, &n.rosResourceStore))
 }
 
 type PublisherOptions struct {
