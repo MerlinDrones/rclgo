@@ -68,16 +68,9 @@ func LoadYAML(m *Manager, nodeName string, path string) error {
 		if !ok {
 			return fmt.Errorf("unsupported YAML type for %s", name)
 		}
-		// If parameter already exists, set it. Otherwise declare it.
-		if _, exists := m.Get(name); exists {
-			if _, err := m.SetValue(name, val); err != nil {
-				return fmt.Errorf("set %s: %w", name, err)
-			}
-		} else {
-			// Declare with empty descriptor (you can set constraints in code later)
-			if _, err := m.Declare(name, val, Descriptor{}); err != nil {
-				return fmt.Errorf("declare %s: %w", name, err)
-			}
+		// A later Declare in code attaches its descriptor to this value.
+		if err := m.applyOverride(name, val, Descriptor{}); err != nil {
+			return fmt.Errorf("set %s: %w", name, err)
 		}
 	}
 	return nil

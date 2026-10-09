@@ -76,17 +76,11 @@ func ApplyEnvVars(m *Manager) error {
 			return fmt.Errorf("failed to parse env var RCL_PARAM_%s: %w", name, err)
 		}
 
-		// If parameter exists, set it. Otherwise declare it.
-		if exists {
-			if _, err := m.SetValue(name, val); err != nil {
-				return fmt.Errorf("failed to set env var for %s: %w", name, err)
-			}
-		} else {
-			if _, err := m.Declare(name, val, Descriptor{
-				Description: fmt.Sprintf("Set from environment variable RCL_PARAM_%s", name),
-			}); err != nil {
-				return fmt.Errorf("failed to declare env var for %s: %w", name, err)
-			}
+		// A later Declare in code attaches its descriptor to this value.
+		if err := m.applyOverride(name, val, Descriptor{
+			Description: fmt.Sprintf("Set from environment variable RCL_PARAM_%s", name),
+		}); err != nil {
+			return fmt.Errorf("failed to apply env var for %s: %w", name, err)
 		}
 	}
 
