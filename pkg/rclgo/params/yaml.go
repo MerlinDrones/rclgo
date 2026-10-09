@@ -54,7 +54,9 @@ func LoadYAML(m *Manager, nodeName string, path string) error {
 		return fmt.Errorf("no ros__parameters block found for node %q in %s", nodeName, filepath.Base(path))
 	}
 
-	for name, raw := range paramsMap {
+	flat := map[string]interface{}{}
+	flattenYAMLParams("", paramsMap, flat)
+	for name, raw := range flat {
 		val, ok := valueFromYAML(raw)
 		if !ok {
 			return fmt.Errorf("unsupported YAML type for %s", name)
@@ -65,6 +67,22 @@ func LoadYAML(m *Manager, nodeName string, path string) error {
 		}
 	}
 	return nil
+}
+
+// flattenYAMLParams copies the parameters in m into out, turning nested maps
+// into dotted names ("ipc: {port: 1}" becomes "ipc.port"), as rclcpp does.
+func flattenYAMLParams(prefix string, m map[string]interface{}, out map[string]interface{}) {
+	for k, v := range m {
+		name := k
+		if prefix != "" {
+			name = prefix + "." + k
+		}
+		if nested, ok := v.(map[string]interface{}); ok {
+			flattenYAMLParams(name, nested, out)
+			continue
+		}
+		out[name] = v
+	}
 }
 
 func valueFromYAML(v interface{}) (Value, bool) {

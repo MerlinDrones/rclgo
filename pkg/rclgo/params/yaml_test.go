@@ -114,10 +114,11 @@ some_other_key:
 
 func TestLoadYAML_UnsupportedType(t *testing.T) {
 	td := t.TempDir()
-	// map value under ros__parameters should be rejected by valueFromYAML
+	// A list of maps has no parameter type and must be rejected. (Nested maps
+	// are flattened into dotted names; see TestLoadYAMLNestedMaps.)
 	yaml := `
 ros__parameters:
-  complex: { a: 1, b: 2 }
+  complex: [{ a: 1 }, { b: 2 }]
 `
 	path := writeTemp(t, td, "unsupported.yaml", yaml)
 
