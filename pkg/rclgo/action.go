@@ -104,6 +104,8 @@ func (g *GoalHandle) Logger() *Logger       { return g.server.node.logger }
 
 // status returns the state of the goal. g.resultCond.L must be held.
 func (g *GoalHandle) status() (GoalStatus, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if g.handle == nil {
 		return GoalUnknown, nil
 	}
@@ -122,6 +124,8 @@ func (g *GoalHandle) status() (GoalStatus, error) {
 // setState applies event to the goal and publishes the new statuses.
 // g.resultCond.L must be held.
 func (g *GoalHandle) setState(event C.rcl_action_goal_event_t) error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	s := g.server
 	s.rclServerMu.Lock()
 	defer s.rclServerMu.Unlock()
@@ -280,6 +284,8 @@ type ActionServer struct {
 }
 
 func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOptions) (*ActionServer, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if opts == nil {
 		opts = NewDefaultActionServerOptions()
 	}
@@ -340,6 +346,8 @@ func (s *ActionServer) Close() error {
 }
 
 func (s *ActionServer) fini() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	s.rclServerMu.Lock()
 	defer s.rclServerMu.Unlock()
 	s.clock.jumpMu.Lock()
@@ -374,6 +382,8 @@ func (s *ActionServer) takeGoalRequest(goal *GoalHandle) error {
 	reqBuf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(reqBuf)
 	err := s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_take_goal_request(&s.rclServer, &goal.requestID, reqBuf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to take goal request")
@@ -395,6 +405,8 @@ func (s *ActionServer) takeGoalRequest(goal *GoalHandle) error {
 func (s *ActionServer) acceptGoal(goal *GoalHandle) error {
 	goal.info.goal_id.uuid = *(*[types.GoalIDLen]C.uchar)(unsafe.Pointer(&goal.ID))
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		s.goalsMu.Lock()
 		defer s.goalsMu.Unlock()
 		if s.goals[goal.ID] != nil {
@@ -442,6 +454,8 @@ func (s *ActionServer) sendGoalResponse(goal *GoalHandle, accepted bool) error {
 	defer ts.ReleaseMemory(buf)
 	ts.AsCStruct(buf, resp)
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_send_goal_response(&s.rclServer, &goal.requestID, buf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to send goal response")
@@ -526,6 +540,8 @@ func (s *ActionServer) finishGoal(goal *GoalHandle, result types.Message, execEr
 	}
 	goal.result = result
 	err = s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		if rc := C.rcl_action_notify_goal_done(&s.rclServer); rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to notify that goal is done")
 		}
@@ -541,6 +557,8 @@ func (s *ActionServer) expireGoals() error {
 	var numExpired C.size_t
 	expiredGoals := make([]C.rcl_action_goal_info_t, 10)
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		s.goalsMu.Lock()
 		defer s.goalsMu.Unlock()
 		for {
@@ -568,6 +586,8 @@ func (s *ActionServer) takeResultRequest(header *C.rmw_request_id_t) (goalIDMess
 	reqBuf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(reqBuf)
 	err := s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_take_result_request(&s.rclServer, header, reqBuf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to take result request")
@@ -595,6 +615,8 @@ func (s *ActionServer) sendResultResponse(status GoalStatus, result types.Messag
 	defer ts.ReleaseMemory(buf)
 	ts.AsCStruct(buf, resp)
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_send_result_response(&s.rclServer, header, buf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to send result response")
@@ -632,6 +654,8 @@ func (s *ActionServer) handleCancelRequest() {
 	reqBuf := ts.Request().PrepareMemory()
 	var header C.rmw_request_id_t
 	err := s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_take_cancel_request(&s.rclServer, &header, reqBuf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to take cancel request")
@@ -650,6 +674,8 @@ func (s *ActionServer) handleCancelRequest() {
 		respBuf := C.rcl_action_get_zero_initialized_cancel_response()
 		defer C.rcl_action_cancel_response_fini(&respBuf)
 		err := s.withServer(func() error {
+			runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+			defer runtime.UnlockOSThread()
 			rc := C.rcl_action_process_cancel_request(
 				&s.rclServer,
 				(*C.rcl_action_cancel_request_t)(reqBuf),
@@ -686,6 +712,8 @@ func (s *ActionServer) handleCancelRequest() {
 			}
 		}
 		err = s.withServer(func() error {
+			runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+			defer runtime.UnlockOSThread()
 			rc := C.rcl_action_send_cancel_response(&s.rclServer, &header, unsafe.Pointer(&respBuf.msg))
 			if rc != C.RCL_RET_OK {
 				return errorsCastC(rc, "failed to send cancel response")
@@ -705,6 +733,8 @@ func (s *ActionServer) sendFeedback(goal *GoalHandle, fb types.Message) error {
 	defer ts.ReleaseMemory(buf)
 	ts.AsCStruct(buf, msg)
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_publish_feedback(&s.rclServer, buf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to send feedback")
@@ -716,6 +746,8 @@ func (s *ActionServer) sendFeedback(goal *GoalHandle, fb types.Message) error {
 // publishStatusesLocked publishes the status of every goal. rclServerMu must be
 // held and the server must not be closed.
 func (s *ActionServer) publishStatusesLocked() {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	statuses := C.rcl_action_get_zero_initialized_goal_status_array()
 	defer C.rcl_action_goal_status_array_fini(&statuses)
 	rc := C.rcl_action_get_goal_status_array(&s.rclServer, &statuses)
@@ -732,6 +764,8 @@ func (s *ActionServer) publishStatusesLocked() {
 func (s *ActionServer) handleReadyEntities(ws *WaitSet) {
 	var goalReq, cancelReq, resultReq, expired C.bool
 	err := s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_server_wait_set_get_entities_ready(
 			&ws.rcl_wait_set_t,
 			&s.rclServer,
@@ -871,6 +905,8 @@ type ActionClient struct {
 }
 
 func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *ActionClientOptions) (*ActionClient, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if opts == nil {
 		opts = NewDefaultActionClientOptions()
 	}
@@ -935,6 +971,8 @@ func (c *ActionClient) Close() error {
 }
 
 func (c *ActionClient) fini() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var err error
 	c.rclClientMu.Lock()
 	defer c.rclClientMu.Unlock()
@@ -1012,6 +1050,8 @@ func (c *ActionClient) SendGoalRequest(ctx context.Context, request types.Messag
 }
 
 func (c *ActionClient) sendGoalRequest(req unsafe.Pointer) (C.int64_t, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !c.life.acquire() {
 		return 0, closedErr("action client")
 	}
@@ -1025,6 +1065,8 @@ func (c *ActionClient) sendGoalRequest(req unsafe.Pointer) (C.int64_t, error) {
 }
 
 func (c *ActionClient) takeGoalResponse(resp unsafe.Pointer) (C.int64_t, interface{}, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var header C.rmw_request_id_t
 	switch rc := C.rcl_action_take_goal_response(&c.rclClient, &header, resp); rc {
 	case C.RCL_RET_OK:
@@ -1044,6 +1086,8 @@ func (c *ActionClient) GetResult(ctx context.Context, goalID *types.GoalID) (typ
 }
 
 func (c *ActionClient) sendResultRequest(req unsafe.Pointer) (C.int64_t, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !c.life.acquire() {
 		return 0, closedErr("action client")
 	}
@@ -1057,6 +1101,8 @@ func (c *ActionClient) sendResultRequest(req unsafe.Pointer) (C.int64_t, error) 
 }
 
 func (c *ActionClient) takeResultResponse(resp unsafe.Pointer) (C.int64_t, interface{}, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var header C.rmw_request_id_t
 	switch rc := C.rcl_action_take_result_response(&c.rclClient, &header, resp); rc {
 	case C.RCL_RET_OK:
@@ -1074,6 +1120,8 @@ func (c *ActionClient) CancelGoal(ctx context.Context, request types.Message) (t
 }
 
 func (c *ActionClient) sendCancelRequest(req unsafe.Pointer) (C.int64_t, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !c.life.acquire() {
 		return 0, closedErr("action client")
 	}
@@ -1087,6 +1135,8 @@ func (c *ActionClient) sendCancelRequest(req unsafe.Pointer) (C.int64_t, error) 
 }
 
 func (c *ActionClient) takeCancelResponse(resp unsafe.Pointer) (C.int64_t, interface{}, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var header C.rmw_request_id_t
 	switch rc := C.rcl_action_take_cancel_response(&c.rclClient, &header, resp); rc {
 	case C.RCL_RET_OK:
@@ -1156,6 +1206,8 @@ func (c *ActionClient) subscribe(ctx context.Context, subs *actionClientSubs, id
 }
 
 func (c *ActionClient) handleFeedback() {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	ts := c.typeSupport.FeedbackMessage()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)
@@ -1183,6 +1235,8 @@ func (c *ActionClient) WatchStatus(ctx context.Context, goalID *types.GoalID, ha
 }
 
 func (c *ActionClient) handleStatus() {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	ts := c.typeSupport.GoalStatusArray()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)
@@ -1205,6 +1259,8 @@ func (c *ActionClient) handleStatus() {
 }
 
 func (c *ActionClient) handleReadyEntities(ws *WaitSet) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var feedback, status, goalResp, cancelResp, resultResp C.bool
 	c.rclClientMu.Lock()
 	defer c.rclClientMu.Unlock()

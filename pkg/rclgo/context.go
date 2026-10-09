@@ -271,6 +271,8 @@ automatically using rclArgs for logging configuration.
 If opts is nil, default options are used.
 */
 func NewContextWithOpts(rclArgs *Args, opts *ContextOptions) (ctx *Context, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	ctx = &Context{}
 	ctx.rosResourceStore.onChange = ctx.resourcesChanged
 	defer onErr(&err, ctx.Close)
@@ -352,6 +354,8 @@ func (c *Context) stopWaitSets() {
 // fini finalizes the clocks and the rcl context. It runs after every other
 // resource of the context has been finalized.
 func (c *Context) fini() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	errs := c.rosResourceStore.closeAll(nil)
 	if c.rcl_context_t != nil {
 		if rc := C.rcl_shutdown(c.rcl_context_t); rc != C.RCL_RET_OK {

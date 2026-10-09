@@ -112,6 +112,8 @@ var (
 )
 
 func rclInitLogging(rclArgs *Args, update bool) error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if rclArgs == nil {
 		var err error
 		if rclArgs, _, err = ParseArgs(nil); err != nil {
@@ -160,6 +162,8 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 // FiniLogging finalizes the logging system and flushes all buffered log messages.
 // This should be called before program termination to ensure all logs are written.
 func FiniLogging() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
 	if !loggingInitialized {
@@ -287,6 +291,8 @@ func (l *Logger) Level() (LogSeverity, error) {
 
 // SetLevel sets the logging level of l.
 func (l *Logger) SetLevel(level LogSeverity) error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
 	ret := C.rcutils_logging_set_logger_level(l.cname, C.int(level))
