@@ -800,12 +800,22 @@ type ActionClientOptions struct {
 }
 
 func NewDefaultActionClientOptions() *ActionClientOptions {
+	// The status topic is transient-local with depth 1, matching the server
+	// and rclcpp, so a client also receives the current status of goals that
+	// were already running when it subscribed.
+	status := qos.Profile{
+		History:     qos.HistoryKeepLast,
+		Depth:       1,
+		Reliability: qos.ReliabilityReliable,
+		Durability:  qos.DurabilityTransientLocal,
+		Liveliness:  qos.LivelinessSystemDefault,
+	}
 	return &ActionClientOptions{
 		GoalServiceQos:   qos.NewDefault(),
 		CancelServiceQos: qos.NewDefault(),
 		ResultServiceQos: qos.NewDefault(),
 		FeedbackTopicQos: qos.NewDefault(),
-		StatusTopicQos:   qos.NewDefault(),
+		StatusTopicQos:   status,
 	}
 }
 
@@ -853,6 +863,11 @@ type ActionClient struct {
 	nextSubscriberID uint64
 	feedbackSubs     actionClientSubs
 	statusSubs       actionClientSubs
+
+	// lastStatus is the latest status of every goal the server reported,
+	// delivered to a status watcher when it subscribes. Guarded by
+	// rclClientMu.
+	lastStatus map[types.GoalID]types.Message
 }
 
 func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *ActionClientOptions) (*ActionClient, error) {
@@ -865,6 +880,7 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 		rclClient:    C.rcl_action_get_zero_initialized_client(),
 		feedbackSubs: newActionClientHandlers(),
 		statusSubs:   newActionClientHandlers(),
+		lastStatus:   make(map[types.GoalID]types.Message),
 	}
 	c.goalSender = newRequestSender(requestSenderTransport{
 		SendRequest:  c.sendGoalRequest,
@@ -944,13 +960,10 @@ func (c *ActionClient) WatchGoal(ctx context.Context, goal types.Message, onFeed
 		unsub := c.subscribe(ctx, &c.feedbackSubs, req.GetGoalID(), onFeedback)
 		defer unsub()
 	}
-	resp, err := c.SendGoalRequest(ctx, req)
-	if err != nil {
-		return nil, req.GetGoalID(), err
-	}
-	if !resp.(goalResponseMessage).GetGoalAccepted() {
-		return nil, req.GetGoalID(), errors.New("goal was rejected")
-	}
+	// Registered before the goal is sent: if ctx ends while the goal request
+	// is in flight, the server may already have accepted the goal, and it
+	// must not be left running. Canceling a goal the server never accepted
+	// is harmless.
 	defer func() {
 		if ctx.Err() != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -963,6 +976,13 @@ func (c *ActionClient) WatchGoal(ctx context.Context, goal types.Message, onFeed
 			}
 		}
 	}()
+	resp, err := c.SendGoalRequest(ctx, req)
+	if err != nil {
+		return nil, req.GetGoalID(), err
+	}
+	if !resp.(goalResponseMessage).GetGoalAccepted() {
+		return nil, req.GetGoalID(), errors.New("goal was rejected")
+	}
 	result, err = c.GetResult(ctx, req.GetGoalID())
 	return result, req.GetGoalID(), err
 }
@@ -1092,6 +1112,16 @@ func (c *ActionClient) WatchFeedback(ctx context.Context, goalID *types.GoalID, 
 func (c *ActionClient) subscribe(ctx context.Context, subs *actionClientSubs, id *types.GoalID, handler actionClientHandler) (unsubscribe func()) {
 	c.rclClientMu.Lock()
 	defer c.rclClientMu.Unlock()
+	// A status watcher first gets the latest known status, so that it also
+	// learns the state of goals whose status does not change again.
+	if subs == &c.statusSubs {
+		for goalID, status := range c.lastStatus {
+			if id == nil || goalID == *id {
+				status := status.CloneMsg()
+				go handler(ctx, status)
+			}
+		}
+	}
 	if id == nil {
 		subID := c.nextSubscriberID
 		c.nextSubscriberID++
@@ -1160,8 +1190,11 @@ func (c *ActionClient) handleStatus() {
 	case C.RCL_RET_OK:
 		msg := ts.New()
 		ts.AsGoStruct(msg, buf)
+		// The status array lists every goal the server still knows.
+		clear(c.lastStatus)
 		msg.(forEach).CallForEach(func(info interface{}) {
 			msg := info.(goalIDMessage)
+			c.lastStatus[*msg.GetGoalID()] = msg
 			c.statusSubs.perGoal[*msg.GetGoalID()].call(msg)
 			c.statusSubs.allGoals.call(msg)
 		})
