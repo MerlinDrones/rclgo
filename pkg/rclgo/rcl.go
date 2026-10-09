@@ -758,6 +758,18 @@ func (t *Timer) GetTimeUntilNextCall() (int64, error) {
 	return int64(time_until_next_call), nil
 }
 
+// call marks the timer as called: its next expiry moves forward by exactly one
+// period from the previous expiry (skipping missed periods), so the timer
+// keeps its period regardless of when it is serviced. Reset would instead
+// restart the period from now, adding the wake-up latency to every period.
+func (t *Timer) call() error {
+	rc := C.rcl_timer_call(t.rcl_timer_t)
+	if rc != C.RCL_RET_OK {
+		return errorsCast(rc)
+	}
+	return nil
+}
+
 func (t *Timer) Reset() error {
 	rc := C.rcl_timer_reset(t.rcl_timer_t)
 	if rc != C.RCL_RET_OK {
