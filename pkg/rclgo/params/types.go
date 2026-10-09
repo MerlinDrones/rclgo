@@ -183,6 +183,13 @@ func (s *store) applyOverride(name string, v Value, d Descriptor) (p Parameter, 
 	return p, false, nil
 }
 
+func (s *store) descriptor(name string) (Descriptor, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	d, ok := s.desc[name]
+	return d, ok
+}
+
 func (s *store) isOverrideOnly(name string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
