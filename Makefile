@@ -21,6 +21,13 @@ test:
 	export LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH
 	go test -count=1 ./...
 
+# The race detector is the main defence against the concurrency defects this
+# library has had; CI runs this target.
+.PHONY: test-race
+test-race:
+	LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH \
+		go test -race -count=1 ./...
+
 .PHONY: test-verbose
 test-verbose:
 	export LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH
