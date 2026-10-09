@@ -39,8 +39,12 @@ func (e *rclError) Error() string {
  *
  * \return The current error string, with file and line number, or "error not set" if not set.
  */
+//
+// It also resets the error state, so that the next error starts clean.
 func errorString() string {
-	rcutils_error_string_str := C.rcutils_get_error_string().str // TODO: Do I need to free this or not?
+	// rcutils_get_error_string returns the string by value; nothing to free.
+	rcutils_error_string_str := C.rcutils_get_error_string().str
+	C.rcutils_reset_error()
 
 	// Because the C string is null-terminated, we need to find the NULL-character to know where the string ends.
 	// Otherwise we create a Go string of length 1024 of NULLs and gibberish
@@ -56,6 +60,11 @@ func errorString() string {
 	// This would be much faster I guess.
 	// upt := (*[1024]byte)(unsafe.Pointer(uintptr(unsafe.Pointer(&rcutils_error_string_str))))
 	// return string((*upt)[:])
+}
+
+// rclErrorIsSet reports whether rcl's thread-local error state is set.
+func rclErrorIsSet() bool {
+	return bool(C.rcutils_error_is_set())
 }
 
 func errorsBuildContext(e error, ctx string, stackTrace string) string {
