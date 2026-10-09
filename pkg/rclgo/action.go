@@ -983,6 +983,10 @@ func (c *ActionClient) SendGoalRequest(ctx context.Context, request types.Messag
 }
 
 func (c *ActionClient) sendGoalRequest(req unsafe.Pointer) (C.int64_t, error) {
+	if !c.life.acquire() {
+		return 0, closedErr("action client")
+	}
+	defer c.life.release()
 	var seqNum C.int64_t
 	rc := C.rcl_action_send_goal_request(&c.rclClient, req, &seqNum)
 	if rc != C.RCL_RET_OK {
@@ -1011,6 +1015,10 @@ func (c *ActionClient) GetResult(ctx context.Context, goalID *types.GoalID) (typ
 }
 
 func (c *ActionClient) sendResultRequest(req unsafe.Pointer) (C.int64_t, error) {
+	if !c.life.acquire() {
+		return 0, closedErr("action client")
+	}
+	defer c.life.release()
 	var seqNum C.int64_t
 	rc := C.rcl_action_send_result_request(&c.rclClient, req, &seqNum)
 	if rc != C.RCL_RET_OK {
@@ -1037,6 +1045,10 @@ func (c *ActionClient) CancelGoal(ctx context.Context, request types.Message) (t
 }
 
 func (c *ActionClient) sendCancelRequest(req unsafe.Pointer) (C.int64_t, error) {
+	if !c.life.acquire() {
+		return 0, closedErr("action client")
+	}
+	defer c.life.release()
 	var seqNum C.int64_t
 	rc := C.rcl_action_send_cancel_request(&c.rclClient, req, &seqNum)
 	if rc != C.RCL_RET_OK {

@@ -524,6 +524,7 @@ func NewDefaultPublisherOptions() *PublisherOptions { return &PublisherOptions{Q
 
 type Publisher struct {
 	rosID
+	life            lifetime
 	TopicName       string
 	typeSupport     types.MessageTypeSupport
 	node            *Node
@@ -577,6 +578,10 @@ func (p *Publisher) Node() *Node {
 }
 
 func (p *Publisher) Publish(ros2msg types.Message) error {
+	if !p.life.acquire() {
+		return closedErr("publisher")
+	}
+	defer p.life.release()
 	var rc C.rcl_ret_t
 
 	ptr := p.typeSupport.PrepareMemory()
@@ -584,13 +589,17 @@ func (p *Publisher) Publish(ros2msg types.Message) error {
 	p.typeSupport.AsCStruct(ptr, ros2msg)
 	rc = C.rcl_publish(p.rcl_publisher_t, ptr, nil)
 	if rc != C.RCL_RET_OK {
-		return errorsCastC(rc, fmt.Sprintf("rcl_publish() failed for publisher '%+v'", p))
+		return errorsCastC(rc, fmt.Sprintf("rcl_publish() failed for publisher on %q", p.TopicName))
 	}
 	return nil
 }
 
 // PublishSerialized publishes a message that has already been serialized.
 func (p *Publisher) PublishSerialized(msg []byte) error {
+	if !p.life.acquire() {
+		return closedErr("publisher")
+	}
+	defer p.life.release()
 	rclMsg, err := newSerializedMessage(len(msg))
 	if err != nil {
 		return fmt.Errorf("failed to publish serialized message: %v", err)
@@ -606,6 +615,10 @@ func (p *Publisher) PublishSerialized(msg []byte) error {
 
 // GetSubscriptionCount returns the number of subscriptions matched to p.
 func (p *Publisher) GetSubscriptionCount() (int, error) {
+	if !p.life.acquire() {
+		return 0, closedErr("publisher")
+	}
+	defer p.life.release()
 	var count C.size_t
 	rc := C.rcl_publisher_get_subscription_count(p.rcl_publisher_t, &count)
 	if rc != C.RCL_RET_OK {
@@ -617,11 +630,14 @@ func (p *Publisher) GetSubscriptionCount() (int, error) {
 /*
 Close frees the allocated memory
 */
-func (p *Publisher) Close() (err error) {
+func (p *Publisher) Close() error {
+	return closeEntity(&p.life, "publisher", func() { p.node.removeResource(p) }, &p.node.life, p.fini)
+}
+
+func (p *Publisher) fini() (err error) {
 	if p.rcl_publisher_t == nil {
-		return closeErr("publisher")
+		return nil
 	}
-	p.node.removeResource(p)
 	rc := C.rcl_publisher_fini(p.rcl_publisher_t, p.node.rcl_node_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
@@ -763,6 +779,10 @@ func (t *Timer) Context() *Context {
 }
 
 func (t *Timer) GetTimeUntilNextCall() (int64, error) {
+	if !t.life.acquire() {
+		return 0, closedErr("timer")
+	}
+	defer t.life.release()
 	var time_until_next_call C.int64_t
 	rc := C.rcl_timer_get_time_until_next_call(t.rcl_timer_t, &time_until_next_call)
 	if rc != C.RCL_RET_OK {
@@ -784,6 +804,10 @@ func (t *Timer) call() error {
 }
 
 func (t *Timer) Reset() error {
+	if !t.life.acquire() {
+		return closedErr("timer")
+	}
+	defer t.life.release()
 	rc := C.rcl_timer_reset(t.rcl_timer_t)
 	if rc != C.RCL_RET_OK {
 		return errorsCast(rc)
@@ -882,6 +906,10 @@ func (s *Subscription) Node() *Node {
 }
 
 func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
+	if !s.life.acquire() {
+		return nil, closedErr("subscription")
+	}
+	defer s.life.release()
 	rmw_message_info := C.rmw_get_zero_initialized_message_info()
 
 	ros2_msg_receive_buffer := s.Ros2MsgType.PrepareMemory()
@@ -889,7 +917,7 @@ func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
 
 	rc := C.rcl_take(s.rcl_subscription_t, ros2_msg_receive_buffer, &rmw_message_info, nil)
 	if rc != C.RCL_RET_OK {
-		return nil, errorsCastC(rc, fmt.Sprintf("rcl_take() failed for subscription='%+v'", s))
+		return nil, errorsCastC(rc, fmt.Sprintf("rcl_take() failed for subscription to %q", s.TopicName))
 	}
 	s.Ros2MsgType.AsGoStruct(out, ros2_msg_receive_buffer)
 	return &MessageInfo{
@@ -902,6 +930,10 @@ func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
 // TakeSerializedMessage takes a message without deserializing it and returns it
 // as a byte slice.
 func (s *Subscription) TakeSerializedMessage() ([]byte, *MessageInfo, error) {
+	if !s.life.acquire() {
+		return nil, nil, closedErr("subscription")
+	}
+	defer s.life.release()
 	info := C.rmw_get_zero_initialized_message_info()
 	msg, err := newSerializedMessage(0)
 	if err != nil {
@@ -910,7 +942,7 @@ func (s *Subscription) TakeSerializedMessage() ([]byte, *MessageInfo, error) {
 	defer msg.Close()
 	rc := C.rcl_take_serialized_message(s.rcl_subscription_t, msg.c(), &info, nil)
 	if rc != C.RCL_RET_OK {
-		return nil, nil, errorsCastC(rc, fmt.Sprintf("rcl_take_serialied_message() failed for subscription='%+v'", s))
+		return nil, nil, errorsCastC(rc, fmt.Sprintf("rcl_take_serialized_message() failed for subscription to %q", s.TopicName))
 	}
 	return msg.ToSlice(), &MessageInfo{
 		SourceTimestamp:   time.Unix(0, int64(info.source_timestamp)),
@@ -921,6 +953,10 @@ func (s *Subscription) TakeSerializedMessage() ([]byte, *MessageInfo, error) {
 
 // GetPublisherCount returns the number of publishers matched to s.
 func (s *Subscription) GetPublisherCount() (int, error) {
+	if !s.life.acquire() {
+		return 0, closedErr("subscription")
+	}
+	defer s.life.release()
 	var count C.size_t
 	rc := C.rcl_subscription_get_publisher_count(s.rcl_subscription_t, &count)
 	if rc != C.RCL_RET_OK {
@@ -1127,6 +1163,12 @@ func (s *Service) handleRequest() {
 			&info,
 			req,
 			serviceResponseSender(func(resp types.Message) error {
+				// The handler may answer later, from another goroutine,
+				// possibly after the service was closed.
+				if !s.life.acquire() {
+					return closedErr("service")
+				}
+				defer s.life.release()
 				respBuffer := s.responseTypeSupport.PrepareMemory()
 				defer s.responseTypeSupport.ReleaseMemory(respBuffer)
 				s.responseTypeSupport.AsCStruct(respBuffer, resp)
@@ -1231,6 +1273,10 @@ func (c *Client) Node() *Node {
 }
 
 func (c *Client) Send(ctx context.Context, req types.Message) (types.Message, *ServiceInfo, error) {
+	if !c.life.acquire() {
+		return nil, nil, closedErr("client")
+	}
+	defer c.life.release()
 	resp, info, err := c.sender.Send(ctx, req)
 	if rmwInfo, ok := info.(*ServiceInfo); ok {
 		return resp, rmwInfo, err

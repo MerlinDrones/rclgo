@@ -9,7 +9,6 @@ import "C"
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"unsafe"
 )
@@ -246,6 +245,15 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 			previous()
 			refresh = false
 		}
+		// Closing the wait set (or its context) also closes its own
+		// guard conditions; a refresh then drops cancelWait, and its
+		// trigger would go unseen. Check before every wait.
+		if w.life.isClosed() || !w.hasGuardCondition(w.cancelWait) {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			return errWaitSetClosed
+		}
 		if err := w.initEntities(); err != nil {
 			return err
 		}
@@ -388,11 +396,11 @@ func (w *WaitSet) stop() {
 
 func (w *WaitSet) initEntities() error {
 	if !C.rcl_wait_set_is_valid(&w.rcl_wait_set_t) {
-		return errorsCastC(C.RCL_RET_WAIT_SET_INVALID, fmt.Sprintf("rcl_wait_set_is_valid() failed for wait_set='%v'", w))
+		return errorsCastC(C.RCL_RET_WAIT_SET_INVALID, "rcl_wait_set_is_valid() failed")
 	}
 	var rc C.rcl_ret_t = C.rcl_wait_set_clear(&w.rcl_wait_set_t)
 	if rc != C.RCL_RET_OK {
-		return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_clear() failed for wait_set='%v'", w))
+		return errorsCastC(rc, "rcl_wait_set_clear() failed")
 	}
 	rc = C.rcl_wait_set_resize(
 		&w.rcl_wait_set_t,
@@ -404,48 +412,48 @@ func (w *WaitSet) initEntities() error {
 		w.rcl_wait_set_t.size_of_events,
 	)
 	if rc != C.RCL_RET_OK {
-		return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_resize() failed for wait_set='%v'", w))
+		return errorsCastC(rc, "rcl_wait_set_resize() failed")
 	}
 	for _, sub := range w.Subscriptions {
 		rc = C.rcl_wait_set_add_subscription(&w.rcl_wait_set_t, sub.rcl_subscription_t, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_subscription() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_subscription() failed")
 		}
 	}
 	for _, timer := range w.Timers {
 		rc = C.rcl_wait_set_add_timer(&w.rcl_wait_set_t, timer.rcl_timer_t, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_timer() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_timer() failed")
 		}
 	}
 	for _, service := range w.Services {
 		rc = C.rcl_wait_set_add_service(&w.rcl_wait_set_t, service.rclService, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_service() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_service() failed")
 		}
 	}
 	for _, client := range w.Clients {
 		rc = C.rcl_wait_set_add_client(&w.rcl_wait_set_t, client.rclClient, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_client() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_client() failed")
 		}
 	}
 	for _, guardCondition := range w.guardConditions {
 		rc = C.rcl_wait_set_add_guard_condition(&w.rcl_wait_set_t, guardCondition.rclGuardCondition, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_guard_condition() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_guard_condition() failed")
 		}
 	}
 	for _, server := range w.ActionServers {
 		rc = C.rcl_action_wait_set_add_action_server(&w.rcl_wait_set_t, &server.rclServer, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_action_server() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_action_server() failed")
 		}
 	}
 	for _, client := range w.ActionClients {
 		rc = C.rcl_action_wait_set_add_action_client(&w.rcl_wait_set_t, &client.rclClient, nil, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_action_client() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_action_client() failed")
 		}
 	}
 	return nil
