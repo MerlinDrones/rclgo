@@ -261,7 +261,10 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		// it must not be serviced any more.
 		for i, t := range w.Timers {
 			if timers[i] != nil && !t.life.isClosed() {
-				t.Reset() //nolint:errcheck
+				if err := t.call(); err != nil {
+					// The timer was canceled after rcl_wait returned.
+					continue
+				}
 				if t.Callback != nil {
 					t.Callback(t)
 				}
