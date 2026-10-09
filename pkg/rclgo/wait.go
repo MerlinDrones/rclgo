@@ -9,6 +9,7 @@ import "C"
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -54,6 +55,8 @@ func NewWaitSet() (*WaitSet, error) {
 }
 
 func (c *Context) NewWaitSet() (ws *WaitSet, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	const (
 		subscriptionsCount   = 0
 		guardConditionsCount = 0
@@ -196,6 +199,8 @@ finalized once Run no longer uses them. Run returns an error when the wait set
 or its context is closed.
 */
 func (w *WaitSet) Run(ctx context.Context) (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if ctx == nil {
 		return errors.New("context must not be nil")
 	}
@@ -395,6 +400,8 @@ func (w *WaitSet) stop() {
 }
 
 func (w *WaitSet) initEntities() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !C.rcl_wait_set_is_valid(&w.rcl_wait_set_t) {
 		return errorsCastC(C.RCL_RET_WAIT_SET_INVALID, "rcl_wait_set_is_valid() failed")
 	}
@@ -471,6 +478,8 @@ func (w *WaitSet) Close() error {
 }
 
 func (w *WaitSet) fini() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	rc := C.rcl_wait_set_fini(&w.rcl_wait_set_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))

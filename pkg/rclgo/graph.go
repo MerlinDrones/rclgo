@@ -7,6 +7,7 @@ package rclgo
 import "C"
 
 import (
+	"runtime"
 	"unsafe"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
@@ -29,6 +30,8 @@ func (n *Node) GetTopicNamesAndTypes(demangle bool) (map[string][]string, error)
 }
 
 func (n *Node) GetNodeNames() (names, namespaces []string, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	rcnames := C.rcutils_get_zero_initialized_string_array()
 	defer C.rcutils_string_array_fini(&rcnames)
 	rcnamespaces := C.rcutils_get_zero_initialized_string_array()
@@ -134,6 +137,8 @@ func (n *Node) getNamesAndTypes(
 		namesAndTypes *C.rmw_names_and_types_t,
 	) C.int,
 ) (map[string][]string, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	cnode := C.CString(node)
 	defer C.free(unsafe.Pointer(cnode))
 	cnamespace := C.CString(namespace)
@@ -197,6 +202,8 @@ func (n *Node) getInfoByTopic(kind, topic string, mangle bool, get func(
 	noMangle C.bool,
 	infoArray *C.rmw_topic_endpoint_info_array_t,
 ) C.int) ([]TopicEndpointInfo, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	ctopic := C.CString(topic)
 	defer C.free(unsafe.Pointer(ctopic))
 	infoArray := C.rmw_get_zero_initialized_topic_endpoint_info_array()

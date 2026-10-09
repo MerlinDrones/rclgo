@@ -41,6 +41,12 @@ func (e *rclError) Error() string {
  */
 //
 // It also resets the error state, so that the next error starts clean.
+//
+// rcl keeps its error state per OS thread, and Go may move a goroutine to
+// another thread between two cgo calls. Every function that makes an rcl call
+// and then reads the error state (through errorString, errorsCast or
+// errorsCastC) therefore pins its goroutine with runtime.LockOSThread for its
+// duration; otherwise the text could come from another goroutine's error.
 func errorString() string {
 	// rcutils_get_error_string returns the string by value; nothing to free.
 	rcutils_error_string_str := C.rcutils_get_error_string().str

@@ -139,6 +139,8 @@ type Args struct {
 // "--ros-args" and "--" arguments. See
 // http://design.ros2.org/articles/ros_command_line_arguments.html for details.
 func ParseArgs(args []string) (*Args, []string, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	rclArgs := &Args{
 		unparsed: []*C.char{C.CString("--ros-args")},
 		parsed:   C.rcl_get_zero_initialized_arguments(),
@@ -199,6 +201,8 @@ func (a *Args) Parsed() unsafe.Pointer {
 // Returns an unsafe.Pointer to rcl_params_t that must be freed by the caller
 // using rcl_yaml_node_struct_fini.
 func (a *Args) GetParamOverrides() (unsafe.Pointer, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var cparams *C.rcl_params_t
 	rc := C.rcl_arguments_get_param_overrides(&a.parsed, &cparams)
 	runtime.KeepAlive(a)
@@ -226,6 +230,8 @@ func (a *Args) String() string {
 type serializedMessage C.rmw_serialized_message_t
 
 func newSerializedMessage(size int) (serializedMessage, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	msg := C.rmw_get_zero_initialized_serialized_message()
 	allocator := C.rcl_get_default_allocator()
 	rc := C.rcutils_uint8_array_init(&msg, C.size_t(size), &allocator)
@@ -257,6 +263,8 @@ func (m *serializedMessage) ToSlice() []byte {
 
 // Serialize returns the serialized form of msg as a byte slice.
 func Serialize(msg types.Message) (buf []byte, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	defer wrapErr("failed to serialize: %v", &err)
 	ts := msg.GetTypeSupport()
 	cmsg := ts.PrepareMemory()
@@ -281,7 +289,14 @@ func Serialize(msg types.Message) (buf []byte, err error) {
 // Deserialize deserializes buf to a message whose type support is ts. The
 // contents of buf must match ts.
 func Deserialize(buf []byte, ts types.MessageTypeSupport) (msg types.Message, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	defer wrapErr("failed to deserialize: %v", &err)
+	// Every CDR buffer starts with a 4-byte encapsulation header. Some RMWs
+	// (Cyclone DDS on Jazzy) crash on shorter input instead of failing.
+	if len(buf) < 4 {
+		return nil, fmt.Errorf("buffer of %d bytes is shorter than the 4-byte CDR header", len(buf))
+	}
 	serialized, err := newSerializedMessage(len(buf))
 	if err != nil {
 		return nil, err
@@ -312,6 +327,8 @@ func ExpandTopicName(
 	inputTopicName, nodeName, nodeNamespace string,
 	substitutions map[string]string,
 ) (expanded string, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	csubstitutions := C.rcutils_get_zero_initialized_string_map()
 	rc := C.rcutils_string_map_init(
 		&csubstitutions,
@@ -377,6 +394,8 @@ func NewNode(nodeName, namespace string) (*Node, error) {
 }
 
 func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	node = &Node{
 		rcl_node_t: (*C.rcl_node_t)(C.malloc(C.sizeof_rcl_node_t)),
 		context:    c,
@@ -454,6 +473,8 @@ func (n *Node) Close() error {
 }
 
 func (n *Node) fini() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if n.rcl_node_t == nil {
 		return nil
 	}
@@ -541,6 +562,8 @@ func (n *Node) NewPublisher(
 	ros2msg types.MessageTypeSupport,
 	options *PublisherOptions,
 ) (pub *Publisher, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if options == nil {
 		options = NewDefaultPublisherOptions()
 	}
@@ -578,6 +601,8 @@ func (p *Publisher) Node() *Node {
 }
 
 func (p *Publisher) Publish(ros2msg types.Message) error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !p.life.acquire() {
 		return closedErr("publisher")
 	}
@@ -596,6 +621,8 @@ func (p *Publisher) Publish(ros2msg types.Message) error {
 
 // PublishSerialized publishes a message that has already been serialized.
 func (p *Publisher) PublishSerialized(msg []byte) error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !p.life.acquire() {
 		return closedErr("publisher")
 	}
@@ -615,6 +642,8 @@ func (p *Publisher) PublishSerialized(msg []byte) error {
 
 // GetSubscriptionCount returns the number of subscriptions matched to p.
 func (p *Publisher) GetSubscriptionCount() (int, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !p.life.acquire() {
 		return 0, closedErr("publisher")
 	}
@@ -635,6 +664,8 @@ func (p *Publisher) Close() error {
 }
 
 func (p *Publisher) fini() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if p.rcl_publisher_t == nil {
 		return nil
 	}
@@ -668,6 +699,8 @@ func NewClock(clockType ClockType) (*Clock, error) {
 }
 
 func (c *Context) NewClock(clockType ClockType) (clock *Clock, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if clockType == ClockTypeUninitialized {
 		clockType = ClockTypeROSTime
 	}
@@ -698,6 +731,8 @@ func (c *Context) NewClock(clockType ClockType) (clock *Clock, err error) {
 Close frees the allocated memory
 */
 func (c *Clock) Close() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if c.rcl_clock_t == nil {
 		return closeErr("clock")
 	}
@@ -717,6 +752,8 @@ func (c *Clock) Context() *Context {
 }
 
 func (c *Clock) now() (time.Duration, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var t C.rcl_time_point_value_t
 	rc := C.rcl_clock_get_now(c.rcl_clock_t, &t)
 	if rc != C.RCL_RET_OK {
@@ -742,6 +779,8 @@ func NewTimer(timeout time.Duration, timerCallback func(*Timer)) (*Timer, error)
 }
 
 func (c *Context) NewTimer(timeout time.Duration, timer_callback func(*Timer)) (timer *Timer, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if timeout == 0 {
 		timeout = 1000 * time.Millisecond
 	}
@@ -779,6 +818,8 @@ func (t *Timer) Context() *Context {
 }
 
 func (t *Timer) GetTimeUntilNextCall() (int64, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !t.life.acquire() {
 		return 0, closedErr("timer")
 	}
@@ -796,6 +837,8 @@ func (t *Timer) GetTimeUntilNextCall() (int64, error) {
 // keeps its period regardless of when it is serviced. Reset would instead
 // restart the period from now, adding the wake-up latency to every period.
 func (t *Timer) call() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	rc := C.rcl_timer_call(t.rcl_timer_t)
 	if rc != C.RCL_RET_OK {
 		return errorsCast(rc)
@@ -804,6 +847,8 @@ func (t *Timer) call() error {
 }
 
 func (t *Timer) Reset() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !t.life.acquire() {
 		return closedErr("timer")
 	}
@@ -823,6 +868,8 @@ func (t *Timer) Close() error {
 }
 
 func (t *Timer) fini() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if t.rcl_timer_t == nil {
 		return nil
 	}
@@ -868,6 +915,8 @@ func (n *Node) NewSubscription(
 	options *SubscriptionOptions,
 	subscriptionCallback SubscriptionCallback,
 ) (sub *Subscription, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if options == nil {
 		options = NewDefaultSubscriptionOptions()
 	}
@@ -906,6 +955,8 @@ func (s *Subscription) Node() *Node {
 }
 
 func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !s.life.acquire() {
 		return nil, closedErr("subscription")
 	}
@@ -930,6 +981,8 @@ func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
 // TakeSerializedMessage takes a message without deserializing it and returns it
 // as a byte slice.
 func (s *Subscription) TakeSerializedMessage() ([]byte, *MessageInfo, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !s.life.acquire() {
 		return nil, nil, closedErr("subscription")
 	}
@@ -953,6 +1006,8 @@ func (s *Subscription) TakeSerializedMessage() ([]byte, *MessageInfo, error) {
 
 // GetPublisherCount returns the number of publishers matched to s.
 func (s *Subscription) GetPublisherCount() (int, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !s.life.acquire() {
 		return 0, closedErr("subscription")
 	}
@@ -973,6 +1028,8 @@ func (s *Subscription) Close() error {
 }
 
 func (s *Subscription) fini() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if s.rcl_subscription_t == nil {
 		return nil
 	}
@@ -994,6 +1051,8 @@ type guardCondition struct {
 }
 
 func (c *Context) newGuardCondition() (g *guardCondition, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	g = &guardCondition{
 		rclGuardCondition: (*C.rcl_guard_condition_t)(C.malloc(C.sizeof_rcl_guard_condition_t)),
 		context:           c,
@@ -1017,6 +1076,8 @@ func (c *guardCondition) Close() error {
 }
 
 func (c *guardCondition) fini() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if c.rclGuardCondition == nil {
 		return nil
 	}
@@ -1030,6 +1091,8 @@ func (c *guardCondition) fini() error {
 }
 
 func (c *guardCondition) Trigger() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	rc := C.rcl_trigger_guard_condition(c.rclGuardCondition)
 	if rc != C.RCL_RET_OK {
 		return errorsCast(rc)
@@ -1094,6 +1157,8 @@ func (n *Node) NewService(
 	options *ServiceOptions,
 	handler ServiceRequestHandler,
 ) (s *Service, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if options == nil {
 		options = NewDefaultServiceOptions()
 	}
@@ -1128,6 +1193,8 @@ func (s *Service) Close() error {
 }
 
 func (s *Service) fini() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if s.name == nil {
 		return nil
 	}
@@ -1147,6 +1214,8 @@ func (s *Service) Node() *Node {
 }
 
 func (s *Service) handleRequest() {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var reqHeader C.rmw_service_info_t
 	reqBuffer := s.requestTypeSupport.PrepareMemory()
 	defer s.requestTypeSupport.ReleaseMemory(reqBuffer)
@@ -1163,6 +1232,8 @@ func (s *Service) handleRequest() {
 			&info,
 			req,
 			serviceResponseSender(func(resp types.Message) error {
+				runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+				defer runtime.UnlockOSThread()
 				// The handler may answer later, from another goroutine,
 				// possibly after the service was closed.
 				if !s.life.acquire() {
@@ -1211,6 +1282,8 @@ func (n *Node) NewClient(
 	typeSupport types.ServiceTypeSupport,
 	options *ClientOptions,
 ) (c *Client, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if options == nil {
 		options = NewDefaultClientOptions()
 	}
@@ -1253,6 +1326,8 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) fini() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if c.rclClient == nil {
 		return nil
 	}
@@ -1286,6 +1361,8 @@ func (c *Client) Send(ctx context.Context, req types.Message) (types.Message, *S
 }
 
 func (c *Client) sendRequest(req unsafe.Pointer) (C.int64_t, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var seqNum C.int64_t
 	rc := C.rcl_send_request(c.rclClient, req, &seqNum)
 	if rc != C.RCL_RET_OK {
@@ -1295,6 +1372,8 @@ func (c *Client) sendRequest(req unsafe.Pointer) (C.int64_t, error) {
 }
 
 func (c *Client) takeResponse(resp unsafe.Pointer) (C.int64_t, interface{}, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var header C.rmw_service_info_t
 	switch rc := C.rcl_take_response_with_info(c.rclClient, &header, resp); rc {
 	case C.RCL_RET_OK:
