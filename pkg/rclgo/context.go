@@ -25,6 +25,7 @@ import (
 	"io"
 	"math"
 	"runtime"
+	"sort"
 	"sync"
 	"unsafe"
 )
@@ -95,11 +96,61 @@ func (s *rosResourceStore) changed(r rosResource) {
 	}
 }
 
-func (s *rosResourceStore) Close() (err error) {
+// closeAll closes the resources in the store in dependency order (see
+// closeOrder), skipping those for which skip returns true. Resources that are
+// already closed are ignored.
+func (s *rosResourceStore) closeAll(skip func(rosResource) bool) (err error) {
+	s.mutex.Lock()
+	resources := make([]rosResource, 0, len(s.resources))
 	for _, r := range s.resources {
-		err = errors.Join(err, r.Close())
+		if skip == nil || !skip(r) {
+			resources = append(resources, r)
+		}
+	}
+	s.mutex.Unlock()
+	var closeError closeError
+	for _, r := range closeOrder(resources) {
+		if cerr := r.Close(); cerr != nil && !errors.As(cerr, &closeError) {
+			err = errors.Join(err, cerr)
+		}
 	}
 	return err
+}
+
+// closeOrder sorts resources so that every resource comes before the
+// resources it uses: action servers and clients, then the other node
+// entities, nodes, timers, wait sets, guard conditions and finally clocks
+// (timers and action servers use a clock). Resources of the same kind are
+// closed in creation order.
+func closeOrder(resources []rosResource) []rosResource {
+	rank := func(r rosResource) int {
+		switch r.(type) {
+		case *ActionServer, *ActionClient:
+			return 0
+		case *Subscription, *Service, *Client, *Publisher:
+			return 1
+		case *Node:
+			return 2
+		case *Timer:
+			return 3
+		case *WaitSet:
+			return 5
+		case *guardCondition:
+			return 6
+		case *Clock:
+			return 7
+		default:
+			return 4
+		}
+	}
+	sort.SliceStable(resources, func(i, j int) bool {
+		ri, rj := rank(resources[i]), rank(resources[j])
+		if ri != rj {
+			return ri < rj
+		}
+		return resources[i].getID() < resources[j].getID()
+	})
+	return resources
 }
 
 var (
@@ -185,6 +236,7 @@ type Context struct {
 	clock           *Clock
 
 	rosResourceStore
+	life lifetime
 
 	// spinners are the wait sets that follow a resource store (see
 	// WaitSet.followResources). They are told to rebuild their entity lists
@@ -267,11 +319,38 @@ func NewContextWithOpts(rclArgs *Args, opts *ContextOptions) (ctx *Context, err 
 	return ctx, nil
 }
 
+// Close stops every wait set running on the context, closes all resources of
+// the context and finalizes it. Resources that a running wait set still uses
+// are finalized when it lets go of them, and the context after them.
 func (c *Context) Close() error {
-	if c.rcl_context_t == nil && c.rcl_allocator_t == nil {
+	if !c.life.markClosed() {
 		return closeErr("context")
 	}
-	errs := c.rosResourceStore.Close()
+	c.stopWaitSets()
+	isClock := func(r rosResource) bool { _, ok := r.(*Clock); return ok }
+	err := c.rosResourceStore.closeAll(isClock)
+	return errors.Join(err, c.life.finalize(nil, "context", c.fini))
+}
+
+// stopWaitSets makes every running wait set of the context return.
+func (c *Context) stopWaitSets() {
+	c.mutex.Lock()
+	var waitSets []*WaitSet
+	for _, r := range c.resources {
+		if ws, ok := r.(*WaitSet); ok {
+			waitSets = append(waitSets, ws)
+		}
+	}
+	c.mutex.Unlock()
+	for _, ws := range waitSets {
+		ws.stop()
+	}
+}
+
+// fini finalizes the clocks and the rcl context. It runs after every other
+// resource of the context has been finalized.
+func (c *Context) fini() error {
+	errs := c.rosResourceStore.closeAll(nil)
 	if c.rcl_context_t != nil {
 		if rc := C.rcl_shutdown(c.rcl_context_t); rc != C.RCL_RET_OK {
 			errs = errors.Join(errs, errorsCastC(rc, fmt.Sprintf("C.rcl_shutdown(%+v)", c.rcl_context_t)))

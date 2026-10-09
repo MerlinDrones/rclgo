@@ -350,6 +350,7 @@ func ExpandTopicName(
 type Node struct {
 	rosID
 	rosResourceStore
+	life               lifetime
 	rcl_node_t         *C.rcl_node_t
 	context            *Context
 	name               string
@@ -433,17 +434,22 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 	return node, nil
 }
 
-/*
-Close frees the allocated memory
-*/
+// Close closes every entity of the node and finalizes the node. Entities that a
+// running wait set still uses are finalized when it lets go of them, and the
+// node after them.
 func (n *Node) Close() error {
-	if n.rcl_node_t == nil {
+	if !n.life.markClosed() {
 		return closeErr("node")
 	}
 	n.context.removeResource(n)
+	err := n.rosResourceStore.closeAll(nil)
+	return errors.Join(err, n.life.finalize(&n.context.life, "node", n.fini))
+}
 
-	err := n.rosResourceStore.Close()
-
+func (n *Node) fini() (err error) {
+	if n.rcl_node_t == nil {
+		return nil
+	}
 	// Finalize the /rosout log publisher before finalizing the node, mirroring
 	// the initialization done in NewNode.
 	if n.rosoutInitialized {
@@ -623,6 +629,12 @@ type Clock struct {
 	rosID
 	rcl_clock_t *C.rcl_clock_t
 	context     *Context
+
+	// jumpMu serializes changes to the clock's jump callbacks. rcl keeps them
+	// in an unsynchronized array that timers (including the expire timer of
+	// action servers) grow and shrink on init and fini, so timers using one
+	// clock must not be created or finalized concurrently.
+	jumpMu sync.Mutex
 }
 
 func NewClock(clockType ClockType) (*Clock, error) {
@@ -686,10 +698,11 @@ func (c *Clock) now() (time.Duration, error) {
 
 type Timer struct {
 	rosID
-	waitable    singleUse
+	life        lifetime
 	rcl_timer_t *C.rcl_timer_t
 	Callback    func(*Timer)
 	context     *Context
+	clock       *Clock
 }
 
 func NewTimer(timeout time.Duration, timerCallback func(*Timer)) (*Timer, error) {
@@ -707,13 +720,16 @@ func (c *Context) NewTimer(timeout time.Duration, timer_callback func(*Timer)) (
 		rcl_timer_t: (*C.rcl_timer_t)(C.malloc(C.sizeof_rcl_timer_t)),
 		Callback:    timer_callback,
 		context:     c,
+		clock:       c.Clock(),
 	}
 	*timer.rcl_timer_t = C.rcl_get_zero_initialized_timer()
 	defer onErr(&err, timer.Close)
 
+	timer.clock.jumpMu.Lock()
+	defer timer.clock.jumpMu.Unlock()
 	rc := C.rcl_timer_init2(
 		timer.rcl_timer_t,
-		c.Clock().rcl_clock_t,
+		timer.clock.rcl_clock_t,
 		c.rcl_context_t,
 		C.int64_t(timeout),
 		nil,
@@ -753,12 +769,17 @@ func (t *Timer) Reset() error {
 /*
 Close frees the allocated memory
 */
-func (t *Timer) Close() (err error) {
+func (t *Timer) Close() error {
+	return closeEntity(&t.life, "timer", func() { t.context.removeResource(t) }, &t.context.life, t.fini)
+}
+
+func (t *Timer) fini() (err error) {
 	if t.rcl_timer_t == nil {
-		return closeErr("timer")
+		return nil
 	}
-	t.context.removeResource(t)
+	t.clock.jumpMu.Lock()
 	rc := C.rcl_timer_fini(t.rcl_timer_t)
+	t.clock.jumpMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
 	}
@@ -779,7 +800,7 @@ type SubscriptionCallback func(*Subscription)
 
 type Subscription struct {
 	rosID
-	waitable           singleUse
+	life               lifetime
 	TopicName          string
 	Ros2MsgType        types.MessageTypeSupport
 	Callback           SubscriptionCallback
@@ -886,11 +907,14 @@ func (s *Subscription) GetPublisherCount() (int, error) {
 /*
 Close frees the allocated memory
 */
-func (s *Subscription) Close() (err error) {
+func (s *Subscription) Close() error {
+	return closeEntity(&s.life, "subscription", func() { s.node.removeResource(s) }, &s.node.life, s.fini)
+}
+
+func (s *Subscription) fini() (err error) {
 	if s.rcl_subscription_t == nil {
-		return closeErr("subscription")
+		return nil
 	}
-	s.node.removeResource(s)
 	rc := C.rcl_subscription_fini(s.rcl_subscription_t, s.node.rcl_node_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
@@ -903,7 +927,7 @@ func (s *Subscription) Close() (err error) {
 
 type guardCondition struct {
 	rosID
-	waitable          singleUse
+	life              lifetime
 	rclGuardCondition *C.rcl_guard_condition_t
 	context           *Context
 }
@@ -928,10 +952,13 @@ func (c *Context) newGuardCondition() (g *guardCondition, err error) {
 }
 
 func (c *guardCondition) Close() error {
+	return closeEntity(&c.life, "guard condition", func() { c.context.removeResource(c) }, &c.context.life, c.fini)
+}
+
+func (c *guardCondition) fini() error {
 	if c.rclGuardCondition == nil {
-		return closeErr("guard condition")
+		return nil
 	}
-	c.context.removeResource(c)
 	rc := C.rcl_guard_condition_fini(c.rclGuardCondition)
 	C.free(unsafe.Pointer(c.rclGuardCondition))
 	c.rclGuardCondition = nil
@@ -987,7 +1014,7 @@ type ServiceRequestHandler func(*ServiceInfo, types.Message, ServiceResponseSend
 
 type Service struct {
 	rosID
-	waitable            singleUse
+	life                lifetime
 	node                *Node
 	rclService          *C.rcl_service_t
 	name                *C.char
@@ -1035,11 +1062,14 @@ func (n *Node) NewService(
 	return s, nil
 }
 
-func (s *Service) Close() (err error) {
+func (s *Service) Close() error {
+	return closeEntity(&s.life, "service", func() { s.node.removeResource(s) }, &s.node.life, s.fini)
+}
+
+func (s *Service) fini() (err error) {
 	if s.name == nil {
-		return closeErr("service")
+		return nil
 	}
-	s.node.removeResource(s)
 	rc := C.rcl_service_fini(s.rclService, s.node.rcl_node_t)
 	if rc != C.RCL_RET_OK {
 		err = errorsCastC(rc, "failed to finalize service")
@@ -1099,7 +1129,7 @@ func NewDefaultClientOptions() *ClientOptions { return &ClientOptions{Qos: qos.N
 // Calling Send and Close is thread-safe. Creating clients is not thread-safe.
 type Client struct {
 	rosID
-	waitable  singleUse
+	life      lifetime
 	node      *Node
 	rclClient *C.rcl_client_t
 	sender    requestSender
@@ -1148,11 +1178,18 @@ func (n *Node) NewClient(
 }
 
 func (c *Client) Close() error {
+	return closeEntity(&c.life, "client", func() {
+		c.node.removeResource(c)
+		// Wake callers waiting for a response right away.
+		c.sender.Close() //nolint:errcheck
+	}, &c.node.life, c.fini)
+}
+
+func (c *Client) fini() error {
 	if c.rclClient == nil {
-		return closeErr("client")
+		return nil
 	}
-	c.node.removeResource(c)
-	err := c.sender.Close()
+	var err error
 	rc := C.rcl_client_fini(c.rclClient, c.node.rcl_node_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCastC(rc, "failed to finalize client"))

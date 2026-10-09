@@ -249,7 +249,7 @@ var errActionServerClosed = errors.New("action server is closed")
 
 type ActionServer struct {
 	rosID
-	waitable    singleUse
+	life        lifetime
 	node        *Node
 	action      Action
 	typeSupport types.ActionTypeSupport
@@ -298,6 +298,7 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 	qosToC(opts.ResultServiceQos, &rclOpts.result_service_qos)
 	qosToC(opts.FeedbackTopicQos, &rclOpts.feedback_topic_qos)
 	qosToC(opts.StatusTopicQos, &rclOpts.status_topic_qos)
+	s.clock.jumpMu.Lock()
 	rc := C.rcl_action_server_init(
 		&s.rclServer,
 		n.rcl_node_t,
@@ -306,6 +307,7 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 		cname,
 		&rclOpts,
 	)
+	s.clock.jumpMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to create action server")
 	}
@@ -316,21 +318,24 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 
 // Close finalizes the server and cancels the context of every goal that is
 // still executing. Goals that finish after Close cannot report their result.
-func (s *ActionServer) Close() (err error) {
-	s.rclServerMu.Lock()
-	if s.closed {
+func (s *ActionServer) Close() error {
+	return closeEntity(&s.life, "action server", func() {
+		s.rclServerMu.Lock()
+		s.closed = true
 		s.rclServerMu.Unlock()
-		return closeErr("action")
-	}
-	s.closed = true
-	s.rclServerMu.Unlock()
+		s.node.removeResource(s)
+		if s.cancelGoal != nil {
+			s.cancelGoal()
+		}
+	}, &s.node.life, s.fini)
+}
 
-	s.node.removeResource(s)
-	s.cancelGoal()
-
+func (s *ActionServer) fini() (err error) {
 	s.rclServerMu.Lock()
 	defer s.rclServerMu.Unlock()
+	s.clock.jumpMu.Lock()
 	rc := C.rcl_action_server_fini(&s.rclServer, s.node.rcl_node_t)
+	s.clock.jumpMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errorsCastC(rc, "failed to finalize action server")
 	}
@@ -825,8 +830,8 @@ func newActionClientHandlers() actionClientSubs {
 
 type ActionClient struct {
 	rosID
-	waitable singleUse
-	node     *Node
+	life lifetime
+	node *Node
 
 	typeSupport types.ActionTypeSupport
 	rclClient   C.rcl_action_client_t
@@ -895,15 +900,19 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 }
 
 func (c *ActionClient) Close() error {
-	if c.typeSupport == nil {
-		return closeErr("action client")
-	}
-	c.node.removeResource(c)
-	err := errors.Join(
-		c.cancelSender.Close(),
-		c.goalSender.Close(),
-		c.resultSender.Close(),
-	)
+	return closeEntity(&c.life, "action client", func() {
+		c.node.removeResource(c)
+		// Wake callers waiting for a response right away.
+		c.cancelSender.Close() //nolint:errcheck
+		c.goalSender.Close()   //nolint:errcheck
+		c.resultSender.Close() //nolint:errcheck
+	}, &c.node.life, c.fini)
+}
+
+func (c *ActionClient) fini() error {
+	var err error
+	c.rclClientMu.Lock()
+	defer c.rclClientMu.Unlock()
 	rc := C.rcl_action_client_fini(&c.rclClient, c.node.rcl_node_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCastC(rc, "failed to finalize action client"))
