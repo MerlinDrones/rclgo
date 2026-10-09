@@ -88,11 +88,17 @@ type InertiaStampedSubscriptionCallback func(msg *InertiaStamped, info *rclgo.Me
 
 // NewInertiaStampedSubscription creates and returns a new subscription for the
 // InertiaStamped
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewInertiaStampedSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback InertiaStampedSubscriptionCallback) (*InertiaStampedSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg InertiaStamped
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg InertiaStamped
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, InertiaStampedTypeSupport, opts, callback)
 	if err != nil {

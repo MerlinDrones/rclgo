@@ -87,11 +87,17 @@ type PoseSubscriptionCallback func(msg *Pose, info *rclgo.MessageInfo, err error
 
 // NewPoseSubscription creates and returns a new subscription for the
 // Pose
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPoseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PoseSubscriptionCallback) (*PoseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Pose
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Pose
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PoseTypeSupport, opts, callback)
 	if err != nil {

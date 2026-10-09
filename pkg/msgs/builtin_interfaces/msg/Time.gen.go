@@ -87,11 +87,17 @@ type TimeSubscriptionCallback func(msg *Time, info *rclgo.MessageInfo, err error
 
 // NewTimeSubscription creates and returns a new subscription for the
 // Time
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTimeSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TimeSubscriptionCallback) (*TimeSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Time
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Time
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TimeTypeSupport, opts, callback)
 	if err != nil {

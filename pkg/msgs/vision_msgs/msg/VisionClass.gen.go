@@ -88,11 +88,17 @@ type VisionClassSubscriptionCallback func(msg *VisionClass, info *rclgo.MessageI
 
 // NewVisionClassSubscription creates and returns a new subscription for the
 // VisionClass
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewVisionClassSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback VisionClassSubscriptionCallback) (*VisionClassSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg VisionClass
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg VisionClass
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, VisionClassTypeSupport, opts, callback)
 	if err != nil {

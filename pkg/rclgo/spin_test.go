@@ -211,3 +211,58 @@ func TestNodeSpinServicesEntitiesCreatedAfterSpinStarts(t *testing.T) {
 		require.NoError(t, stop())
 	})
 }
+
+// A subscription created without a callback is polled by its owner with
+// TakeMessage (skyhook does this for command ACKs). Spin must neither call the
+// nil callback nor take the owner's messages, also when the subscription is
+// created after Spin started.
+func TestSpinLeavesPollOnlySubscriptionsToTheirOwner(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		subscribe func(node *rclgo.Node, topic string) (take func() (string, bool))
+	}{
+		{"generated wrapper with nil callback", func(node *rclgo.Node, topic string) func() (string, bool) {
+			sub, err := std_msgs_msg.NewStringSubscription(node, topic, nil, nil)
+			require.NoError(t, err)
+			return func() (string, bool) {
+				msg := std_msgs_msg.NewString()
+				info, err := sub.TakeMessage(msg)
+				return msg.Data, err == nil && info != nil
+			}
+		}},
+		{"subscription with nil callback", func(node *rclgo.Node, topic string) func() (string, bool) {
+			sub, err := node.NewSubscription(topic, std_msgs_msg.StringTypeSupport, nil, nil)
+			require.NoError(t, err)
+			return func() (string, bool) {
+				msg := std_msgs_msg.NewString()
+				info, err := sub.TakeMessage(msg)
+				return msg.Data, err == nil && info != nil
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rclctx := newSpinTestContext(t)
+			node, err := rclctx.NewNode("poll_only", "/spin_test")
+			require.NoError(t, err)
+			stop := startSpin(t, rclctx.Spin)
+			take := tc.subscribe(node, "poll_only_topic")
+			pub, err := node.NewPublisher("poll_only_topic", std_msgs_msg.StringTypeSupport, nil)
+			require.NoError(t, err)
+			msg := std_msgs_msg.NewString()
+			msg.Data = "ack"
+			deadline := time.Now().Add(spinTimeout)
+			for {
+				require.NoError(t, pub.Publish(msg))
+				time.Sleep(20 * time.Millisecond)
+				if data, ok := take(); ok {
+					require.Equal(t, "ack", data)
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal("poll-only subscription never received a message")
+				}
+			}
+			require.NoError(t, stop(), "Spin failed while a poll-only subscription existed")
+		})
+	}
+}

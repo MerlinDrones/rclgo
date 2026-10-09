@@ -85,11 +85,17 @@ type ChangeState_RequestSubscriptionCallback func(msg *ChangeState_Request, info
 
 // NewChangeState_RequestSubscription creates and returns a new subscription for the
 // ChangeState_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewChangeState_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ChangeState_RequestSubscriptionCallback) (*ChangeState_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ChangeState_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ChangeState_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ChangeState_RequestTypeSupport, opts, callback)
 	if err != nil {

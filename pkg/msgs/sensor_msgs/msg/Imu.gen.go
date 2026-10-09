@@ -105,11 +105,17 @@ type ImuSubscriptionCallback func(msg *Imu, info *rclgo.MessageInfo, err error)
 
 // NewImuSubscription creates and returns a new subscription for the
 // Imu
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewImuSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ImuSubscriptionCallback) (*ImuSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Imu
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Imu
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ImuTypeSupport, opts, callback)
 	if err != nil {

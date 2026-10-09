@@ -105,11 +105,17 @@ type PointFieldSubscriptionCallback func(msg *PointField, info *rclgo.MessageInf
 
 // NewPointFieldSubscription creates and returns a new subscription for the
 // PointField
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPointFieldSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PointFieldSubscriptionCallback) (*PointFieldSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg PointField
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg PointField
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PointFieldTypeSupport, opts, callback)
 	if err != nil {

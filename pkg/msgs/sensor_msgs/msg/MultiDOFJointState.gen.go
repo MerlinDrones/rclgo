@@ -111,11 +111,17 @@ type MultiDOFJointStateSubscriptionCallback func(msg *MultiDOFJointState, info *
 
 // NewMultiDOFJointStateSubscription creates and returns a new subscription for the
 // MultiDOFJointState
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewMultiDOFJointStateSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback MultiDOFJointStateSubscriptionCallback) (*MultiDOFJointStateSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg MultiDOFJointState
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg MultiDOFJointState
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, MultiDOFJointStateTypeSupport, opts, callback)
 	if err != nil {

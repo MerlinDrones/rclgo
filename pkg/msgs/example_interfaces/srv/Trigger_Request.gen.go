@@ -81,11 +81,17 @@ type Trigger_RequestSubscriptionCallback func(msg *Trigger_Request, info *rclgo.
 
 // NewTrigger_RequestSubscription creates and returns a new subscription for the
 // Trigger_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTrigger_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Trigger_RequestSubscriptionCallback) (*Trigger_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Trigger_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Trigger_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Trigger_RequestTypeSupport, opts, callback)
 	if err != nil {

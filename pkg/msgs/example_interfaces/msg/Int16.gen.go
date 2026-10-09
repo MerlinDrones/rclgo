@@ -84,11 +84,17 @@ type Int16SubscriptionCallback func(msg *Int16, info *rclgo.MessageInfo, err err
 
 // NewInt16Subscription creates and returns a new subscription for the
 // Int16
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewInt16Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Int16SubscriptionCallback) (*Int16Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Int16
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Int16
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Int16TypeSupport, opts, callback)
 	if err != nil {

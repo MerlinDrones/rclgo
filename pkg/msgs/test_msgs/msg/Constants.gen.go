@@ -97,11 +97,17 @@ type ConstantsSubscriptionCallback func(msg *Constants, info *rclgo.MessageInfo,
 
 // NewConstantsSubscription creates and returns a new subscription for the
 // Constants
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewConstantsSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ConstantsSubscriptionCallback) (*ConstantsSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Constants
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Constants
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ConstantsTypeSupport, opts, callback)
 	if err != nil {

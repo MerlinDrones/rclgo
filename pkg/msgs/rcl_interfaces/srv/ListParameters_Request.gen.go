@@ -95,11 +95,17 @@ type ListParameters_RequestSubscriptionCallback func(msg *ListParameters_Request
 
 // NewListParameters_RequestSubscription creates and returns a new subscription for the
 // ListParameters_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewListParameters_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ListParameters_RequestSubscriptionCallback) (*ListParameters_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ListParameters_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ListParameters_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ListParameters_RequestTypeSupport, opts, callback)
 	if err != nil {

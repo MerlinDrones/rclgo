@@ -184,11 +184,17 @@ type ArraysSubscriptionCallback func(msg *Arrays, info *rclgo.MessageInfo, err e
 
 // NewArraysSubscription creates and returns a new subscription for the
 // Arrays
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewArraysSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ArraysSubscriptionCallback) (*ArraysSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Arrays
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Arrays
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ArraysTypeSupport, opts, callback)
 	if err != nil {

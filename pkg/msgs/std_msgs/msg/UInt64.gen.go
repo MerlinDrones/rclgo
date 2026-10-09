@@ -84,11 +84,17 @@ type UInt64SubscriptionCallback func(msg *UInt64, info *rclgo.MessageInfo, err e
 
 // NewUInt64Subscription creates and returns a new subscription for the
 // UInt64
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewUInt64Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback UInt64SubscriptionCallback) (*UInt64Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg UInt64
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg UInt64
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, UInt64TypeSupport, opts, callback)
 	if err != nil {

@@ -90,11 +90,17 @@ type IntegerRangeSubscriptionCallback func(msg *IntegerRange, info *rclgo.Messag
 
 // NewIntegerRangeSubscription creates and returns a new subscription for the
 // IntegerRange
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewIntegerRangeSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback IntegerRangeSubscriptionCallback) (*IntegerRangeSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg IntegerRange
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg IntegerRange
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, IntegerRangeTypeSupport, opts, callback)
 	if err != nil {

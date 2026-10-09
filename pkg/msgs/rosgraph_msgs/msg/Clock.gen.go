@@ -85,11 +85,17 @@ type ClockSubscriptionCallback func(msg *Clock, info *rclgo.MessageInfo, err err
 
 // NewClockSubscription creates and returns a new subscription for the
 // Clock
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewClockSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ClockSubscriptionCallback) (*ClockSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Clock
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Clock
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ClockTypeSupport, opts, callback)
 	if err != nil {

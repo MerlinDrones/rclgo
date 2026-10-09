@@ -122,11 +122,17 @@ type StringsSubscriptionCallback func(msg *Strings, info *rclgo.MessageInfo, err
 
 // NewStringsSubscription creates and returns a new subscription for the
 // Strings
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewStringsSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback StringsSubscriptionCallback) (*StringsSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Strings
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Strings
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, StringsTypeSupport, opts, callback)
 	if err != nil {

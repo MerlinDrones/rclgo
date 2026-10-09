@@ -91,11 +91,17 @@ type TemperatureSubscriptionCallback func(msg *Temperature, info *rclgo.MessageI
 
 // NewTemperatureSubscription creates and returns a new subscription for the
 // Temperature
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTemperatureSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TemperatureSubscriptionCallback) (*TemperatureSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Temperature
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Temperature
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TemperatureTypeSupport, opts, callback)
 	if err != nil {

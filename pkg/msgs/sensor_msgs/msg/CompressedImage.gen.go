@@ -95,11 +95,17 @@ type CompressedImageSubscriptionCallback func(msg *CompressedImage, info *rclgo.
 
 // NewCompressedImageSubscription creates and returns a new subscription for the
 // CompressedImage
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewCompressedImageSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback CompressedImageSubscriptionCallback) (*CompressedImageSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg CompressedImage
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg CompressedImage
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, CompressedImageTypeSupport, opts, callback)
 	if err != nil {

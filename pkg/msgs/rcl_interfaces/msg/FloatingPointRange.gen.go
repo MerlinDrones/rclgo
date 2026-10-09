@@ -90,11 +90,17 @@ type FloatingPointRangeSubscriptionCallback func(msg *FloatingPointRange, info *
 
 // NewFloatingPointRangeSubscription creates and returns a new subscription for the
 // FloatingPointRange
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFloatingPointRangeSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback FloatingPointRangeSubscriptionCallback) (*FloatingPointRangeSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg FloatingPointRange
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg FloatingPointRange
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, FloatingPointRangeTypeSupport, opts, callback)
 	if err != nil {
