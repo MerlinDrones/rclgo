@@ -11,7 +11,8 @@ package params
 
 import (
 	"fmt"
-	"log"
+	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,7 +40,7 @@ type Manager struct {
 func NewManager(n *rclgo.Node) (*Manager, error) {
 	m := &Manager{st: newStore(), n: n}
 
-	// /parameter_events publisher: Reliable + TransientLocal + KeepAll
+	// /parameter_events publisher, with the same QoS as rclcpp and rclpy
 	opts := &rclgo.PublisherOptions{Qos: qos.NewParameterEventsProfile()}
 	pub, err := n.NewPublisher("/parameter_events", rcl_interfaces_msg2.ParameterEventTypeSupport, opts)
 	if err != nil {
@@ -54,32 +55,27 @@ func NewManager(n *rclgo.Node) (*Manager, error) {
 		Description: "Use simulated time from /clock when true.",
 	})
 
-	// Node-scoped parameter services (match rclcpp/rclpy)
+	// Node-scoped parameter services, the same six as rclcpp and rclpy. rclpy's
+	// parameter client (and so the ros2 param tool) waits for all of them.
 	base := n.FullyQualifiedName()
-	if base == "" {
-		base = "/" + n.Name()
+	for _, svc := range []struct {
+		name    string
+		ts      types.ServiceTypeSupport
+		handler rclgo.ServiceRequestHandler
+	}{
+		{"get_parameters", rcl_interfaces_srv2.GetParametersTypeSupport, m.onGetParameters},
+		{"get_parameter_types", rcl_interfaces_srv2.GetParameterTypesTypeSupport, m.onGetParameterTypes},
+		{"set_parameters", rcl_interfaces_srv2.SetParametersTypeSupport, m.onSetParameters},
+		{"set_parameters_atomically", rcl_interfaces_srv2.SetParametersAtomicallyTypeSupport, m.onSetParametersAtomically},
+		{"list_parameters", rcl_interfaces_srv2.ListParametersTypeSupport, m.onListParameters},
+		{"describe_parameters", rcl_interfaces_srv2.DescribeParametersTypeSupport, m.onDescribeParameters},
+	} {
+		name := strings.TrimSuffix(base, "/") + "/" + svc.name
+		if _, err := n.NewService(name, svc.ts, nil, svc.handler); err != nil {
+			return nil, fmt.Errorf("parameter service %s: %w", name, err)
+		}
+		n.Logger().Debugf("parameter service registered: %s", name) //nolint:errcheck
 	}
-	log.Printf("[params] node base=%s", base)
-
-	if _, err := n.NewService(base+"/get_parameters", rcl_interfaces_srv2.GetParametersTypeSupport, nil, m.onGetParameters); err != nil {
-		return nil, err
-	}
-	log.Printf("[params] service registered: %s/get_parameters", base)
-
-	if _, err := n.NewService(base+"/set_parameters", rcl_interfaces_srv2.SetParametersTypeSupport, nil, m.onSetParameters); err != nil {
-		return nil, err
-	}
-	log.Printf("[params] service registered: %s/set_parameters", base)
-
-	if _, err := n.NewService(base+"/list_parameters", rcl_interfaces_srv2.ListParametersTypeSupport, nil, m.onListParameters); err != nil {
-		return nil, err
-	}
-	log.Printf("[params] service registered: %s/list_parameters", base)
-
-	if _, err := n.NewService(base+"/describe_parameters", rcl_interfaces_srv2.DescribeParametersTypeSupport, nil, m.onDescribeParameters); err != nil {
-		return nil, err
-	}
-	log.Printf("[params] service registered: %s/describe_parameters", base)
 
 	return m, nil
 }
@@ -195,20 +191,48 @@ func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 	for _, p := range req.Parameters {
 		incoming = append(incoming, Parameter{Name: p.Name, Value: fromRclValue(p.Value)})
 	}
-	result, _, newp := m.st.set(incoming)
-
-	// Per-item results: mirror ROS 2 semantics (one result per requested parameter)
-	results := make([]rcl_interfaces_msg2.SetParametersResult, len(req.Parameters))
-	for i := range results {
-		results[i] = rcl_interfaces_msg2.SetParametersResult{
-			Successful: result.Successful,
-			Reason:     result.Reason,
+	// Each parameter is set on its own, as in rclcpp: one that is refused
+	// does not stop the others, and each gets its own result.
+	results := make([]rcl_interfaces_msg2.SetParametersResult, len(incoming))
+	var changed []Parameter
+	for i, p := range incoming {
+		result, _, newp := m.st.set([]Parameter{p})
+		results[i] = rcl_interfaces_msg2.SetParametersResult{Successful: result.Successful, Reason: result.Reason}
+		if result.Successful {
+			changed = append(changed, newp...)
 		}
 	}
 	resp.Results = results
+	if len(changed) > 0 {
+		m.publishEvent(nil, changed)
+	}
+	_ = send.SendResponse(resp)
+}
 
+// onSetParametersAtomically sets all parameters or none.
+func (m *Manager) onSetParametersAtomically(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
+	req := reqMsg.(*rcl_interfaces_srv2.SetParametersAtomically_Request)
+	resp := rcl_interfaces_srv2.NewSetParametersAtomically_Response()
+	incoming := make([]Parameter, 0, len(req.Parameters))
+	for _, p := range req.Parameters {
+		incoming = append(incoming, Parameter{Name: p.Name, Value: fromRclValue(p.Value)})
+	}
+	result, _, newp := m.st.set(incoming)
+	resp.Result = rcl_interfaces_msg2.SetParametersResult{Successful: result.Successful, Reason: result.Reason}
 	if result.Successful {
 		m.publishEvent(nil, newp)
+	}
+	_ = send.SendResponse(resp)
+}
+
+func (m *Manager) onGetParameterTypes(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
+	req := reqMsg.(*rcl_interfaces_srv2.GetParameterTypes_Request)
+	resp := rcl_interfaces_srv2.NewGetParameterTypes_Response()
+	resp.Types = make([]uint8, len(req.Names))
+	for i, name := range req.Names {
+		if p, ok := m.st.get(name); ok {
+			resp.Types[i] = p.Value.Kind
+		}
 	}
 	_ = send.SendResponse(resp)
 }
@@ -216,43 +240,41 @@ func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 func (m *Manager) onListParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
 	req := reqMsg.(*rcl_interfaces_srv2.ListParameters_Request)
 	resp := rcl_interfaces_srv2.NewListParameters_Response()
+	resp.Result.Names, resp.Result.Prefixes = listParameters(m.st.list(), req.Prefixes, req.Depth)
+	_ = send.SendResponse(resp)
+}
 
-	var names []string
-	all := m.st.list()
-
-	// depth semantics: 0 == unlimited (ROS 2)
-	withinDepth := func(name, prefix string, depth uint64) bool {
-		if depth == 0 {
-			return true
-		}
-		rest := strings.TrimPrefix(name, prefix)
-		rest = strings.TrimPrefix(rest, ".")
-		if rest == "" {
-			return true
-		}
-		segments := uint64(strings.Count(rest, ".") + 1)
-		return segments <= depth
+// listParameters selects the parameter names under prefixes, as rclcpp does: a
+// prefix matches a name equal to it or followed by '.', depth (0 = unlimited)
+// limits how many '.'-separated segments below the prefix (or below the root
+// without prefixes) a name may have, and prefixes reports the distinct
+// parents of the selected names.
+func listParameters(all []Parameter, wantPrefixes []string, depth uint64) (names, prefixes []string) {
+	within := func(rest string) bool {
+		return depth == 0 || uint64(strings.Count(rest, "."))+1 <= depth
 	}
-
 	for _, p := range all {
-		if len(req.Prefixes) == 0 {
-			names = append(names, p.Name)
-			continue
+		match := false
+		if len(wantPrefixes) == 0 {
+			match = within(p.Name)
 		}
-		okDepth := false
-		for _, pref := range req.Prefixes {
-			if strings.HasPrefix(p.Name, pref) && withinDepth(p.Name, pref, req.Depth) {
-				okDepth = true
+		for _, pref := range wantPrefixes {
+			if p.Name == pref || (strings.HasPrefix(p.Name, pref+".") && within(p.Name[len(pref)+1:])) {
+				match = true
 				break
 			}
 		}
-		if okDepth {
-			names = append(names, p.Name)
+		if !match {
+			continue
+		}
+		names = append(names, p.Name)
+		if i := strings.LastIndex(p.Name, "."); i >= 0 && !slices.Contains(prefixes, p.Name[:i]) {
+			prefixes = append(prefixes, p.Name[:i])
 		}
 	}
-
-	resp.Result.Names = names
-	_ = send.SendResponse(resp)
+	slices.Sort(names)
+	slices.Sort(prefixes)
+	return names, prefixes
 }
 
 func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
@@ -262,7 +284,7 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 	descs := make([]rcl_interfaces_msg2.ParameterDescriptor, 0, len(req.Names))
 	for _, name := range req.Names {
 		if p, ok := m.st.get(name); ok {
-			d := m.st.desc[name]
+			d, _ := m.st.descriptor(name)
 			pd := rcl_interfaces_msg2.ParameterDescriptor{
 				Name:        name,
 				Type:        uint8(p.Value.Kind),
@@ -270,8 +292,10 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 				ReadOnly:    d.ReadOnly,
 			}
 			// Ranges
+			// A missing bound is the type's limit; the message cannot
+			// express a one-sided range.
 			if d.MinInt != nil || d.MaxInt != nil {
-				var from, to int64
+				from, to := int64(math.MinInt64), int64(math.MaxInt64)
 				if d.MinInt != nil {
 					from = *d.MinInt
 				}
@@ -285,7 +309,7 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 				}}
 			}
 			if d.MinDouble != nil || d.MaxDouble != nil {
-				var from, to float64
+				from, to := -math.MaxFloat64, math.MaxFloat64
 				if d.MinDouble != nil {
 					from = *d.MinDouble
 				}
