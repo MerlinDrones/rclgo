@@ -299,6 +299,8 @@ func NewContextWithOpts(rclArgs *Args, opts *ContextOptions) (ctx *Context, err 
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCast(rc)
 	}
+	// rcl_init copies the options into the context.
+	defer C.rcl_init_options_fini(&rcl_init_options_t)
 	rc = C.rcl_init_options_set_domain_id(&rcl_init_options_t, C.size_t(opts.DomainID))
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCast(rc)

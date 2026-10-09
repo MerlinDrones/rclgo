@@ -112,6 +112,12 @@ var (
 )
 
 func rclInitLogging(rclArgs *Args, update bool) error {
+	if rclArgs == nil {
+		var err error
+		if rclArgs, _, err = ParseArgs(nil); err != nil {
+			return err
+		}
+	}
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
 	if loggingInitialized && !update {

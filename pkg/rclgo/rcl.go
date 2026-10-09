@@ -280,6 +280,7 @@ func Deserialize(buf []byte, ts types.MessageTypeSupport) (msg types.Message, er
 	if err != nil {
 		return nil, err
 	}
+	defer serialized.Close()
 	copy(serialized.AsSlice(), buf)
 	cmsg := ts.PrepareMemory()
 	defer ts.ReleaseMemory(cmsg)
@@ -651,8 +652,14 @@ func (c *Context) NewClock(clockType ClockType) (clock *Clock, err error) {
 	clock = &Clock{
 		context: c,
 	}
-	clock.rcl_clock_t = (*C.rcl_clock_t)(C.calloc(1, C.sizeof_rcl_clock_t))
-	defer onErr(&err, c.Close)
+	cclock := (*C.rcl_clock_t)(C.calloc(1, C.sizeof_rcl_clock_t))
+	clock.rcl_clock_t = cclock
+	defer func() {
+		// Only the clock is released on failure; the context stays usable.
+		if err != nil {
+			C.free(unsafe.Pointer(cclock))
+		}
+	}()
 	rc := C.rcl_clock_init(
 		C.rcl_clock_type_t(clockType),
 		clock.rcl_clock_t,
