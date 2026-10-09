@@ -10,7 +10,7 @@ is covered, how to run it, and what is not covered yet.
 ```bash
 source /opt/ros/jazzy/setup.bash
 go test -count=1 ./...          # what CI runs (make test)
-go test -race -count=1 ./...    # recommended: most defects found so far were concurrency defects
+go test -race -count=1 ./...    # make test-race; what CI runs. Most defects found were concurrency defects
 ```
 
 - With a Go workspace (`go.work`) that does not contain rclgo, set `GOWORK=off`.
@@ -24,6 +24,28 @@ go test -race -count=1 ./...    # recommended: most defects found so far were co
   go test -c -o /tmp/rclgo.test ./pkg/rclgo/
   cd pkg/rclgo && MALLOC_PERTURB_=165 MALLOC_CHECK_=3 /tmp/rclgo.test -test.run 'Close|Racing' -test.count=10
   ```
+
+## Go-specific checks
+
+These come from Go's runtime and cgo rather than from ROS, so the rclcpp/rclpy suites have no counterpart.
+
+| Check | How | Covered by |
+|---|---|---|
+| rcl error text stays with its goroutine (rcl's error state is per OS thread) | always on | `TestRCLErrorTextBelongsToItsCall` |
+| Many contexts in parallel goroutines | always on | `TestContextsInParallel` |
+| No goroutine left after everything is closed | always on | `TestNoGoroutineLeaks` |
+| A panic in a callback reaches Spin's caller and leaves the context closable | always on | `TestPanicInCallbackReachesSpinCaller` |
+| Garbage-collector stress on finalizers (goal handles, `Args`, loggers) | `GOGC=1 go test ./pkg/...` | whole suite |
+| cgo pointer-passing rules | `GOEXPERIMENT=cgocheck2 go test ./pkg/...` | whole suite |
+| Fuzzing | `go test -run '^$' -fuzz <Target> <pkg>` | `FuzzLoadYAML`, `FuzzParseEnvVarValue` (`params/`), `FuzzExpandTopicName`, `FuzzDeserialize` |
+| Benchmarks with allocation counts | `go test -run '^$' -bench . ./pkg/rclgo/` | `bench_test.go` |
+
+`ros2.env` sets `GODEBUG=cgocheck=0`, which turns cgo's pointer checks off; do not use it for test runs.
+
+`FuzzDeserialize` reaches the RMW's C deserializer. On Jazzy, Fast DDS crashes on truncated input (so the target
+skips under it) and Cyclone DDS has driven a fuzz worker past 20 GB of memory. Fuzz it only under another RMW and a
+memory cap, for example
+`(ulimit -v 4000000; RMW_IMPLEMENTATION=rmw_cyclonedds_cpp go test -run '^$' -fuzz FuzzDeserialize -parallel 2 ./pkg/rclgo/)`.
 
 ## Coverage by area
 
@@ -60,4 +82,4 @@ These areas have no rclgo implementation or no tests yet; they are planned next.
 - **Failure injection**: rclcpp forces individual rcl calls to fail (mimick, `RCUTILS_FAULT_INJECTION`) to test error
   paths. rclgo has no equivalent, so paths such as a failing `rcl_action_process_cancel_request` are untested.
 - **Signals**: SIGINT/SIGTERM handling of a running node (system_tests `test_sigint_handler`).
-- **Benchmarks**: no `Benchmark*` functions yet (rclcpp `test/benchmark`).
+- **Benchmarks**: a first set exists (`bench_test.go`); none yet for Spin wake-up latency or executors.
