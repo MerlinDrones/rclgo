@@ -248,7 +248,7 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 			}
 		}
 		for _, s := range w.ActionServers {
-			s.handleReadyEntities(ctx, w)
+			s.handleReadyEntities(w)
 		}
 		for _, c := range w.ActionClients {
 			c.handleReadyEntities(w)
