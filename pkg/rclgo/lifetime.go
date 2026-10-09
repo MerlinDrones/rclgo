@@ -27,6 +27,13 @@ type lifetime struct {
 	users   int
 	closed  bool
 	pending func()
+
+	// owner is the wait set that services the entity while it runs. Another
+	// running wait set skips the entity, so each message or request is
+	// handled once. ownerHolds counts owner's holds; ownership ends with the
+	// last one.
+	owner      *WaitSet
+	ownerHolds int
 }
 
 // acquire registers a user of the handle. It fails once the entity is closed.
@@ -38,6 +45,36 @@ func (l *lifetime) acquire() bool {
 	}
 	l.users++
 	return true
+}
+
+// acquireFor registers w as a user that services the entity. It fails if the
+// entity is closed or another wait set services it (otherOwner reports the
+// latter).
+func (l *lifetime) acquireFor(w *WaitSet) (ok, otherOwner bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed {
+		return false, false
+	}
+	if l.owner != nil && l.owner != w {
+		return false, true
+	}
+	l.owner = w
+	l.ownerHolds++
+	l.users++
+	return true, false
+}
+
+// releaseFor undoes acquireFor.
+func (l *lifetime) releaseFor(w *WaitSet) {
+	l.mu.Lock()
+	if l.owner == w {
+		l.ownerHolds--
+		if l.ownerHolds == 0 {
+			l.owner = nil
+		}
+	}
+	l.releaseLocked()
 }
 
 // hold registers a user even if the entity is closed. A child whose
@@ -53,6 +90,11 @@ func (l *lifetime) hold() {
 // any.
 func (l *lifetime) release() {
 	l.mu.Lock()
+	l.releaseLocked()
+}
+
+// releaseLocked is release with l.mu held; it unlocks l.mu.
+func (l *lifetime) releaseLocked() {
 	l.users--
 	var run func()
 	if l.users == 0 {

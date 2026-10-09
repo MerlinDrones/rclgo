@@ -50,6 +50,10 @@ type WaitSet struct {
 	// stopRun, while Run is running, makes it return.
 	stopMu  sync.Mutex
 	stopRun context.CancelFunc
+
+	// skipped records entities left to another running wait set, so that
+	// each is reported once.
+	skipped map[*lifetime]bool
 }
 
 func NewWaitSet() (*WaitSet, error) {
@@ -209,6 +213,9 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		return errWaitSetClosed
 	}
 	defer w.life.release()
+	// After releasing its entities, wake the other spinning wait sets so
+	// they pick up the entities this one serviced.
+	defer w.context.resourcesChanged()
 	release := w.acquireEntities()
 	defer func() { release() }()
 	if !w.hasGuardCondition(w.cancelWait) {
@@ -240,9 +247,12 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 	refresh := false
 	for {
 		if refresh {
-			release()
+			// Acquire the new set before releasing the old one, so that
+			// entities this wait set services stay owned by it.
+			previous := release
 			w.syncResources()
 			release = w.acquireEntities()
+			previous()
 			refresh = false
 		}
 		if err := w.initEntities(); err != nil {
@@ -313,25 +323,46 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 // acquireEntities registers w as a user of its entities, so that closing them
 // defers their finalization, and drops the entities that are already closed
 // from its lists. The returned function releases them.
+//
+// An entity that another running wait set already services is skipped, so
+// that it is serviced once; the first wait set keeps it until it stops, and
+// the skip is logged once per entity.
 func (w *WaitSet) acquireEntities() (release func()) {
 	var held []*lifetime
-	keep := func(l *lifetime) bool {
-		if l.acquire() {
+	keep := func(l *lifetime, describe func() string) bool {
+		ok, otherOwner := l.acquireFor(w)
+		if ok {
 			held = append(held, l)
 			return true
 		}
+		if otherOwner && !w.skipped[l] {
+			if w.skipped == nil {
+				w.skipped = map[*lifetime]bool{}
+			}
+			w.skipped[l] = true
+			GetLogger("rclgo").Warn(describe() + //nolint:errcheck
+				" is already serviced by another running Spin or wait set; only that one services it")
+		}
 		return false
 	}
-	w.Subscriptions = filterEntities(w.Subscriptions, func(s *Subscription) bool { return keep(&s.life) })
-	w.Timers = filterEntities(w.Timers, func(t *Timer) bool { return keep(&t.life) })
-	w.Services = filterEntities(w.Services, func(s *Service) bool { return keep(&s.life) })
-	w.Clients = filterEntities(w.Clients, func(c *Client) bool { return keep(&c.life) })
-	w.ActionClients = filterEntities(w.ActionClients, func(c *ActionClient) bool { return keep(&c.life) })
-	w.ActionServers = filterEntities(w.ActionServers, func(s *ActionServer) bool { return keep(&s.life) })
-	w.guardConditions = filterEntities(w.guardConditions, func(g *guardCondition) bool { return keep(&g.life) })
+	w.Subscriptions = filterEntities(w.Subscriptions, func(s *Subscription) bool {
+		return keep(&s.life, func() string { return "subscription to " + s.TopicName })
+	})
+	w.Timers = filterEntities(w.Timers, func(t *Timer) bool { return keep(&t.life, func() string { return "a timer" }) })
+	w.Services = filterEntities(w.Services, func(s *Service) bool { return keep(&s.life, func() string { return "a service" }) })
+	w.Clients = filterEntities(w.Clients, func(c *Client) bool { return keep(&c.life, func() string { return "a client" }) })
+	w.ActionClients = filterEntities(w.ActionClients, func(c *ActionClient) bool {
+		return keep(&c.life, func() string { return "an action client" })
+	})
+	w.ActionServers = filterEntities(w.ActionServers, func(s *ActionServer) bool {
+		return keep(&s.life, func() string { return "an action server" })
+	})
+	w.guardConditions = filterEntities(w.guardConditions, func(g *guardCondition) bool {
+		return keep(&g.life, func() string { return "a guard condition" })
+	})
 	return func() {
 		for _, l := range held {
-			l.release()
+			l.releaseFor(w)
 		}
 	}
 }
