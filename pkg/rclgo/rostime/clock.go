@@ -2,6 +2,7 @@ package rostime
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -13,45 +14,53 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo/utils"
 )
 
+// ErrTimeJumpedBack is returned by SleepUntil (and Sleep) when simulated time
+// jumped backwards while sleeping, for example when a simulation is reset or a
+// bag replay loops. The target time may now be far away; Rate resets itself on
+// it, as rclcpp's Rate does.
+var ErrTimeJumpedBack = errors.New("rostime: time jumped backwards")
+
+// Clock is a node's ROS time: the system time, or simulated time from /clock
+// while the node's use_sim_time parameter is true (as with rclcpp and rclpy).
+//
+// While simulated time is active, the clock also drives the ROS-time clock of
+// the node's context (rclgo.Clock.SetROSTimeOverride), so that rclgo timers
+// and action servers on that context follow simulated time. That clock is
+// shared by every node of the context.
 type Clock struct {
 	mu     sync.RWMutex
 	useSim bool
-	now    time.Time
+	now    time.Time // simulated time; the epoch until the first /clock
+	jumps  uint64    // backwards jumps of simulated time
 	cond   *sync.Cond
 
-	node   *rclgo.Node
-	sub    *rclgo.Subscription
-	cancel context.CancelFunc
+	node       *rclgo.Node
+	sub        *rclgo.Subscription
+	removeHook func()
+	overriding bool // whether the context's rcl clock is in ROS-time override
 }
 
-// NewClock wires use_sim_time and (when enabled) subscribes to /clock.
+// NewClock creates a node's clock. It follows the use_sim_time parameter of
+// pm, if pm is not nil: its value now, and every later change (for example
+// from `ros2 param set`). Call Shutdown when done with it.
 func NewClock(_ context.Context, node *rclgo.Node, pm *params.Manager) (*Clock, error) {
-	c := &Clock{
-		node: node,
-		now:  time.Now(),
-	}
+	c := &Clock{node: node, now: time.Unix(0, 0)}
 	c.cond = sync.NewCond(&c.mu)
-
-	// Initialize from parameter (default false in ROS 2).
-	// Note: params.Manager uses "use_sim_time" (no leading slash).
 	useSim := false
 	if pm != nil {
-		// Let params/events use ROS time when sim time is active.
+		// Parameter event stamps use ROS time.
 		pm.SetNowProvider(c.NowMsg)
-
 		if p, ok := pm.Get("use_sim_time"); ok && p.Value.Kind == params.KindBool && p.Value.Bool {
 			useSim = true
 		}
-
-		// (Optional) react to runtime changes — uncomment when exposing OnSet.
-		// pm.OnSet(func(name string, p params.Parameter) error {
-		// 	if name == "use_sim_time" && p.Value.Kind == params.KindBool {
-		// 		c.setUseSim(p.Value.Bool)
-		// 	}
-		// 	return nil
-		// })
+		c.removeHook = pm.AddPostSetCallback(func(ps []params.Parameter) {
+			for _, p := range ps {
+				if p.Name == "use_sim_time" && p.Value.Kind == params.KindBool {
+					c.setUseSim(p.Value.Bool)
+				}
+			}
+		})
 	}
-
 	c.setUseSim(useSim)
 	return c, nil
 }
@@ -63,7 +72,8 @@ func (c *Clock) IsSimTime() bool {
 	return c.useSim
 }
 
-// Now returns the current time from the active source (system or sim).
+// Now returns the current time from the active source. Simulated time is the
+// epoch until the first /clock message arrives.
 func (c *Clock) Now() time.Time {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -119,103 +129,143 @@ func (c *Clock) Rate(hz float64) *Rate {
 	}
 }
 
-// SleepUntil sleeps until the given absolute time according to the active clock.
+// SleepUntil sleeps until t according to the active clock. It returns
+// ctx.Err() when ctx ends, and ErrTimeJumpedBack when simulated time jumps
+// backwards. When the clock switches between system and simulated time while
+// sleeping, the sleep continues on the new source.
 func (c *Clock) SleepUntil(ctx context.Context, t time.Time) error {
-	c.mu.Lock()
-	if !c.useSim {
-		// Do NOT hold c.mu while sleeping on wall clock; avoid double-unlock.
+	// Wake the condition-variable wait below when ctx ends; /clock may not
+	// arrive at all while a simulation is paused.
+	stop := context.AfterFunc(ctx, func() {
+		c.mu.Lock()
+		c.cond.Broadcast()
 		c.mu.Unlock()
-		timer := time.NewTimer(time.Until(t))
-		defer timer.Stop()
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-timer.C:
+	})
+	defer stop()
+
+	c.mu.Lock()
+	jumps := c.jumps
+	for {
+		if err := ctx.Err(); err != nil {
+			c.mu.Unlock()
+			return err
+		}
+		if !c.useSim {
+			c.mu.Unlock()
+			return c.sleepWall(ctx, t)
+		}
+		if c.jumps != jumps {
+			c.mu.Unlock()
+			return ErrTimeJumpedBack
+		}
+		if !c.now.Before(t) {
+			c.mu.Unlock()
 			return nil
 		}
-	}
-
-	// Sim time: wait until c.now >= t or context cancels.
-	for c.useSim && c.now.Before(t) {
-		// Wait releases c.mu and re-acquires it on wake.
 		c.cond.Wait()
-		// Check context after each wake-up to allow cancellation while waiting.
-		select {
-		case <-ctx.Done():
-			c.mu.Unlock()
-			return ctx.Err()
-		default:
-		}
 	}
-	c.mu.Unlock()
-	return nil
 }
 
+// sleepWall sleeps on the system clock until t. A switch to simulated time
+// during the sleep is not observed; the sleep ends at t in system time.
+func (c *Clock) sleepWall(ctx context.Context, t time.Time) error {
+	d := time.Until(t)
+	if d <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+// Shutdown stops following use_sim_time and /clock and returns the context's
+// rcl clock to the system time.
 func (c *Clock) Shutdown() {
+	if c.removeHook != nil {
+		c.removeHook()
+		c.removeHook = nil
+	}
 	c.setUseSim(false)
 }
 
 func (c *Clock) setUseSim(enable bool) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.useSim == enable {
+		c.mu.Unlock()
 		return
 	}
 	c.useSim = enable
-
-	// Tear down any previous subscription/cancel
-	if c.cancel != nil {
-		c.cancel()
-		c.cancel = nil
+	if enable {
+		c.now = time.Unix(0, 0)
 	}
-	// If Subscription exposes Close/Fini, call it here. We just clear the ref.
+	old := c.sub
 	c.sub = nil
+	// Wake sleepers so they re-evaluate on the new source.
+	c.cond.Broadcast()
+	c.mu.Unlock()
 
-	if !enable {
-		return
+	if old != nil {
+		old.Close() //nolint:errcheck
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	c.cancel = cancel
-
-	sub, err := nodeCreateClockSub(c.node, func(msg *rosgraph_msgs_msg.Clock) {
-		c.mu.Lock()
-		c.now = time.Unix(int64(msg.Clock.Sec), int64(msg.Clock.Nanosec))
-		c.mu.Unlock()
-		c.cond.Broadcast()
-	})
-	if err != nil {
-		// Fall back to system time if subscription fails.
-		c.useSim = false
-		if c.cancel != nil {
-			c.cancel()
-			c.cancel = nil
+	rclClock := c.node.Context().Clock()
+	if !enable {
+		if c.overriding {
+			rclClock.DisableROSTimeOverride() //nolint:errcheck
+			c.overriding = false
 		}
 		return
 	}
+	// A context whose clock is not ROS time (e.g. system time) cannot be
+	// overridden; its timers stay on that clock.
+	if err := rclClock.SetROSTimeOverride(0); err == nil {
+		c.overriding = rclClock.EnableROSTimeOverride() == nil
+	}
+	sub, err := c.node.NewSubscription("/clock", rosgraph_msgs_msg.ClockTypeSupport,
+		&rclgo.SubscriptionOptions{Qos: qos.NewClockProfile()}, c.onClock)
+	if err != nil {
+		// Without /clock, simulated time cannot advance; fall back to system
+		// time as before.
+		c.node.Logger().Error("rostime: cannot subscribe to /clock, using system time: ", err) //nolint:errcheck
+		c.mu.Lock()
+		c.useSim = false
+		c.cond.Broadcast()
+		c.mu.Unlock()
+		if c.overriding {
+			rclClock.DisableROSTimeOverride() //nolint:errcheck
+			c.overriding = false
+		}
+		return
+	}
+	c.mu.Lock()
 	c.sub = sub
-
-	_ = ctx
+	c.mu.Unlock()
 }
 
-// nodeCreateClockSub adapts to rclgo's NewSubscription signature.
-func nodeCreateClockSub(node *rclgo.Node, cb func(*rosgraph_msgs_msg.Clock)) (*rclgo.Subscription, error) {
-	opts := &rclgo.SubscriptionOptions{
-		Qos: qos.NewClockProfile(),
+func (c *Clock) onClock(sub *rclgo.Subscription) {
+	msg := rosgraph_msgs_msg.NewClock()
+	if _, err := sub.TakeMessage(msg); err != nil {
+		return
 	}
-	callback := rclgo.SubscriptionCallback(func(sub *rclgo.Subscription) {
-		// Take one rosgraph_msgs/Clock message and forward it.
-		msg := rosgraph_msgs_msg.NewClock()
-		if _, err := sub.TakeMessage(msg); err != nil {
-			sub.Node().Logger().Debug(err)
-			return
-		}
-		cb(msg)
-	})
-	return node.NewSubscription(
-		"/clock",
-		rosgraph_msgs_msg.ClockTypeSupport,
-		opts,
-		callback,
-	)
+	t := time.Unix(int64(msg.Clock.Sec), int64(msg.Clock.Nanosec))
+	c.mu.Lock()
+	if !c.useSim || c.sub != sub {
+		c.mu.Unlock()
+		return
+	}
+	if t.Before(c.now) {
+		c.jumps++
+	}
+	c.now = t
+	overriding := c.overriding
+	c.cond.Broadcast()
+	c.mu.Unlock()
+	if overriding {
+		// rcl makes due timers ready and resets them on a backwards jump.
+		c.node.Context().Clock().SetROSTimeOverride(time.Duration(t.UnixNano())) //nolint:errcheck
+	}
 }

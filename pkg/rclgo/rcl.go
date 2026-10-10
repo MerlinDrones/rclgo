@@ -733,6 +733,8 @@ Close frees the allocated memory
 func (c *Clock) Close() (err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	c.jumpMu.Lock()
+	defer c.jumpMu.Unlock()
 	if c.rcl_clock_t == nil {
 		return closeErr("clock")
 	}
@@ -749,6 +751,44 @@ func (c *Clock) Close() (err error) {
 // Context returns the context c belongs to.
 func (c *Clock) Context() *Context {
 	return c.context
+}
+
+// EnableROSTimeOverride makes a ROS-time clock report the time last given to
+// SetROSTimeOverride (simulated time) instead of the system time. Timers and
+// action servers using the clock follow it. It fails for other clock types.
+func (c *Clock) EnableROSTimeOverride() error {
+	return c.override("enable", func() C.rcl_ret_t { return C.rcl_enable_ros_time_override(c.rcl_clock_t) })
+}
+
+// DisableROSTimeOverride returns a ROS-time clock to the system time.
+func (c *Clock) DisableROSTimeOverride() error {
+	return c.override("disable", func() C.rcl_ret_t { return C.rcl_disable_ros_time_override(c.rcl_clock_t) })
+}
+
+// SetROSTimeOverride sets the simulated time, as a duration since the epoch,
+// that the clock reports while the override is enabled. Timers due by then
+// become ready; a jump backwards resets them, as in rcl.
+func (c *Clock) SetROSTimeOverride(t time.Duration) error {
+	return c.override("set", func() C.rcl_ret_t {
+		return C.rcl_set_ros_time_override(c.rcl_clock_t, C.rcl_time_point_value_t(t))
+	})
+}
+
+// override runs one of rcl's ROS-time override calls. They call the clock's
+// jump callbacks (registered by timers), so they hold jumpMu like timer init
+// and fini.
+func (c *Clock) override(what string, f func() C.rcl_ret_t) error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	c.jumpMu.Lock()
+	defer c.jumpMu.Unlock()
+	if c.rcl_clock_t == nil {
+		return closedErr("clock")
+	}
+	if rc := f(); rc != C.RCL_RET_OK {
+		return errorsCastC(rc, "failed to "+what+" ROS time override")
+	}
+	return nil
 }
 
 func (c *Clock) now() (time.Duration, error) {
