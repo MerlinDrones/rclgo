@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -167,4 +169,100 @@ func EventuallyROS2(t testing.TB, want string, args ...string) string {
 		return nil
 	})
 	return out
+}
+
+// Process is a program started by Start, typically a ROS node in another
+// language. Its output is collected; it is stopped when the test ends.
+type Process struct {
+	t   testing.TB
+	cmd *exec.Cmd
+	mu  sync.Mutex
+	out strings.Builder
+}
+
+func (p *Process) Write(b []byte) (int, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.out.Write(b)
+}
+
+// Output returns everything the process has written so far.
+func (p *Process) Output() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.out.String()
+}
+
+// WaitFor waits until the process's output contains s and fails the test
+// after Timeout.
+func (p *Process) WaitFor(s string) {
+	p.t.Helper()
+	Eventually(p.t, "output "+strconv.Quote(s)+" from "+p.cmd.Path, func() error {
+		if strings.Contains(p.Output(), s) {
+			return nil
+		}
+		return errors.New("not yet; output so far:\n" + p.Output())
+	})
+}
+
+// Start runs name with args in its own process group. When the test ends the
+// group gets SIGINT, as Ctrl-C would, and is killed if it is still running a
+// few seconds later.
+func Start(t testing.TB, name string, args ...string) *Process {
+	t.Helper()
+	p := &Process{t: t, cmd: exec.Command(name, args...)}
+	p.cmd.Stdout, p.cmd.Stderr = p, p
+	// Output goes to a pipe, which Python and rcutils would otherwise buffer.
+	p.cmd.Env = append(os.Environ(), "PYTHONUNBUFFERED=1", "RCUTILS_LOGGING_BUFFERED_STREAM=0")
+	// Pdeathsig: the process dies with the test binary even if the binary
+	// crashes before its cleanup runs.
+	p.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
+	if err := p.cmd.Start(); err != nil {
+		t.Fatalf("start %s: %v", name, err)
+	}
+	done := make(chan struct{})
+	go func() {
+		p.cmd.Wait() //nolint:errcheck
+		close(done)
+	}()
+	t.Cleanup(func() {
+		pgid := -p.cmd.Process.Pid
+		syscall.Kill(pgid, syscall.SIGINT) //nolint:errcheck
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			syscall.Kill(pgid, syscall.SIGKILL) //nolint:errcheck
+			<-done
+		}
+	})
+	return p
+}
+
+// RunROS2Node starts an executable of a ROS package (an rclcpp or rclpy node),
+// as `ros2 run pkg executable args...` would but without the ros2 wrapper
+// process, so that the node itself is the child that dies with the test. It
+// skips the test if the ros2 tools or the package are missing.
+func RunROS2Node(t testing.TB, pkg, executable string, args ...string) *Process {
+	t.Helper()
+	RequireROS2(t)
+	out, err := exec.Command("ros2", "pkg", "prefix", pkg).CombinedOutput()
+	if err != nil {
+		t.Skipf("ROS package %s not installed: %s", pkg, out)
+	}
+	path := strings.TrimSpace(string(out)) + "/lib/" + pkg + "/" + executable
+	if _, err := os.Stat(path); err != nil {
+		t.Skipf("executable %s not found: %v", path, err)
+	}
+	return Start(t, path, args...)
+}
+
+// Python starts a Python 3 script (an rclpy program); -P keeps the script's
+// directory off the module path.
+func Python(t testing.TB, script string, args ...string) *Process {
+	t.Helper()
+	RequireROS2(t)
+	if out, err := exec.Command("python3", "-P", "-c", "import rclpy").CombinedOutput(); err != nil {
+		t.Skipf("rclpy not importable: %s", out)
+	}
+	return Start(t, "python3", append([]string{"-P", script}, args...)...)
 }
