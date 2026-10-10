@@ -26,11 +26,16 @@ jobs:
             ros-jazzy-action-tutorials-cpp \
             ros-jazzy-demo-nodes-cpp \
             ros-jazzy-demo-nodes-py \
+            ros-jazzy-rmw-cyclonedds-cpp \
+            ros-jazzy-rmw-zenoh-cpp \
             ros-jazzy-example-interfaces \
             ros-jazzy-test-msgs
 
       - name: Run tests with the race detector
         run: make test-race
+
+      - name: Run tests on every installed RMW
+        run: make test-rmw
 
   run-linter:
     runs-on: ubuntu-latest
