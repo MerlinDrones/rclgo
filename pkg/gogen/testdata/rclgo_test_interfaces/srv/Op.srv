@@ -1,0 +1,5 @@
+Inner request_inner
+int32 type
+---
+bool ok
+string message

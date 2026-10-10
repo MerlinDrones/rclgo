@@ -12,8 +12,10 @@ package gogen
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/kivilahtio/go-re/v0"
 )
@@ -158,18 +160,19 @@ func (p *parser) addImport(msg *ROS2Message, pkg string) {
 
 func (p *parser) parseSections(source string, sections ...*ROS2Message) error {
 	current := 0
+	var errs []error
 	for i, line := range strings.Split(source, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "---" {
-			if current >= len(sections) {
-				return errors.New("too many sections")
-			}
 			current++
+			if current >= len(sections) {
+				return errors.Join(append(errs, fmt.Errorf("line %d: too many sections", i+1))...)
+			}
 		} else if err := p.parseLine(sections[current], line); err != nil {
-			return fmt.Errorf("error on line %d: %w", i+1, err)
+			errs = append(errs, fmt.Errorf("error on line %d: %w", i+1, err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func (p *parser) parseLine(msg *ROS2Message, line string) error {
@@ -218,14 +221,16 @@ func (p *parser) parseMessageLine(testRow string, ros2msg *ROS2Message) (interfa
 	switch typeChar {
 	case 'c':
 		con, err := p.ParseROS2MessageConstant(capture)
-		if err == nil {
-			return con, nil
+		if err != nil {
+			return nil, fmt.Errorf("invalid constant '%s': %w", testRow, err)
 		}
+		return con, nil
 	case 'f':
 		f, err := p.ParseROS2MessageField(capture, ros2msg)
-		if err == nil {
-			return f, nil
+		if err != nil {
+			return nil, fmt.Errorf("invalid field '%s': %w", testRow, err)
 		}
+		return f, nil
 	}
 	return nil, fmt.Errorf("couldn't parse the input row as either ROS2 Field or Constant? input '%s'", testRow)
 }
@@ -255,8 +260,7 @@ func isRowConstantOrField(textRow string) (byte, map[string]string) {
 	(?P<array>\[(?P<bounded><=)?(?P<size>\d*)\])?
 	\s+
 	(?P<field>\w+)
-	\s*
-	(?P<default>[^#]+)?
+	(?:\s+(?P<default>[^#]+))?
 	(?:\s+\#\s*(?P<comment>.*))?
 	$
 	!x`)
@@ -268,6 +272,12 @@ func isRowConstantOrField(textRow string) (byte, map[string]string) {
 }
 
 func (p *parser) ParseROS2MessageConstant(capture map[string]string) (*ROS2Constant, error) {
+	if capture["package"] != "" || capture["array"] != "" {
+		return nil, errors.New("constants must have a primitive, non-array type")
+	}
+	if !validConstantName.MatchString(capture["field"]) {
+		return nil, fmt.Errorf("invalid constant name '%s': must match %s", capture["field"], validConstantName)
+	}
 	d := &ROS2Constant{
 		RosType: capture["type"],
 		RosName: capture["field"],
@@ -280,12 +290,19 @@ func (p *parser) ParseROS2MessageConstant(capture map[string]string) (*ROS2Const
 		d.GoType = fmt.Sprintf("<MISSING translation from ROS2 Constant type '%s'>", d.RosType)
 		return d, fmt.Errorf("Unknown ROS2 Constant type '%s'\n", d.RosType)
 	}
+	if err := checkPrimitiveValue(d.RosType, d.Value, 0); err != nil {
+		return nil, err
+	}
 	d.GoType = t.GoType
 	d.PkgName = t.PackageName
 	return d, nil
 }
 
 func (p *parser) ParseROS2MessageField(capture map[string]string, ros2msg *ROS2Message) (*ROS2Field, error) {
+	capture["default"] = strings.TrimSpace(capture["default"])
+	if err := checkField(capture); err != nil {
+		return nil, err
+	}
 	size, err := strconv.ParseInt(capture["size"], 10, 32)
 	if err != nil && capture["size"] != "" {
 		return nil, err
@@ -569,4 +586,128 @@ func cloneCode(f *ROS2Field) string {
 		return "c." + f.GoName + " = t." + f.GoName
 	}
 	return "//<MISSING cloneCode!!>"
+}
+
+// Names and values are checked as rosidl checks them (rosidl_adapter's
+// parser), so that a definition rosidl accepts is never rejected here, and a
+// line rosidl would reject is reported instead of being turned into a field.
+var (
+	validLowerName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	validConstantName = regexp.MustCompile(`^[A-Z](?:[A-Z0-9_]?[A-Z0-9]+)*$`)
+	validTypeName     = regexp.MustCompile(`^[A-Z][A-Za-z0-9]*$`)
+)
+
+// isValidLowerName reports whether s is a valid ROS package or field name.
+func isValidLowerName(s string) bool {
+	return validLowerName.MatchString(s) && !strings.Contains(s, "__") && !strings.HasSuffix(s, "_")
+}
+
+func checkField(capture map[string]string) error {
+	pkg, typ, name, def := capture["package"], capture["type"], capture["field"], capture["default"]
+	_, primitive := primitiveTypeMappings[typ]
+	switch {
+	case pkg != "" && !isValidLowerName(pkg):
+		return fmt.Errorf("invalid package name '%s'", pkg)
+	case pkg != "" && !validTypeName.MatchString(typ):
+		return fmt.Errorf("invalid message type name '%s/%s'", pkg, typ)
+	case pkg == "" && !primitive && !validTypeName.MatchString(typ):
+		return fmt.Errorf("unknown type '%s': not a primitive type or a valid message type name", typ)
+	case !isValidLowerName(name):
+		return fmt.Errorf("invalid field name '%s'", name)
+	case def == "":
+		return nil
+	case pkg != "" || !primitive:
+		return fmt.Errorf("unexpected '%s' after field '%s': only fields of primitive types have default values", def, name)
+	}
+	stringBound := 0
+	if b := strings.TrimPrefix(capture["boundedString"], "<="); b != "" {
+		stringBound, _ = strconv.Atoi(b)
+	}
+	if capture["array"] == "" {
+		return checkPrimitiveValue(typ, def, stringBound)
+	}
+	if !strings.HasPrefix(def, "[") || !strings.HasSuffix(def, "]") {
+		return fmt.Errorf("default value of array field '%s' must be enclosed in [ ]: '%s'", name, def)
+	}
+	values := splitMsgDefaultArrayValues("", def)
+	if strings.TrimSpace(normalizeMsgDefaultArrayValue(def)) == "" {
+		values = nil
+	}
+	size, _ := strconv.Atoi(capture["size"])
+	switch {
+	case capture["bounded"] != "" && len(values) > size:
+		return fmt.Errorf("default value of field '%s' has %d elements, more than its bound %d", name, len(values), size)
+	case capture["bounded"] == "" && capture["size"] != "" && len(values) != size:
+		return fmt.Errorf("default value of field '%s' has %d elements, its array size is %d", name, len(values), size)
+	}
+	for _, v := range values {
+		if err := checkPrimitiveValue(typ, strings.TrimSpace(v), stringBound); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkPrimitiveValue reports whether value is a valid value of the primitive
+// ROS type, following rosidl_adapter's parse_primitive_value_string. A
+// stringBound > 0 limits the length of string values.
+func checkPrimitiveValue(rosType, value string, stringBound int) error {
+	invalid := func(why string) error {
+		return fmt.Errorf("invalid %s value '%s': %s", rosType, value, why)
+	}
+	parseInt := func(bits int, unsigned bool) error {
+		var err error
+		if unsigned {
+			if _, err = strconv.ParseUint(value, 10, bits); err != nil {
+				_, err = strconv.ParseUint(value, 0, bits)
+			}
+		} else {
+			if _, err = strconv.ParseInt(value, 10, bits); err != nil {
+				_, err = strconv.ParseInt(value, 0, bits)
+			}
+		}
+		if err != nil {
+			return invalid(fmt.Sprintf("must be a %d-bit integer", bits))
+		}
+		return nil
+	}
+	switch rosType {
+	case "bool":
+		switch strings.ToLower(value) {
+		case "true", "false", "1", "0":
+			return nil
+		}
+		return invalid("must be true, false, 1 or 0")
+	case "byte", "char", "uint8":
+		return parseInt(8, true)
+	case "uint16", "uint32", "uint64":
+		bits, _ := strconv.Atoi(rosType[4:])
+		return parseInt(bits, true)
+	case "int8", "int16", "int32", "int64":
+		bits, _ := strconv.Atoi(rosType[3:])
+		return parseInt(bits, false)
+	case "float32", "float64":
+		if _, err := strconv.ParseFloat(value, 64); err != nil {
+			return invalid("must be a floating point number")
+		}
+		return nil
+	case "string", "wstring":
+		for _, q := range []string{`"`, `'`} {
+			if len(value) >= 2 && strings.HasPrefix(value, q) && strings.HasSuffix(value, q) {
+				value = value[1 : len(value)-1]
+				for i := 0; i < len(value); i++ {
+					if value[i:i+1] == q && (i == 0 || value[i-1] != '\\') {
+						return invalid("inner quotes must be escaped")
+					}
+				}
+				value = strings.ReplaceAll(value, `\`+q, q)
+				break
+			}
+		}
+		if stringBound > 0 && utf8.RuneCountInString(value) > stringBound {
+			return invalid(fmt.Sprintf("longer than the bound of %d characters", stringBound))
+		}
+		return nil
+	}
+	return nil
 }
