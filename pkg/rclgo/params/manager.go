@@ -162,7 +162,7 @@ func (m *Manager) applyOverride(name string, v Value, d Descriptor) error {
 
 func (m *Manager) Get(name string) (Parameter, bool) { return m.st.get(name) }
 func (m *Manager) List() []Parameter                 { return m.st.list() }
-func (m *Manager) OnSet(cb OnSetCallback)            { m.st.cb = cb }
+func (m *Manager) OnSet(cb OnSetCallback)            { m.st.setCallback(cb) }
 
 // Set updates one or more existing parameters. Returns SetResult indicating success/failure.
 // All parameters must already be declared, and constraints will be validated.
@@ -220,7 +220,7 @@ func (m *Manager) onGetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 		}
 	}
 	resp.Values = values
-	_ = send.SendResponse(resp)
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
 func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
@@ -246,7 +246,7 @@ func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 	if len(changed) > 0 {
 		m.publishEvent(nil, changed)
 	}
-	_ = send.SendResponse(resp)
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
 // onSetParametersAtomically sets all parameters or none.
@@ -262,7 +262,7 @@ func (m *Manager) onSetParametersAtomically(_ *rclgo.ServiceInfo, reqMsg types.M
 	if result.Successful {
 		m.publishEvent(nil, newp)
 	}
-	_ = send.SendResponse(resp)
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
 func (m *Manager) onGetParameterTypes(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
@@ -274,14 +274,14 @@ func (m *Manager) onGetParameterTypes(_ *rclgo.ServiceInfo, reqMsg types.Message
 			resp.Types[i] = p.Value.Kind
 		}
 	}
-	_ = send.SendResponse(resp)
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
 func (m *Manager) onListParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
 	req := reqMsg.(*rcl_interfaces_srv2.ListParameters_Request)
 	resp := rcl_interfaces_srv2.NewListParameters_Response()
 	resp.Result.Names, resp.Result.Prefixes = listParameters(m.st.list(), req.Prefixes, req.Depth)
-	_ = send.SendResponse(resp)
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
 // listParameters selects the parameter names under prefixes, as rclcpp does: a
@@ -376,7 +376,7 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 		})
 	}
 	resp.Descriptors = descs
-	_ = send.SendResponse(resp)
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
 // --- Event publishers ---
@@ -391,6 +391,13 @@ func (m *Manager) stampNow() builtin_interfaces_msg.Time {
 	return builtin_interfaces_msg.Time{
 		Sec:     int32(now.Unix()),
 		Nanosec: uint32(now.Nanosecond()),
+	}
+}
+
+// logErr logs err, if not nil, with the node's logger.
+func (m *Manager) logErr(what string, err error) {
+	if err != nil {
+		m.n.Logger().Error(what, err) //nolint:errcheck
 	}
 }
 
@@ -447,7 +454,7 @@ func (m *Manager) emit(evt *rcl_interfaces_msg2.ParameterEvent) {
 		m.eventSink(evt)
 	}
 	if m.pub != nil {
-		_ = m.pub.Publish(evt)
+		m.logErr("failed to publish parameter event: ", m.pub.Publish(evt))
 	}
 }
 

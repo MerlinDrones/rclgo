@@ -10,8 +10,10 @@ Licensed under the Apache License, Version 2.0 (the "License");
 package params
 
 import (
+	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -99,17 +101,61 @@ type Event struct {
 }
 
 // thread-safe in-memory store
+//
+// mu guards the maps and cb. Changes (declare, set, override, undeclare) are
+// also serialized by modMu, which is held while the on-set callback runs but
+// mu is not: the callback can read parameters, and a change it attempts fails
+// with errInCallback instead of deadlocking, as rclcpp rejects it.
 type store struct {
 	mu   sync.RWMutex
 	vals map[string]Parameter
 	desc map[string]Descriptor
 	cb   OnSetCallback
 
+	modMu   sync.Mutex
+	cbOwner atomic.Int64 // goroutine running the on-set callback, or 0
+
 	// overridden holds the parameters that exist only because an override
 	// (parameter file, command line or environment) set them, and that code
 	// has not declared yet. Declaring one attaches the code's descriptor and
 	// type to the override's value.
 	overridden map[string]bool
+}
+
+// errInCallback is returned for a change attempted from an on-set callback.
+var errInCallback = errors.New("parameters cannot be declared, set or undeclared from an on-set callback")
+
+// lockChanges takes modMu, or fails if the caller is the on-set callback,
+// which runs with modMu held.
+func (s *store) lockChanges() error {
+	if s.modMu.TryLock() {
+		return nil
+	}
+	if id := s.cbOwner.Load(); id != 0 && id == goroutineID() {
+		return errInCallback
+	}
+	s.modMu.Lock()
+	return nil
+}
+
+// runCallback runs the on-set callback, if any, for params. modMu must be
+// held and mu not.
+func (s *store) runCallback(params []Parameter) SetResult {
+	s.mu.RLock()
+	cb := s.cb
+	s.mu.RUnlock()
+	if cb == nil {
+		return SetResult{Successful: true}
+	}
+	s.cbOwner.Store(goroutineID())
+	defer s.cbOwner.Store(0)
+	return cb(params)
+}
+
+func (s *store) setCallback(cb OnSetCallback) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.cb = cb
 }
 
 func newStore() *store {
@@ -126,6 +172,10 @@ func (s *store) declare(name string, v Value, d Descriptor) (Parameter, error) {
 // override's value is kept, converted to the type of v and checked against d,
 // and claimed reports true.
 func (s *store) declareOrClaim(name string, v Value, d Descriptor) (p Parameter, claimed bool, err error) {
+	if err := s.lockChanges(); err != nil {
+		return Parameter{}, false, err
+	}
+	defer s.modMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.vals[name]; exists {
@@ -159,36 +209,43 @@ func (s *store) declareOrClaim(name string, v Value, d Descriptor) (p Parameter,
 // does not stop an override, but the other constraints and the OnSet callback
 // apply.
 func (s *store) applyOverride(name string, v Value, d Descriptor) (p Parameter, created bool, err error) {
+	if err := s.lockChanges(); err != nil {
+		return Parameter{}, false, err
+	}
+	defer s.modMu.Unlock()
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	cur, exists := s.vals[name]
 	if !exists {
 		s.desc[name] = d
 		p = Parameter{Name: name, Value: v}
 		s.vals[name] = p
 		s.overridden[name] = true
+		s.mu.Unlock()
 		return p, true, nil
 	}
 	if s.overridden[name] {
 		p = Parameter{Name: name, Value: v}
 		s.vals[name] = p
+		s.mu.Unlock()
 		return p, false, nil
 	}
+	desc := s.desc[name]
+	s.mu.Unlock()
 	val, ok := coerce(v, cur.Value.Kind)
 	if !ok {
 		return Parameter{}, false, fmt.Errorf("parameter %q: override of type %s cannot be used for a %s parameter",
 			name, kindName(v.Kind), kindName(cur.Value.Kind))
 	}
 	p = Parameter{Name: name, Value: val}
-	if res := validate(p, s.desc[name]); !res.Successful {
+	if res := validate(p, desc); !res.Successful {
 		return Parameter{}, false, fmt.Errorf("parameter %q: override %v rejected: %s", name, v, res.Reason)
 	}
-	if s.cb != nil {
-		if res := s.cb([]Parameter{p}); !res.Successful {
-			return Parameter{}, false, fmt.Errorf("parameter %q: override %v rejected: %s", name, v, res.Reason)
-		}
+	if res := s.runCallback([]Parameter{p}); !res.Successful {
+		return Parameter{}, false, fmt.Errorf("parameter %q: override %v rejected: %s", name, v, res.Reason)
 	}
+	s.mu.Lock()
 	s.vals[name] = p
+	s.mu.Unlock()
 	return p, false, nil
 }
 
@@ -268,11 +325,36 @@ func (s *store) list() []Parameter {
 }
 
 func (s *store) set(params []Parameter) (SetResult, []Parameter, []Parameter) {
+	if err := s.lockChanges(); err != nil {
+		return SetResult{false, err.Error()}, nil, nil
+	}
+	defer s.modMu.Unlock()
+	// Nothing else changes the store while modMu is held, so what is
+	// validated under the read lock is still current when it is applied.
+	s.mu.RLock()
+	res, coerced := s.validateLocked(params)
+	s.mu.RUnlock()
+	if !res.Successful {
+		return res, nil, nil
+	}
+	if res := s.runCallback(coerced); !res.Successful {
+		return res, nil, nil
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	old := make([]Parameter, 0, len(coerced))
+	newp := make([]Parameter, 0, len(coerced))
+	for _, np := range coerced {
+		old = append(old, s.vals[np.Name])
+		s.vals[np.Name] = np
+		newp = append(newp, np)
+	}
+	return SetResult{true, ""}, old, newp
+}
 
-	old := make([]Parameter, 0, len(params))
-	newp := make([]Parameter, 0, len(params))
+// validateLocked checks params against their descriptors and converts their
+// values to the declared types. mu must be held.
+func (s *store) validateLocked(params []Parameter) (SetResult, []Parameter) {
 
 	// descriptor / read-only validation
 	// A parameter declared in code keeps its type; integers widen to
@@ -281,42 +363,26 @@ func (s *store) set(params []Parameter) (SetResult, []Parameter, []Parameter) {
 	for i, np := range params {
 		d, ok := s.desc[np.Name]
 		if !ok {
-			return SetResult{false, "undeclared parameter: " + np.Name}, nil, nil
+			return SetResult{false, "undeclared parameter: " + np.Name}, nil
 		}
 		if d.ReadOnly {
-			return SetResult{false, "parameter is read-only: " + np.Name}, nil, nil
+			return SetResult{false, "parameter is read-only: " + np.Name}, nil
 		}
 		if !s.overridden[np.Name] {
 			cur := s.vals[np.Name].Value
 			v, ok := coerce(np.Value, cur.Kind)
 			if !ok {
 				return SetResult{false, fmt.Sprintf("wrong type for %s: got %s, want %s",
-					np.Name, kindName(np.Value.Kind), kindName(cur.Kind))}, nil, nil
+					np.Name, kindName(np.Value.Kind), kindName(cur.Kind))}, nil
 			}
 			np.Value = v
 		}
 		if res := validate(np, d); !res.Successful {
-			return res, nil, nil
+			return res, nil
 		}
 		coerced[i] = np
 	}
-	params = coerced
-
-	// preview callback
-	if s.cb != nil {
-		if res := s.cb(params); !res.Successful {
-			return res, nil, nil
-		}
-	}
-
-	// apply
-	for _, np := range params {
-		op := s.vals[np.Name]
-		old = append(old, op)
-		s.vals[np.Name] = np
-		newp = append(newp, np)
-	}
-	return SetResult{true, ""}, old, newp
+	return SetResult{true, ""}, coerced
 }
 
 func validate(p Parameter, d Descriptor) SetResult {
@@ -356,6 +422,10 @@ func validate(p Parameter, d Descriptor) SetResult {
 // removes a parameter definition and its descriptor if present.
 // returns the removed Parameter and true if it existed.
 func (s *store) undeclare(name string) (Parameter, bool) {
+	if s.lockChanges() != nil {
+		return Parameter{}, false
+	}
+	defer s.modMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p, ok := s.vals[name]
