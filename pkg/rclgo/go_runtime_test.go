@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -199,6 +200,13 @@ func TestPanicInCallbackReachesSpinCaller(t *testing.T) {
 // Nodes created and closed concurrently from many goroutines (each node
 // registers a /rosout publisher in rcl's process-wide table).
 func TestNodesCreatedAndClosedConcurrently(t *testing.T) {
+	if os.Getenv("RMW_IMPLEMENTATION") == "rmw_zenoh_cpp" {
+		// rmw_zenoh_cpp 0.2.11 aborts the process (an uncaught
+		// zenoh::ZException from rcl_shutdown, "Failed to close the session")
+		// when many contexts shut down concurrently; plain rcl in C with
+		// pthreads does the same, so this is not an rclgo defect.
+		t.Skip("rmw_zenoh_cpp aborts on concurrent context shutdown (upstream)")
+	}
 	var wg sync.WaitGroup
 	errs := make(chan error, 16)
 	for g := range 16 {

@@ -2,6 +2,7 @@ package rclgo_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -22,6 +23,10 @@ func requireTopicNamesAndTypes(t *testing.T, node *rclgo.Node, expected map[stri
 		filtered := make(map[string][]string, len(actual))
 		for k, v := range actual {
 			if k != "/rosout" {
+				// The order of a topic's types is not specified (it
+				// differs between RMWs).
+				v = slices.Clone(v)
+				slices.Sort(v)
 				filtered[k] = v
 			}
 		}

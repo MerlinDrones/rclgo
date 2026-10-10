@@ -28,6 +28,24 @@ go test -race -count=1 ./...    # make test-race; what CI runs. Most defects fou
   cd pkg/rclgo && MALLOC_PERTURB_=165 MALLOC_CHECK_=3 /tmp/rclgo.test -test.run 'Close|Racing' -test.count=10
   ```
 
+## Every middleware (RMW)
+
+`make test-rmw` (`tools/test-rmw.sh`) runs the suite once per installed RMW, as rcl's
+`call_for_each_rmw_implementation` does: Fast DDS (the Jazzy default), Cyclone DDS, Connext and Zenoh, whichever are
+installed (`RMWS="..."` picks a subset; extra arguments go to `go test`). For Zenoh it starts a router that listens on
+`127.0.0.1` only and stops it afterwards. The interop tests then run against rclcpp/rclpy nodes on the same RMW.
+
+Known upstream issues, reproduced with plain rcl in C (so not rclgo defects); the affected tests skip under that RMW:
+
+| RMW | Issue | Skipped test |
+|---|---|---|
+| rmw_zenoh_cpp 0.2.11 | Many contexts shut down concurrently: the process aborts (uncaught `zenoh::ZException`, "Failed to close the session") | `TestNodesCreatedAndClosedConcurrently` |
+| rmw_zenoh_cpp 0.2.11 | Creating and destroying subscriptions on a topic while another thread publishes on it: `rcl_publish` never returns | `TestEntityCallsRacingClose` |
+| rmw_fastrtps_cpp 8.4.4 | `rmw_deserialize` crashes on a truncated buffer (also from rclpy) | `FuzzDeserialize` (fuzzing only) |
+
+Zenoh also differs from DDS where ROS leaves behaviour open, and the tests allow for it: the order of a topic's types
+in graph queries, and matching (and counting) endpoints whose durability is incompatible under DDS rules.
+
 ## Go-specific checks
 
 These come from Go's runtime and cgo rather than from ROS, so the rclcpp/rclpy suites have no counterpart.
@@ -82,8 +100,6 @@ These areas have no rclgo implementation or no tests yet; they are planned next.
 
 - **Lifecycle nodes, QoS event callbacks, executors and callback groups, `logger_level` parameter, waiting for a
   service**: not implemented in rclgo (see `ROADMAP.md`).
-- **Other RMWs**: runs against every installed RMW (Fast DDS, Cyclone DDS, Zenoh) as rcl's
-  `call_for_each_rmw_implementation` does. Tests currently run on the default RMW only.
 - **Failure injection**: rclcpp forces individual rcl calls to fail (mimick, `RCUTILS_FAULT_INJECTION`) to test error
   paths. rclgo has no equivalent, so paths such as a failing `rcl_action_process_cancel_request` are untested.
 - **Signals**: SIGINT/SIGTERM handling of a running node (system_tests `test_sigint_handler`).

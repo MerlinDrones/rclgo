@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -200,6 +201,12 @@ func TestTimerAccessors(t *testing.T) {
 // with Close of the same entity; skyhook polls an ACK subscription while
 // another goroutine closes it. They must fail cleanly, not use freed memory.
 func TestEntityCallsRacingClose(t *testing.T) {
+	if os.Getenv("RMW_IMPLEMENTATION") == "rmw_zenoh_cpp" {
+		// rmw_zenoh_cpp 0.2.11: rcl_publish never returns after subscriptions
+		// on the same topic are created and destroyed while publishing; plain
+		// rcl in C does the same, so this is not an rclgo defect.
+		t.Skip("rmw_zenoh_cpp hangs in rcl_publish after subscription churn (upstream)")
+	}
 	rclctx := newSpinTestContext(t)
 	node, err := rclctx.NewNode("racing_close", "/services_test")
 	require.NoError(t, err)
