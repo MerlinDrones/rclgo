@@ -1,6 +1,7 @@
 // Command check verifies generated bindings for rclgo_test_interfaces: constants,
 // defaults, and an in-process publish/subscribe round trip of a filled message.
-// It prints "HEX:<serialized message>" for cross-checking with rclpy.
+// It prints "HEX:<serialized Edge>" and "SPELLINGS:<serialized default
+// Spellings>" for cross-checking with rclpy.
 package main
 
 import (
@@ -63,6 +64,17 @@ func main() {
 	check(d.ArrayDefault == [3]float64{1.5, 2.5, 3.5}, "array default %v", d.ArrayDefault)
 	check(reflect.DeepEqual(d.StrsDefault, []string{"a", "b,c"}), "string sequence default %q", d.StrsDefault)
 
+	// Values rosidl accepts in spellings Go does not.
+	check(edge.Spellings_C_TRUE && edge.Spellings_C_ONE, "bool constants True and 1")
+	check(edge.Spellings_C_DEC == 10 && edge.Spellings_C_HEX == 16, "integer constants 010 and 0x10: %d %d", edge.Spellings_C_DEC, edge.Spellings_C_HEX)
+	s := edge.NewSpellings()
+	check(s.BTrue && !s.BZero, "bool defaults True and 0")
+	check(s.IDec == 10 && s.UHex == 255 && s.IBin == -5, "integer defaults: %d %d %d", s.IDec, s.UHex, s.IBin)
+	check(s.Bs == [2]bool{true, false}, "bool array default %v", s.Bs)
+	check(reflect.DeepEqual(s.Ints, []int16{10, 16}), "integer sequence default %v", s.Ints)
+	spellings, err := rclgo.Serialize(s)
+	check(err == nil, "serialize Spellings: %v", err)
+
 	// Serialization round trip.
 	in := filled()
 	buf, err := rclgo.Serialize(in)
@@ -110,5 +122,6 @@ func main() {
 		}
 	}
 	fmt.Println("HEX:" + hex.EncodeToString(buf))
+	fmt.Println("SPELLINGS:" + hex.EncodeToString(spellings))
 	fmt.Println("OK")
 }

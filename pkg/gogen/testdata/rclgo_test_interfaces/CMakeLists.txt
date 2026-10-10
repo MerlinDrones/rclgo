@@ -9,6 +9,7 @@ find_package(geometry_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Edge.msg"
   "msg/Inner.msg"
+  "msg/Spellings.msg"
   "srv/Op.srv"
   "action/Run.action"
   DEPENDENCIES builtin_interfaces geometry_msgs
