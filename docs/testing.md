@@ -89,7 +89,7 @@ memory cap, for example
 | Logging, `/rosout` | `logging_test.go`, `node_test.go` | `test_logging`, `test_rosout_subscription`, `test_logging_rosout.py` |
 | ROS time, clock, rate | `rostime/` | `test_time_source`, `test_rate`, `test_clock` |
 | Error handling (rcl error state) | `error_internal_test.go`, `misc_test.go` | rcl `test_common` |
-| Code generator | `gogen/` | rosidl generator tests |
+| **Code generator**: output is deterministic and matches the committed `pkg/msgs`; every installed interface package generates and compiles; a custom package (every field kind, defaults, bounds, constants, nested and cross-package types, services, actions) round-trips with rclpy; invalid definitions are rejected as rosidl rejects them, with the file and line; `rclgo-gen` exit codes and messages | `pkg/gogen/` (`golden_test.go`, `validation_test.go`, `e2e_test.go`), `cmd/rclgo-gen/cmd/cli_test.go` | rosidl_adapter and rosidl_generator_* tests |
 | **Interop with rclcpp and rclpy** (other processes): every `test_msgs` type both ways with rclpy; topics, services and actions both ways with C++ and Python demo nodes; `ros2 service call`, `ros2 action send_goal`; transient-local and best-effort QoS | `interop_test.go`, `testdata/interop/*.py` | system_tests `test_communication`, `test_quality_of_service` |
 | **Parameter services** through real services and the `ros2 param` tool; `/parameter_events` | `params/services_test.go` | `test_parameter_service`, `test_parameter_client`, ros2cli tests |
 | **Simulated time**: `/clock`, `use_sim_time` at runtime, sleeps, `Rate`, time jumps, timers following `/clock` | `rostime/simtime_test.go` | `test_time_source`, `test_time_source.py` |
