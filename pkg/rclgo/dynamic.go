@@ -37,7 +37,10 @@ char* formatString(const char* format, ...) {
 
 typedef rosidl_message_type_support_t * (*GetTypeSupportFunc)();
 
-const char* loadTypeSupport(
+// loadTypeSupport returns NULL on success, or an error message that the
+// caller must free. dlerror's text is copied right away: the next dl call
+// (here dlclose) clears or overwrites it.
+char* loadTypeSupport(
 	const char* pkgName,
 	const char* ifaceName,
 	void** lib,
@@ -48,12 +51,12 @@ const char* loadTypeSupport(
 		pkgName
 	);
 	if (libName == NULL) {
-		return "allocation failed";
+		return strdup("allocation failed");
 	}
 	*lib = dlopen(libName, RTLD_LAZY);
 	if (*lib == NULL) {
 		free(libName);
-		return dlerror();
+		return strdup(dlerror());
 	}
 	char* tsName = formatString(
 		"rosidl_typesupport_c__get_message_type_support_handle__%s__msg__%s",
@@ -62,14 +65,19 @@ const char* loadTypeSupport(
 	if (tsName == NULL) {
 		free(libName);
 		dlclose(*lib);
-		return "allocation failed";
+		*lib = NULL;
+		return strdup("allocation failed");
 	}
+	dlerror(); // clear any earlier error before dlsym
 	void* tsSym = dlsym(*lib, tsName);
 	if (tsSym == NULL) {
+		const char* e = dlerror();
+		char* err = strdup(e != NULL ? e : "type support symbol not found");
 		free(libName);
 		dlclose(*lib);
+		*lib = NULL;
 		free(tsName);
-		return dlerror();
+		return err;
 	}
 	*typeSupport = ((GetTypeSupportFunc)tsSym)();
 	free(libName);
@@ -109,7 +117,8 @@ func LoadDynamicMessageTypeSupport(pkgName, msgName string) (types.MessageTypeSu
 	ts := new(dynamicMessageTypeSupport)
 	err := C.loadTypeSupport(cPkgName, cIfaceName, &ts.lib, &ts.typeSupport)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load type support: %v", C.GoString(err))
+		defer C.free(unsafe.Pointer(err))
+		return nil, fmt.Errorf("failed to load type support for %s/msg/%s: %v", pkgName, msgName, C.GoString(err))
 	}
 	runtime.SetFinalizer(ts, func(g *dynamicMessageTypeSupport) {
 		C.dlclose(g.lib)

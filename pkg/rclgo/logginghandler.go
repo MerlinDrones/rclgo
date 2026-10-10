@@ -34,7 +34,9 @@ func GetLoggingOutputHandler() LoggingOutputHandler {
 }
 
 // SetLoggingOutputHandler sets the current logging output handler to h. If h ==
-// nil, DefaultLoggingOutputHandler is used.
+// nil, DefaultLoggingOutputHandler is used. h receives messages once logging is
+// initialized (by Init, NewContext or InitLogging); before that rcutils prints
+// messages with its own handler.
 func SetLoggingOutputHandler(h LoggingOutputHandler) {
 	if h == nil {
 		h = DefaultLoggingOutputHandler
