@@ -17,6 +17,9 @@ go test -race -count=1 ./...    # make test-race; what CI runs. Most defects fou
 - `TestMain` (`pkg/rclgo/rcl_test.go`) moves the test binary to an unused DDS domain, so tests do not see other ROS
   traffic on the machine. For extra isolation set `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`.
 - `examples/` builds and runs the example programs (`go generate`, `colcon build`), so it needs `colcon`.
+- The interop and `ros2` CLI tests start rclcpp/rclpy programs (`demo_nodes_cpp`, `demo_nodes_py`,
+  `action_tutorials_cpp`, rclpy scripts in `pkg/rclgo/testdata/interop/`) as separate processes. They skip when the
+  `ros2` tools, a package or rclpy is missing, and with `-short`.
 - Memory errors in cgo code often go unnoticed because freed memory still holds the old bytes. To make use-after-free
   visible, run a compiled test binary under glibc's checks:
 
@@ -69,6 +72,9 @@ memory cap, for example
 | ROS time, clock, rate | `rostime/` | `test_time_source`, `test_rate`, `test_clock` |
 | Error handling (rcl error state) | `error_internal_test.go`, `misc_test.go` | rcl `test_common` |
 | Code generator | `gogen/` | rosidl generator tests |
+| **Interop with rclcpp and rclpy** (other processes): every `test_msgs` type both ways with rclpy; topics, services and actions both ways with C++ and Python demo nodes; `ros2 service call`, `ros2 action send_goal`; transient-local and best-effort QoS | `interop_test.go`, `testdata/interop/*.py` | system_tests `test_communication`, `test_quality_of_service` |
+| **Parameter services** through real services and the `ros2 param` tool; `/parameter_events` | `params/services_test.go` | `test_parameter_service`, `test_parameter_client`, ros2cli tests |
+| **Simulated time**: `/clock`, `use_sim_time` at runtime, sleeps, `Rate`, time jumps, timers following `/clock` | `rostime/simtime_test.go` | `test_time_source`, `test_time_source.py` |
 
 ## Not covered yet
 
@@ -76,9 +82,8 @@ These areas have no rclgo implementation or no tests yet; they are planned next.
 
 - **Lifecycle nodes, QoS event callbacks, executors and callback groups, `logger_level` parameter, waiting for a
   service**: not implemented in rclgo (see `ROADMAP.md`).
-- **Interoperability**: rclgo talking to rclcpp and rclpy nodes in other processes (system_tests
-  `test_communication`, `test_quality_of_service`), and runs against every installed RMW (Fast DDS, Cyclone DDS,
-  Zenoh) as rcl's `call_for_each_rmw_implementation` does. All tests currently run on the default RMW only.
+- **Other RMWs**: runs against every installed RMW (Fast DDS, Cyclone DDS, Zenoh) as rcl's
+  `call_for_each_rmw_implementation` does. Tests currently run on the default RMW only.
 - **Failure injection**: rclcpp forces individual rcl calls to fail (mimick, `RCUTILS_FAULT_INJECTION`) to test error
   paths. rclgo has no equivalent, so paths such as a failing `rcl_action_process_cancel_request` are untested.
 - **Signals**: SIGINT/SIGTERM handling of a running node (system_tests `test_sigint_handler`).
