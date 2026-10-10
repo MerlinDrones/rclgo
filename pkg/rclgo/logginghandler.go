@@ -21,21 +21,16 @@ type LoggingOutputHandler = func(
 
 // GetLoggingOutputHandler returns the current logging output handler.
 func GetLoggingOutputHandler() LoggingOutputHandler {
-	loggingMutex.Lock()
-	defer loggingMutex.Unlock()
-	return currentLoggingOutputHandler
+	return *currentLoggingOutputHandler.Load()
 }
 
 // SetLoggingOutputHandler sets the current logging output handler to h. If h ==
 // nil, DefaultLoggingOutputHandler is used.
 func SetLoggingOutputHandler(h LoggingOutputHandler) {
-	loggingMutex.Lock()
-	defer loggingMutex.Unlock()
 	if h == nil {
-		currentLoggingOutputHandler = DefaultLoggingOutputHandler
-	} else {
-		currentLoggingOutputHandler = h
+		h = DefaultLoggingOutputHandler
 	}
+	currentLoggingOutputHandler.Store(&h)
 }
 
 // DefaultLoggingOutputHandler is the logging output handler used by default,
@@ -75,9 +70,8 @@ func loggingOutputHandler(
 	format *C.char,
 	args *C.va_list,
 ) {
-	loggingMutex.Lock()
-	defer loggingMutex.Unlock()
-	currentLoggingOutputHandler(
+	// rclgo_output_handler (logging.go) holds the logging mutex.
+	(*currentLoggingOutputHandler.Load())(
 		unsafe.Pointer(location),
 		int(severity),
 		unsafe.Pointer(name),

@@ -195,3 +195,32 @@ func TestPanicInCallbackReachesSpinCaller(t *testing.T) {
 	require.Equal(t, "callback failed", r)
 	require.NoError(t, requireReturns(t, "Context.Close after a panic in Spin", rclctx.Close))
 }
+
+// Nodes created and closed concurrently from many goroutines (each node
+// registers a /rosout publisher in rcl's process-wide table).
+func TestNodesCreatedAndClosedConcurrently(t *testing.T) {
+	var wg sync.WaitGroup
+	errs := make(chan error, 16)
+	for g := range 16 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range 25 {
+				ctx, err := rclgo.NewContext(0, nil)
+				if err == nil {
+					_, err = ctx.NewNode(fmt.Sprintf("concurrent_%d_%d", g, i), "/go_runtime_test")
+					err = errors.Join(err, ctx.Close())
+				}
+				if err != nil {
+					errs <- err
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+}
