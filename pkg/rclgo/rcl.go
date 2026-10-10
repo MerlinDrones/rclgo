@@ -27,6 +27,10 @@ package rclgo
 #include <rcl_yaml_param_parser/parser.h>
 #include <rmw/rmw.h>
 
+// Defined in logging.go; they hold rclgo's logging mutex.
+rcl_ret_t rclgo_rosout_init_publisher_for_node(rcl_node_t* node);
+rcl_ret_t rclgo_rosout_fini_publisher_for_node(rcl_node_t* node);
+
 // Cast enums on the C side to avoid cgo typedef mismatches in this package.
 static inline void rclgo_qos_set_local(
   rmw_qos_profile_t* dst,
@@ -449,7 +453,7 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 	// enables rosout by default (enable_rosout = true), so the only remaining
 	// gate is whether rosout logging is enabled globally.
 	if bool(C.rcl_logging_rosout_enabled()) && bool(rcl_node_options.enable_rosout) {
-		rc = C.rcl_logging_rosout_init_publisher_for_node(node.rcl_node_t)
+		rc = C.rclgo_rosout_init_publisher_for_node(node.rcl_node_t)
 		if rc != C.RCL_RET_OK {
 			return nil, errorsCastC(rc, "failed to initialize rosout publisher")
 		}
@@ -481,7 +485,7 @@ func (n *Node) fini() (err error) {
 	// Finalize the /rosout log publisher before finalizing the node, mirroring
 	// the initialization done in NewNode.
 	if n.rosoutInitialized {
-		if rc := C.rcl_logging_rosout_fini_publisher_for_node(n.rcl_node_t); rc != C.RCL_RET_OK {
+		if rc := C.rclgo_rosout_fini_publisher_for_node(n.rcl_node_t); rc != C.RCL_RET_OK {
 			err = errors.Join(err, errorsCastC(rc, "failed to finalize rosout publisher"))
 		}
 		n.rosoutInitialized = false
