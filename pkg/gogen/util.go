@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -152,6 +153,9 @@ func splitMsgDefaultArrayValues(ros2type string, defaultsField string) []string 
 }
 
 func defaultValueSanitizer_(ros2type, defaultValue string) string {
+	if v, ok := canonicalPrimitiveValue(ros2type, strings.TrimSpace(defaultValue)); ok {
+		return v
+	}
 	switch ros2type {
 	// ROS2 string defaults CAN be quoted differently than how Golang MUST be quoted.
 	case "string", "wstring", "U16String":
@@ -252,3 +256,37 @@ func PrintErr(a ...any) { fmt.Fprint(os.Stderr, a...) }
 func PrintErrln(a ...any) { fmt.Fprintln(os.Stderr, a...) }
 
 func PrintErrf(format string, a ...any) { fmt.Fprintf(os.Stderr, format, a...) }
+
+// canonicalPrimitiveValue returns value of a bool or integer type as a Go
+// literal with the value rosidl gives it: rosidl reads booleans
+// case-insensitively ("True", "1") and integers as Python's int() does
+// (decimal first, so "010" is 10, then 0x/0o/0b prefixes). ok is false for
+// other types and for values that do not parse, which are left as they are.
+func canonicalPrimitiveValue(rosType, value string) (_ string, ok bool) {
+	switch rosType {
+	case "bool":
+		switch strings.ToLower(value) {
+		case "true", "1":
+			return "true", true
+		case "false", "0":
+			return "false", true
+		}
+	case "byte", "char", "uint8", "uint16", "uint32", "uint64":
+		u, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			u, err = strconv.ParseUint(value, 0, 64)
+		}
+		if err == nil {
+			return strconv.FormatUint(u, 10), true
+		}
+	case "int8", "int16", "int32", "int64":
+		i, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			i, err = strconv.ParseInt(value, 0, 64)
+		}
+		if err == nil {
+			return strconv.FormatInt(i, 10), true
+		}
+	}
+	return "", false
+}

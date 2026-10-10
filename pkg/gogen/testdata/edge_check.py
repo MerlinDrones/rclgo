@@ -7,12 +7,13 @@
 
 """Check, from rclpy, a rclgo_test_interfaces/msg/Edge serialized by rclgo.
 
-Usage: edge_check.py <serialized message as hex>
-Prints OK if rclpy reads every checked field as rclgo wrote it.
+Usage: edge_check.py <serialized Edge as hex> <serialized default Spellings as hex>
+Prints OK if rclpy reads every checked field as rclgo wrote it, and rclgo's
+defaults of Spellings are rclpy's.
 """
 import sys
 
-from rclgo_test_interfaces.msg import Edge
+from rclgo_test_interfaces.msg import Edge, Spellings
 from rclpy.serialization import deserialize_message
 
 m = deserialize_message(bytes.fromhex(sys.argv[1]), Edge)
@@ -32,5 +33,11 @@ checks = {
     'wide': m.wide == 'wide é€ 😀',
     'constants': (Edge.C_U64, Edge.C_I64, Edge.C_STR) == (2**64 - 1, -2**63, 'string, with comma'),
 }
+
+s, want = deserialize_message(bytes.fromhex(sys.argv[2]), Spellings), Spellings()
+for field in want.get_fields_and_field_types():
+    value, wanted = getattr(s, field), getattr(want, field)
+    checks['Spellings.' + field] = list(value) == list(wanted) if hasattr(wanted, '__len__') else value == wanted
+
 failed = [name for name, ok in checks.items() if not ok]
 print('FAILED: ' + ', '.join(failed) if failed else 'OK')

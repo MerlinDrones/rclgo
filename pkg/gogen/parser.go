@@ -12,6 +12,7 @@ package gogen
 import (
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -687,8 +688,14 @@ func checkPrimitiveValue(rosType, value string, stringBound int) error {
 		bits, _ := strconv.Atoi(rosType[3:])
 		return parseInt(bits, false)
 	case "float32", "float64":
-		if _, err := strconv.ParseFloat(value, 64); err != nil {
+		f, err := strconv.ParseFloat(value, 64)
+		if err != nil {
 			return invalid("must be a floating point number")
+		}
+		if math.IsInf(f, 0) || math.IsNaN(f) {
+			// rosidl's .msg parser accepts them, but its C and C++ generators
+			// fail on them, so no built package has them.
+			return invalid("infinities and NaN are not supported by the rosidl generators")
 		}
 		return nil
 	case "string", "wstring":

@@ -87,13 +87,13 @@ func TestGeneratedBindingsForCustomPackage(t *testing.T) {
 	if !strings.Contains(out, "OK") {
 		t.Fatalf("edge_check:\n%s", out)
 	}
-	hexLine := ""
+	printed := map[string]string{}
 	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "HEX:") {
-			hexLine = strings.TrimPrefix(line, "HEX:")
+		if k, v, ok := strings.Cut(line, ":"); ok && (k == "HEX" || k == "SPELLINGS") {
+			printed[k] = v
 		}
 	}
-	if hexLine == "" {
+	if printed["HEX"] == "" || printed["SPELLINGS"] == "" {
 		t.Fatalf("edge_check printed no message:\n%s", out)
 	}
 
@@ -102,7 +102,7 @@ func TestGeneratedBindingsForCustomPackage(t *testing.T) {
 		return
 	}
 	script, _ := filepath.Abs("testdata/edge_check.py")
-	py := run(mod, env+"python3 -P "+script+" "+hexLine)
+	py := run(mod, env+"python3 -P "+script+" "+printed["HEX"]+" "+printed["SPELLINGS"])
 	if strings.TrimSpace(py) != "OK" {
 		t.Fatalf("rclpy read the message differently: %s", py)
 	}
