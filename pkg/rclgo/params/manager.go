@@ -14,6 +14,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
@@ -35,6 +36,45 @@ type Manager struct {
 
 	// eventSink, if set, receives every parameter event (for tests).
 	eventSink func(*rcl_interfaces_msg2.ParameterEvent)
+
+	postSetMu   sync.Mutex
+	postSet     map[uint64]func([]Parameter)
+	postSetNext uint64
+}
+
+// AddPostSetCallback registers f to be called after parameters were changed,
+// with their new values: by Set or SetValue, through the set_parameters and
+// set_parameters_atomically services, or by an override of a declared
+// parameter. Unlike OnSet, which validates and can refuse a change, f only
+// observes it, and any number of post-set callbacks can be registered (as
+// rclcpp's add_post_set_parameters_callback). It returns a function that
+// removes f.
+func (m *Manager) AddPostSetCallback(f func([]Parameter)) (remove func()) {
+	m.postSetMu.Lock()
+	defer m.postSetMu.Unlock()
+	if m.postSet == nil {
+		m.postSet = make(map[uint64]func([]Parameter))
+	}
+	id := m.postSetNext
+	m.postSetNext++
+	m.postSet[id] = f
+	return func() {
+		m.postSetMu.Lock()
+		defer m.postSetMu.Unlock()
+		delete(m.postSet, id)
+	}
+}
+
+func (m *Manager) runPostSet(changed []Parameter) {
+	m.postSetMu.Lock()
+	callbacks := make([]func([]Parameter), 0, len(m.postSet))
+	for _, f := range m.postSet {
+		callbacks = append(callbacks, f)
+	}
+	m.postSetMu.Unlock()
+	for _, f := range callbacks {
+		f(changed)
+	}
 }
 
 func NewManager(n *rclgo.Node) (*Manager, error) {
@@ -358,6 +398,9 @@ func (m *Manager) stampNow() builtin_interfaces_msg.Time {
 // new_parameters and the new values of changed parameters in
 // changed_parameters.
 func (m *Manager) publishEvent(declared, changed []Parameter) {
+	if len(changed) > 0 {
+		m.runPostSet(changed)
+	}
 	if m.pub == nil && m.eventSink == nil {
 		return
 	}
