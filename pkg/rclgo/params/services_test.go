@@ -11,7 +11,6 @@ package params_test
 
 import (
 	"fmt"
-	"go.uber.org/goleak"
 	"math"
 	"slices"
 	"strings"
@@ -26,6 +25,7 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 // Parameter services end to end, after rclcpp's test_parameter_service and

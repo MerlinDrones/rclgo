@@ -12,7 +12,6 @@ package rostime_test
 import (
 	"context"
 	"fmt"
-	"go.uber.org/goleak"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -25,6 +24,7 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/rostime"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 // Simulated time end to end, after rclcpp's test_time_source and rclpy's
