@@ -1,7 +1,9 @@
 package rclgo
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey" //nolint:revive
 )
@@ -11,6 +13,15 @@ func TestInitLogging(t *testing.T) {
 		defaultLogger, testLogger *Logger
 		parentLogger, childLogger *Logger
 	)
+	// Unique names and a restored default level keep the test independent
+	// of the order and number of runs.
+	base := fmt.Sprintf("initlog%d", time.Now().UnixNano())
+	t.Cleanup(func() {
+		args, _, err := ParseArgs([]string{"--ros-args", "--log-level", "INFO"})
+		if err == nil {
+			_ = InitLogging(args)
+		}
+	})
 	Convey(
 		"Scenario: Logging cannot be used before calling InitLogging",
 		t,
@@ -18,14 +29,14 @@ func TestInitLogging(t *testing.T) {
 			Convey("Loggers can be created before initialization", func() {
 				defaultLogger = GetLogger("")
 				So(defaultLogger, ShouldNotBeNil)
-				testLogger = GetLogger("test.logger")
+				testLogger = GetLogger(base + ".logger")
 				So(testLogger, ShouldNotBeNil)
 				parentLogger = testLogger.Parent()
 				So(parentLogger, ShouldNotBeNil)
-				So(parentLogger.Name(), ShouldEqual, "test")
+				So(parentLogger.Name(), ShouldEqual, base)
 				childLogger = testLogger.Child("child")
 				So(childLogger, ShouldNotBeNil)
-				So(childLogger.Name(), ShouldEqual, "test.logger.child")
+				So(childLogger.Name(), ShouldEqual, base+".logger.child")
 				defaultLogger2 := parentLogger.Parent()
 				So(defaultLogger, ShouldEqual, defaultLogger2)
 				defaultLogger2 = parentLogger.Parent()
@@ -40,8 +51,12 @@ func TestInitLogging(t *testing.T) {
 					So(args, ShouldNotBeNil)
 					So(err, ShouldBeNil)
 
+					// Before InitLogging (in this run) the child follows the
+					// default logger's level, whatever earlier tests set.
+					want, err := defaultLogger.EffectiveLevel()
+					So(err, ShouldBeNil)
 					level, err := childLogger.EffectiveLevel()
-					So(level, ShouldEqual, LogSeverityInfo)
+					So(level, ShouldEqual, want)
 					So(err, ShouldBeNil)
 					level, err = childLogger.Level()
 					So(level, ShouldEqual, LogSeverityUnset)

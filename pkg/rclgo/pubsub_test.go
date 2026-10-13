@@ -5,17 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"reflect"
-	"runtime"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
-	test_msgs "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
@@ -290,155 +285,6 @@ func TestMultipleTimersInSingleWaitSet(t *testing.T) {
 			So(rclCtx.Close(), ShouldBeNil)
 		})
 	})
-}
-
-func BenchmarkPubsubMemoryLeakAllocateInLoop(_ *testing.B) {
-	var messagesReceived int
-	fmt.Printf(
-		"Mem from pmap(1) '%skB' messages '%d'\n",
-		getMemReading(),
-		messagesReceived,
-	)
-	for {
-		runCtx, stopRun := context.WithCancel(context.Background())
-		errChan := make(chan error, 2)
-		rclContextSub, err := newContextWithSubscriber(
-			"sub",
-			"/test",
-			"/topic",
-			test_msgs.UnboundedSequencesTypeSupport,
-			func(s *rclgo.Subscription) {
-				var m test_msgs.UnboundedSequences
-				_, err := s.TakeMessage(&m)
-				if err != nil {
-					fmt.Println("failed to take message:", err)
-				}
-				// fmt.Printf("%+v\n", c)
-				messagesReceived++
-			},
-		)
-		if err != nil {
-			fmt.Println("error:", err)
-			continue
-		}
-		go func() { errChan <- rclContextSub.Spin(runCtx) }()
-
-		rclContextPub, errs := newContextWithPublisherTimer(
-			nil,
-			"pub",
-			"/test",
-			"/topic",
-			test_msgs.UnboundedSequencesTypeSupport,
-			1*time.Millisecond,
-			"",
-		)
-		if errs != nil {
-			fmt.Println("error:", errs)
-			continue
-		}
-		go func() { errChan <- rclContextSub.Spin(runCtx) }()
-
-		time.Sleep(1000 * time.Millisecond)
-
-		stopRun()
-		if err = <-errChan; err != nil {
-			fmt.Println("error:", err)
-			continue
-		} else if err = <-errChan; err != nil {
-			fmt.Println("error:", err)
-			continue
-		}
-		errs = rclContextSub.Close()
-		if errs != nil {
-			fmt.Println("error:", errs)
-		}
-		errs = rclContextPub.Close()
-		if errs != nil {
-			fmt.Println("error:", errs)
-		}
-		runtime.GC()
-		fmt.Printf(
-			"Mem from pmap(1) '%skB' messages '%d'\n",
-			getMemReading(),
-			messagesReceived,
-		)
-	}
-}
-
-func BenchmarkPubsubMemoryLeakAllocateOutOfLoop(_ *testing.B) {
-	var messagesReceived int64
-	fmt.Printf(
-		"Mem from pmap(1) '%skB' messages '%d'\n",
-		getMemReading(),
-		messagesReceived,
-	)
-	errChan := make(chan error, 2)
-	runCtx, stopRun := context.WithCancel(context.Background())
-	rclContext, errs := newContextWithSubscriber(
-		"sub",
-		"/test",
-		"/topic",
-		test_msgs.UnboundedSequencesTypeSupport,
-		func(s *rclgo.Subscription) {
-			var m test_msgs.UnboundedSequences
-			_, err := s.TakeMessage(&m)
-			if err != nil {
-				fmt.Println("failed to take message:", err)
-			}
-			// fmt.Printf("%+v\n", c)
-			atomic.AddInt64(&messagesReceived, 1)
-		},
-	)
-	if errs != nil {
-		panic(errs)
-	}
-	go func() { errChan <- rclContext.Spin(runCtx) }()
-
-	rclContext, errs = newContextWithPublisherTimer(
-		rclContext,
-		"pub",
-		"/test",
-		"/topic",
-		test_msgs.UnboundedSequencesTypeSupport,
-		1*time.Millisecond,
-		"",
-	)
-	if errs != nil {
-		panic(errs)
-	}
-	defer rclContext.Close()
-	go func() { errChan <- rclContext.Spin(runCtx) }()
-	defer stopRun()
-
-	for {
-		select {
-		case err := <-errChan:
-			fmt.Println("Spin returned an error:", err)
-			return
-		default:
-			time.Sleep(1000 * time.Millisecond)
-			runtime.GC()
-			fmt.Printf(
-				"Mem from pmap(1) '%skB' messages '%d'\n",
-				getMemReading(),
-				messagesReceived,
-			)
-		}
-	}
-}
-
-func getMemReading() string {
-	cmd := fmt.Sprint(
-		`pmap `,
-		os.Getpid(),
-		` | tail -n 1 | grep -Po '\d+'`,
-	) //  total          2102728K => 2102728
-	//#nosec G204 -- Using a variable here improves clarity.
-	output, err := exec.Command("bash", "-c", cmd).Output()
-	if err != nil {
-		return fmt.Sprintf("Failed to execute command: %s", cmd)
-	}
-	return strings.TrimSpace(string(output))
 }
 
 func publishColorRGBA(p *rclgo.Publisher, r, g, b, a float32) error {
