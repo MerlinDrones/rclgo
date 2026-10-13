@@ -248,6 +248,11 @@ func (a *action) ExecuteGoal(ctx context.Context, goal *GoalHandle) (types.Messa
 }
 func (a *action) TypeSupport() types.ActionTypeSupport { return a.typeSupport }
 
+// ActionServerOptions configures an action server. Zero fields take the
+// defaults of NewDefaultActionServerOptions (as rclcpp starts from
+// rcl_action_server_get_default_options): a zero (system default) QoS
+// profile is replaced by that slot's default, and a zero ResultTimeout by
+// 15 minutes.
 type ActionServerOptions struct {
 	GoalServiceQos   qos.Profile
 	CancelServiceQos qos.Profile
@@ -258,6 +263,29 @@ type ActionServerOptions struct {
 	// clients to fetch. Goals are expired while the server is spinning.
 	ResultTimeout time.Duration
 	Clock         *Clock
+}
+
+// withDefaults returns a copy of o (or the defaults for nil) with its zero
+// fields set to the defaults.
+func (o *ActionServerOptions) withDefaults() *ActionServerOptions {
+	d := NewDefaultActionServerOptions()
+	if o == nil {
+		return d
+	}
+	c := *o
+	for _, f := range []struct{ v, def *qos.Profile }{
+		{&c.GoalServiceQos, &d.GoalServiceQos}, {&c.CancelServiceQos, &d.CancelServiceQos},
+		{&c.ResultServiceQos, &d.ResultServiceQos}, {&c.FeedbackTopicQos, &d.FeedbackTopicQos},
+		{&c.StatusTopicQos, &d.StatusTopicQos},
+	} {
+		if *f.v == (qos.Profile{}) {
+			*f.v = *f.def
+		}
+	}
+	if c.ResultTimeout == 0 {
+		c.ResultTimeout = d.ResultTimeout
+	}
+	return &c
 }
 
 func NewDefaultActionServerOptions() *ActionServerOptions {
@@ -314,9 +342,7 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 		return nil, closedErr("node")
 	}
 	defer n.life.release()
-	if opts == nil {
-		opts = NewDefaultActionServerOptions()
-	}
+	opts = opts.withDefaults()
 	s := &ActionServer{
 		node:        n,
 		action:      action,
@@ -341,11 +367,17 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 			nanoseconds: C.int64_t(opts.ResultTimeout),
 		},
 	}
-	qosToC(opts.GoalServiceQos, &rclOpts.goal_service_qos)
-	qosToC(opts.CancelServiceQos, &rclOpts.cancel_service_qos)
-	qosToC(opts.ResultServiceQos, &rclOpts.result_service_qos)
-	qosToC(opts.FeedbackTopicQos, &rclOpts.feedback_topic_qos)
-	qosToC(opts.StatusTopicQos, &rclOpts.status_topic_qos)
+	if err := errors.Join(
+		qosToC(opts.GoalServiceQos, &rclOpts.goal_service_qos),
+		qosToC(opts.CancelServiceQos, &rclOpts.cancel_service_qos),
+		qosToC(opts.ResultServiceQos, &rclOpts.result_service_qos),
+		qosToC(opts.FeedbackTopicQos, &rclOpts.feedback_topic_qos),
+		qosToC(opts.StatusTopicQos, &rclOpts.status_topic_qos),
+	); err != nil {
+		s.holdsClock = false
+		s.clock.life.release()
+		return nil, err
+	}
 	s.clock.jumpMu.Lock()
 	rc := C.rcl_action_server_init(
 		&s.rclServer,
@@ -879,12 +911,35 @@ func goalLogMessage(id *types.GoalID, a ...interface{}) string {
 type FeedbackHandler func(context.Context, types.Message)
 type StatusHandler func(context.Context, types.Message)
 
+// ActionClientOptions configures an action client. A zero (system default)
+// QoS profile is replaced by that slot's NewDefaultActionClientOptions
+// profile.
 type ActionClientOptions struct {
 	GoalServiceQos   qos.Profile
 	CancelServiceQos qos.Profile
 	ResultServiceQos qos.Profile
 	FeedbackTopicQos qos.Profile
 	StatusTopicQos   qos.Profile
+}
+
+// withDefaults returns a copy of o (or the defaults for nil) with its zero
+// profiles set to the defaults.
+func (o *ActionClientOptions) withDefaults() *ActionClientOptions {
+	d := NewDefaultActionClientOptions()
+	if o == nil {
+		return d
+	}
+	c := *o
+	for _, f := range []struct{ v, def *qos.Profile }{
+		{&c.GoalServiceQos, &d.GoalServiceQos}, {&c.CancelServiceQos, &d.CancelServiceQos},
+		{&c.ResultServiceQos, &d.ResultServiceQos}, {&c.FeedbackTopicQos, &d.FeedbackTopicQos},
+		{&c.StatusTopicQos, &d.StatusTopicQos},
+	} {
+		if *f.v == (qos.Profile{}) {
+			*f.v = *f.def
+		}
+	}
+	return &c
 }
 
 func NewDefaultActionClientOptions() *ActionClientOptions {
@@ -1025,9 +1080,7 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 		return nil, closedErr("node")
 	}
 	defer n.life.release()
-	if opts == nil {
-		opts = NewDefaultActionClientOptions()
-	}
+	opts = opts.withDefaults()
 	c := &ActionClient{
 		node:         n,
 		typeSupport:  ts,
@@ -1059,11 +1112,15 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 	rclOpts := C.rcl_action_client_options_t{
 		allocator: *n.context.rcl_allocator_t,
 	}
-	qosToC(opts.GoalServiceQos, &rclOpts.goal_service_qos)
-	qosToC(opts.CancelServiceQos, &rclOpts.cancel_service_qos)
-	qosToC(opts.ResultServiceQos, &rclOpts.result_service_qos)
-	qosToC(opts.FeedbackTopicQos, &rclOpts.feedback_topic_qos)
-	qosToC(opts.StatusTopicQos, &rclOpts.status_topic_qos)
+	if err := errors.Join(
+		qosToC(opts.GoalServiceQos, &rclOpts.goal_service_qos),
+		qosToC(opts.CancelServiceQos, &rclOpts.cancel_service_qos),
+		qosToC(opts.ResultServiceQos, &rclOpts.result_service_qos),
+		qosToC(opts.FeedbackTopicQos, &rclOpts.feedback_topic_qos),
+		qosToC(opts.StatusTopicQos, &rclOpts.status_topic_qos),
+	); err != nil {
+		return nil, err
+	}
 	rc := C.rcl_action_client_init(
 		&c.rclClient,
 		n.rcl_node_t,
