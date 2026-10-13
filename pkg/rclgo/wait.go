@@ -58,10 +58,11 @@ type WaitSet struct {
 }
 
 func NewWaitSet() (*WaitSet, error) {
-	if defaultContext == nil {
+	c := DefaultContext()
+	if c == nil {
 		return nil, errInitNotCalled
 	}
-	return defaultContext.NewWaitSet()
+	return c.NewWaitSet()
 }
 
 func (c *Context) NewWaitSet() (ws *WaitSet, err error) {
@@ -380,19 +381,22 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 // the skip is logged once per entity.
 func (w *WaitSet) acquireEntities() (release func()) {
 	var held []*lifetime
+	// Only entities skipped in this pass are remembered, so the map doesn't
+	// grow as entities come and go.
+	skipped := map[*lifetime]bool{}
+	defer func() { w.skipped = skipped }()
 	keep := func(l *lifetime, describe func() string) bool {
 		ok, otherOwner := l.acquireFor(w)
 		if ok {
 			held = append(held, l)
 			return true
 		}
-		if otherOwner && !w.skipped[l] {
-			if w.skipped == nil {
-				w.skipped = map[*lifetime]bool{}
+		if otherOwner {
+			if !w.skipped[l] {
+				GetLogger("rclgo").Warn(describe() + //nolint:errcheck
+					" is already serviced by another running Spin or wait set; only that one services it")
 			}
-			w.skipped[l] = true
-			GetLogger("rclgo").Warn(describe() + //nolint:errcheck
-				" is already serviced by another running Spin or wait set; only that one services it")
+			skipped[l] = true
 		}
 		return false
 	}

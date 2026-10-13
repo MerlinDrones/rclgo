@@ -402,10 +402,11 @@ type Node struct {
 }
 
 func NewNode(nodeName, namespace string) (*Node, error) {
-	if defaultContext == nil {
+	c := DefaultContext()
+	if c == nil {
 		return nil, errInitNotCalled
 	}
-	return defaultContext.NewNode(nodeName, namespace)
+	return c.NewNode(nodeName, namespace)
 }
 
 func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
@@ -475,6 +476,7 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 			return nil, errorsCastC(rc, "failed to initialize rosout publisher")
 		}
 		node.rosoutInitialized = true
+		rosoutPublisherAdded()
 	}
 
 	if !c.addResource(node) {
@@ -517,6 +519,9 @@ func (n *Node) fini() (err error) {
 			return leak(errorsCastC(rc, "failed to finalize rosout publisher"))
 		}
 		n.rosoutInitialized = false
+		if err := rosoutPublisherRemoved(); err != nil {
+			GetLogger("rclgo").Error("deferred logging shutdown failed: ", err) //nolint:errcheck
+		}
 	}
 
 	if rc := C.rclgo_node_fini(n.rcl_node_t); rc != C.RCL_RET_OK {
@@ -758,10 +763,11 @@ type Clock struct {
 }
 
 func NewClock(clockType ClockType) (*Clock, error) {
-	if defaultContext == nil {
+	c := DefaultContext()
+	if c == nil {
 		return nil, errInitNotCalled
 	}
-	return defaultContext.NewClock(clockType)
+	return c.NewClock(clockType)
 }
 
 func (c *Context) NewClock(clockType ClockType) (clock *Clock, err error) {
@@ -898,10 +904,11 @@ type Timer struct {
 }
 
 func NewTimer(timeout time.Duration, timerCallback func(*Timer)) (*Timer, error) {
-	if defaultContext == nil {
+	c := DefaultContext()
+	if c == nil {
 		return nil, errInitNotCalled
 	}
-	return defaultContext.NewTimer(timeout, timerCallback)
+	return c.NewTimer(timeout, timerCallback)
 }
 
 func (c *Context) NewTimer(timeout time.Duration, timer_callback func(*Timer)) (timer *Timer, err error) {
@@ -912,8 +919,9 @@ func (c *Context) NewTimer(timeout time.Duration, timer_callback func(*Timer)) (
 		return nil, closedErr("context")
 	}
 	defer c.life.release()
-	if timeout == 0 {
-		timeout = 1000 * time.Millisecond
+	// As in rcl and rclcpp, a zero period makes the timer always ready.
+	if timeout < 0 {
+		return nil, fmt.Errorf("timer period %v is negative", timeout)
 	}
 	timer = &Timer{
 		rcl_timer_t: (*C.rcl_timer_t)(C.malloc(C.sizeof_rcl_timer_t)),
@@ -1097,7 +1105,7 @@ func (n *Node) NewSubscription(
 		&rclOpts,
 	)
 	if rc != C.RCL_RET_OK {
-		return sub, errorsCastC(rc, fmt.Sprintf("Topic name '%s'", topicName))
+		return nil, errorsCastC(rc, fmt.Sprintf("Topic name '%s'", topicName))
 	}
 
 	if !n.addResource(sub) {
@@ -1434,7 +1442,7 @@ func (s *Service) handleRequest() {
 		)
 	case C.RCL_RET_SERVICE_TAKE_FAILED:
 	default:
-		s.node.Logger().Debug(errorsCastC(rc, "failed to take request"))
+		s.node.Logger().Error(errorsCastC(rc, "failed to take request")) //nolint:errcheck
 	}
 }
 

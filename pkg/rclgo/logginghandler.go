@@ -66,7 +66,7 @@ func DefaultLoggingOutputHandler(
 
 	// If realtime logging is enabled, flush stdout and stderr immediately
 	// to ensure logs are written without buffering delays.
-	if realtimeLogging {
+	if realtimeLogging.Load() {
 		C.fflush(C.stdout)
 		C.fflush(C.stderr)
 	}

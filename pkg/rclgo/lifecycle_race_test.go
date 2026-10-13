@@ -262,3 +262,64 @@ func TestRCLErrorStackTraces(t *testing.T) {
 	require.Contains(t, err.Error(), "goroutine")
 	require.NotContains(t, err.Error(), "\x00", "the stack trace is padded with NUL bytes")
 }
+
+// A subscription that can't be created is returned as nil with the error.
+func TestNewSubscriptionErrorReturnsNil(t *testing.T) {
+	rclctx := newSpinTestContext(t)
+	node, err := rclctx.NewNode("bad_sub", "/race_test")
+	require.NoError(t, err)
+	sub, err := node.NewSubscription("invalid topic name", std_msgs_msg.StringTypeSupport, nil, nil)
+	require.Error(t, err)
+	require.Nil(t, sub)
+}
+
+// As in rcl and rclcpp, a timer with a zero period is always ready; a negative
+// period is an error.
+func TestTimerPeriods(t *testing.T) {
+	rclctx := newSpinTestContext(t)
+	_, err := rclctx.NewTimer(-time.Millisecond, func(*rclgo.Timer) {})
+	require.Error(t, err)
+	var (
+		mu    sync.Mutex
+		ticks int
+	)
+	_, err = rclctx.NewTimer(0, func(*rclgo.Timer) {
+		mu.Lock()
+		ticks++
+		mu.Unlock()
+	})
+	require.NoError(t, err)
+	stop := startSpin(t, rclctx.Spin)
+	time.Sleep(100 * time.Millisecond)
+	require.NoError(t, stop())
+	mu.Lock()
+	defer mu.Unlock()
+	require.Greater(t, ticks, 10, "a zero-period timer should fire on every wait")
+}
+
+// Init, Uninit and DefaultContext may be called from several goroutines.
+func TestDefaultContextConcurrentAccess(t *testing.T) {
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_ = rclgo.DefaultContext()
+				}
+			}
+		}()
+	}
+	for i := 0; i < 5; i++ {
+		require.NoError(t, rclgo.Init(nil))
+		require.NotNil(t, rclgo.DefaultContext())
+		require.NoError(t, rclgo.Uninit())
+	}
+	close(done)
+	wg.Wait()
+}
