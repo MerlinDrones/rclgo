@@ -199,3 +199,32 @@ robot:
 		t.Error("a section for another node was applied")
 	}
 }
+
+// Values are read as rcl reads them: unquoted yes/on/Y are booleans (YAML
+// 1.1), quoted ones strings, also inside sequences.
+func TestLoadYAML_RCLBoolSpellings(t *testing.T) {
+	path := writeTemp(t, t.TempDir(), "params.yaml", `
+node:
+  ros__parameters:
+    a: yes
+    b: Off
+    c: "yes"
+    d: [on, n, Y]
+`)
+	m := newBareManager()
+	if err := LoadYAML(m, "node", path); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]Value{
+		"a": {Kind: KindBool, Bool: true},
+		"b": {Kind: KindBool, Bool: false},
+		"c": {Kind: KindString, Str: "yes"},
+	} {
+		if p, _ := m.Get(name); p.Value.Kind != want.Kind || p.Value.Bool != want.Bool || p.Value.Str != want.Str {
+			t.Errorf("%s = %+v, want %+v", name, p.Value, want)
+		}
+	}
+	if p, _ := m.Get("d"); p.Value.Kind != KindBoolArray || len(p.Value.Bools) != 3 || !p.Value.Bools[0] || p.Value.Bools[1] || !p.Value.Bools[2] {
+		t.Errorf("d = %+v", p.Value)
+	}
+}

@@ -390,3 +390,20 @@ func TestGetParamEnvVars(t *testing.T) {
 		t.Errorf("result length: got %d, want 2", len(result))
 	}
 }
+
+// Array values are YAML flow sequences: quoted elements may contain commas.
+// Booleans use rcl's spellings.
+func TestEnvVarsQuotedArraysAndBools(t *testing.T) {
+	t.Setenv("RCL_PARAM_quoted", `["a,b", "c"]`)
+	t.Setenv("RCL_PARAM_flag", "on")
+	m := newBareManager()
+	if err := ApplyEnvVars(m); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := m.Get("quoted"); p.Value.Kind != KindStringArray || len(p.Value.Strs) != 2 || p.Value.Strs[0] != "a,b" {
+		t.Errorf("quoted = %+v", p.Value)
+	}
+	if p, _ := m.Get("flag"); p.Value.Kind != KindBool || !p.Value.Bool {
+		t.Errorf("flag = %+v", p.Value)
+	}
+}

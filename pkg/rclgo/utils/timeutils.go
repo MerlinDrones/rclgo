@@ -15,8 +15,10 @@ func ROSTime(t time.Time) builtin_interfaces_msg.Time {
 }
 
 func ROSTimeNow() builtin_interfaces_msg.Time {
+	// One reading, so that seconds and nanoseconds belong to the same instant.
+	now := time.Now()
 	return builtin_interfaces_msg.Time{
-		Sec:     int32(time.Now().Unix()),
-		Nanosec: uint32(time.Now().Nanosecond()),
+		Sec:     int32(now.Unix()),
+		Nanosec: uint32(now.Nanosecond()),
 	}
 }

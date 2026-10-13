@@ -130,13 +130,51 @@ func flattenYAMLNode(prefix string, n *yaml.Node, set func(name string, v interf
 			}
 			continue
 		}
-		var raw interface{}
-		if err := v.Decode(&raw); err != nil {
+		raw, err := decodeRCLValue(v)
+		if err != nil {
 			return fmt.Errorf("parameter %s: %w", name, err)
 		}
 		set(name, raw)
 	}
 	return nil
+}
+
+// decodeRCLValue decodes a scalar or sequence as rcl's parameter parser reads
+// it: like YAML, except that unquoted y/yes/on and n/no/off (in any of their
+// usual capitalizations) are booleans, as in YAML 1.1.
+func decodeRCLValue(n *yaml.Node) (interface{}, error) {
+	switch n.Kind {
+	case yaml.ScalarNode:
+		if n.Style == 0 && n.Tag == "!!str" {
+			if b, ok := rclBool(n.Value); ok {
+				return b, nil
+			}
+		}
+	case yaml.SequenceNode:
+		items := make([]interface{}, 0, len(n.Content))
+		for _, c := range n.Content {
+			v, err := decodeRCLValue(c)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, v)
+		}
+		return items, nil
+	}
+	var raw interface{}
+	err := n.Decode(&raw)
+	return raw, err
+}
+
+// rclBool reads the boolean spellings rcl's parameter parser accepts.
+func rclBool(s string) (value, ok bool) {
+	switch s {
+	case "true", "True", "TRUE", "y", "Y", "yes", "Yes", "YES", "on", "On", "ON":
+		return true, true
+	case "false", "False", "FALSE", "n", "N", "no", "No", "NO", "off", "Off", "OFF":
+		return false, true
+	}
+	return false, false
 }
 
 func valueFromYAML(v interface{}) (Value, bool) {
