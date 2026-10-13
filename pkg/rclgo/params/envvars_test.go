@@ -33,7 +33,7 @@ func TestApplyEnvVars_ScalarTypes(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Apply env vars
 	if err := ApplyEnvVars(mgr); err != nil {
@@ -95,7 +95,7 @@ func TestApplyEnvVars_ArrayTypes(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Apply env vars
 	if err := ApplyEnvVars(mgr); err != nil {
@@ -157,7 +157,7 @@ func TestApplyEnvVars_TypeFromExisting(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare parameter as string type with default value
 	_, _ = mgr.Declare("existing_param", Value{Kind: KindString, Str: "default"}, Descriptor{})
@@ -193,7 +193,7 @@ func TestApplyEnvVars_EmptyEnvironment(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare a parameter with default
 	_, _ = mgr.Declare("test_param", Value{Kind: KindInt64, Int64: 100}, Descriptor{})
@@ -233,7 +233,7 @@ func TestApplyEnvVars_DotNotation(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Apply env vars
 	if err := ApplyEnvVars(mgr); err != nil {

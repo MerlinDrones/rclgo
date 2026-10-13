@@ -20,7 +20,7 @@ func (c *captureSender) SendResponse(msg types.Message) error {
 }
 
 func TestOnGetParameters_UnknownAndKnown(t *testing.T) {
-	m := &Manager{st: newStore()} // pub/n are nil for unit tests
+	m := newBareManager() // pub/n are nil for unit tests
 
 	// Declare one known parameter
 	_, _ = m.Declare("camera.fps", Value{Kind: KindInt64, Int64: 15}, Descriptor{})
@@ -44,7 +44,7 @@ func TestOnGetParameters_UnknownAndKnown(t *testing.T) {
 }
 
 func TestOnSetParameters_SetsStoreAndReturnsResult(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 
 	// Declare with bounds; later set to a valid new value
 	_, _ = m.Declare("gain", Value{Kind: KindDouble, Double: 0.2},
@@ -75,7 +75,7 @@ func TestOnSetParameters_SetsStoreAndReturnsResult(t *testing.T) {
 }
 
 func TestOnSetParameters_RejectedByValidation(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	_, _ = m.Declare("count", Value{Kind: KindInt64, Int64: 5},
 		Descriptor{MinInt: i64(0), MaxInt: i64(10)})
 
@@ -104,7 +104,7 @@ func TestOnSetParameters_RejectedByValidation(t *testing.T) {
 }
 
 func TestOnSetParameters_PerItemResultsLength(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	_, _ = m.Declare("a", Value{Kind: KindInt64, Int64: 1}, Descriptor{})
 	_, _ = m.Declare("b", Value{Kind: KindInt64, Int64: 2}, Descriptor{})
 
@@ -126,7 +126,7 @@ func TestOnSetParameters_PerItemResultsLength(t *testing.T) {
 }
 
 func TestOnListParameters_ReturnsAllNames(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	_, _ = m.Declare("a", Value{Kind: KindBool, Bool: true}, Descriptor{})
 	_, _ = m.Declare("b", Value{Kind: KindString, Str: "x"}, Descriptor{})
 
@@ -145,7 +145,7 @@ func TestOnListParameters_ReturnsAllNames(t *testing.T) {
 }
 
 func TestOnListParameters_PrefixAndDepth(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	_, _ = m.Declare("camera.fps", Value{Kind: KindInt64, Int64: 10}, Descriptor{})
 	_, _ = m.Declare("camera.frame.id", Value{Kind: KindString, Str: "x"}, Descriptor{})
 	_, _ = m.Declare("other.key", Value{Kind: KindString, Str: "y"}, Descriptor{})
@@ -173,7 +173,7 @@ func TestOnListParameters_PrefixAndDepth(t *testing.T) {
 }
 
 func TestOnDescribeParameters_TypesAndPlaceholders(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	_, _ = m.Declare("x", Value{Kind: KindString, Str: "hi"}, Descriptor{})
 	_, _ = m.Declare("y", Value{Kind: KindDouble, Double: 1.0}, Descriptor{})
 
@@ -210,10 +210,10 @@ func TestOnDescribeParameters_TypesAndPlaceholders(t *testing.T) {
 }
 
 func TestUndeclare_RemovesParam(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	_, _ = m.Declare("tmp", Value{Kind: KindInt64, Int64: 1}, Descriptor{})
-	if !m.Undeclare("tmp") {
-		t.Fatal("expected undeclare to return true")
+	if err := m.Undeclare("tmp"); err != nil {
+		t.Fatalf("Undeclare: %v", err)
 	}
 	if _, ok := m.Get("tmp"); ok {
 		t.Fatal("expected tmp to be removed")

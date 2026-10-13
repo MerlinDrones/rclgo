@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
@@ -22,8 +23,8 @@ type Manager struct {
 	n   *rclgo.Node
 
 	// Optional provider for simulated time. If nil, wall clock is used.
-	// When 'use_sim_time' is true and nowProvider != nil, event stamps use nowProvider().
-	nowProvider func() builtin_interfaces_msg.Time
+	// When 'use_sim_time' is true and nowProvider is set, event stamps use it.
+	nowProvider atomic.Pointer[func() builtin_interfaces_msg.Time]
 
 	// eventSink, if set, receives every parameter event (for tests).
 	eventSink func(*rcl_interfaces_msg2.ParameterEvent)
@@ -33,13 +34,14 @@ type Manager struct {
 	postSetNext uint64
 }
 
-// AddPostSetCallback registers f to be called after parameters were changed,
-// with their new values: by Set or SetValue, through the set_parameters and
-// set_parameters_atomically services, or by an override of a declared
-// parameter. Unlike OnSet, which validates and can refuse a change, f only
-// observes it, and any number of post-set callbacks can be registered (as
-// rclcpp's add_post_set_parameters_callback). It returns a function that
-// removes f.
+// AddPostSetCallback registers f to be called after parameters were declared
+// or changed, with their new values: by Declare, Set or SetValue, through the
+// set_parameters and set_parameters_atomically services, or by an override.
+// Unlike OnSet, which validates and can refuse a change, f only observes it,
+// and any number of post-set callbacks can be registered (as rclcpp's
+// add_post_set_parameters_callback). Callbacks run in the order of the changes,
+// while further changes wait; a change attempted from f fails, as in rclcpp.
+// It returns a function that removes f.
 func (m *Manager) AddPostSetCallback(f func([]Parameter)) (remove func()) {
 	m.postSetMu.Lock()
 	defer m.postSetMu.Unlock()
@@ -70,6 +72,7 @@ func (m *Manager) runPostSet(changed []Parameter) {
 
 func NewManager(n *rclgo.Node) (*Manager, error) {
 	m := &Manager{st: newStore(), n: n}
+	m.st.notify = m.onChange
 
 	// /parameter_events publisher, with the same QoS as rclcpp and rclpy
 	opts := &rclgo.PublisherOptions{Qos: qos.NewParameterEventsProfile()}
@@ -120,10 +123,7 @@ func NewManager(n *rclgo.Node) (*Manager, error) {
 // converted to v's type (an integer widens to a double), and attaches d. It
 // returns an error if the override has an incompatible type or violates d.
 func (m *Manager) Declare(name string, v Value, d Descriptor) (Parameter, error) {
-	p, claimed, err := m.st.declareOrClaim(name, v, d)
-	if err == nil && !claimed {
-		m.publishEvent([]Parameter{p}, nil)
-	}
+	p, _, err := m.st.declareOrClaim(name, v, d)
 	return p, err
 }
 
@@ -139,16 +139,8 @@ func (m *Manager) DeclareIfMissing(name string, v Value, d Descriptor) error {
 
 // applyOverride sets a parameter from an override source. See store.applyOverride.
 func (m *Manager) applyOverride(name string, v Value, d Descriptor) error {
-	p, created, err := m.st.applyOverride(name, v, d)
-	if err != nil {
-		return err
-	}
-	if created {
-		m.publishEvent([]Parameter{p}, nil)
-	} else {
-		m.publishEvent(nil, []Parameter{p})
-	}
-	return nil
+	_, _, err := m.st.applyOverride(name, v, d)
+	return err
 }
 
 func (m *Manager) Get(name string) (Parameter, bool) { return m.st.get(name) }
@@ -158,10 +150,7 @@ func (m *Manager) OnSet(cb OnSetCallback)            { m.st.setCallback(cb) }
 // Set updates one or more existing parameters. Returns SetResult indicating success/failure.
 // All parameters must already be declared, and constraints will be validated.
 func (m *Manager) Set(params ...Parameter) (SetResult, error) {
-	result, _, newp := m.st.set(params)
-	if result.Successful {
-		m.publishEvent(nil, newp)
-	}
+	result, _, _ := m.st.set(params)
 	if !result.Successful {
 		return result, fmt.Errorf("set failed: %s", result.Reason)
 	}
@@ -181,19 +170,24 @@ func (m *Manager) SimTimeEnabled() bool {
 	return false
 }
 
-// Undeclare removes a parameter and publishes a delete event.
-func (m *Manager) Undeclare(name string) bool {
-	if old, ok := m.st.undeclare(name); ok {
-		m.publishDelete([]Parameter{old})
-		return true
+// Undeclare removes a parameter and publishes a delete event, as rclcpp's
+// undeclare_parameter. It fails for a parameter that isn't declared, is
+// read-only, or is use_sim_time, which the node's clock follows.
+func (m *Manager) Undeclare(name string) error {
+	if name == "use_sim_time" {
+		return fmt.Errorf("parameter %q cannot be undeclared: the node's clock uses it", name)
 	}
-	return false
+	return m.st.undeclare(name)
 }
 
 // SetNowProvider lets you provide a sim-time source. When 'use_sim_time' is true,
 // publishEvent()/publishDelete() will use this instead of wall-clock.
 func (m *Manager) SetNowProvider(f func() builtin_interfaces_msg.Time) {
-	m.nowProvider = f
+	if f == nil {
+		m.nowProvider.Store(nil)
+		return
+	}
+	m.nowProvider.Store(&f)
 }
 
 // --- Service handlers ---
@@ -225,18 +219,11 @@ func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 	// Each parameter is set on its own, as in rclcpp: one that is refused
 	// does not stop the others, and each gets its own result.
 	results := make([]rcl_interfaces_msg2.SetParametersResult, len(incoming))
-	var changed []Parameter
 	for i, p := range incoming {
-		result, _, newp := m.st.set([]Parameter{p})
+		result, _, _ := m.st.set([]Parameter{p})
 		results[i] = rcl_interfaces_msg2.SetParametersResult{Successful: result.Successful, Reason: result.Reason}
-		if result.Successful {
-			changed = append(changed, newp...)
-		}
 	}
 	resp.Results = results
-	if len(changed) > 0 {
-		m.publishEvent(nil, changed)
-	}
 	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
@@ -248,11 +235,8 @@ func (m *Manager) onSetParametersAtomically(_ *rclgo.ServiceInfo, reqMsg types.M
 	for _, p := range req.Parameters {
 		incoming = append(incoming, Parameter{Name: p.Name, Value: fromRclValue(p.Value)})
 	}
-	result, _, newp := m.st.set(incoming)
+	result, _, _ := m.st.set(incoming)
 	resp.Result = rcl_interfaces_msg2.SetParametersResult{Successful: result.Successful, Reason: result.Reason}
-	if result.Successful {
-		m.publishEvent(nil, newp)
-	}
 	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
@@ -374,8 +358,10 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 
 func (m *Manager) stampNow() builtin_interfaces_msg.Time {
 	// If use_sim_time is true and a nowProvider is set, use it.
-	if p, ok := m.st.get("use_sim_time"); ok && p.Value.Kind == KindBool && p.Value.Bool && m.nowProvider != nil {
-		return m.nowProvider()
+	if p, ok := m.st.get("use_sim_time"); ok && p.Value.Kind == KindBool && p.Value.Bool {
+		if f := m.nowProvider.Load(); f != nil {
+			return (*f)()
+		}
 	}
 	// Fallback to wall clock
 	now := time.Now()
@@ -392,13 +378,27 @@ func (m *Manager) logErr(what string, err error) {
 	}
 }
 
+// onChange is the store's change notification: it runs the post-set
+// callbacks for declared and changed parameters (as rclcpp runs them after
+// declare_parameter and set_parameters) and publishes the parameter event. The
+// store calls it with its change lock held, so notifications arrive in the
+// order of the changes.
+func (m *Manager) onChange(declared, changed, deleted []Parameter) {
+	if len(declared)+len(changed) > 0 {
+		m.runPostSet(append(append([]Parameter(nil), declared...), changed...))
+	}
+	if len(declared)+len(changed) > 0 {
+		m.publishEvent(declared, changed)
+	}
+	if len(deleted) > 0 {
+		m.publishDelete(deleted)
+	}
+}
+
 // publishEvent publishes a ParameterEvent with declared parameters in
 // new_parameters and the new values of changed parameters in
 // changed_parameters.
 func (m *Manager) publishEvent(declared, changed []Parameter) {
-	if len(changed) > 0 {
-		m.runPostSet(changed)
-	}
 	if m.pub == nil && m.eventSink == nil {
 		return
 	}
