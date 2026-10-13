@@ -59,6 +59,15 @@ func (t *FluidPressure) GetTypeSupport() types.MessageTypeSupport {
 	return FluidPressureTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *FluidPressure) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // FluidPressurePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type FluidPressurePublisher struct {

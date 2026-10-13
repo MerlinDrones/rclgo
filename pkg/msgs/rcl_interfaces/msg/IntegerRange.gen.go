@@ -58,6 +58,12 @@ func (t *IntegerRange) GetTypeSupport() types.MessageTypeSupport {
 	return IntegerRangeTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *IntegerRange) CheckBounds() error {
+	return nil
+}
+
 // IntegerRangePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type IntegerRangePublisher struct {

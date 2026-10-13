@@ -55,6 +55,18 @@ func (t *Twist) GetTypeSupport() types.MessageTypeSupport {
 	return TwistTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Twist) CheckBounds() error {
+	if err := types.CheckBounds(&t.Linear); err != nil {
+		return types.InField("linear", err)
+	}
+	if err := types.CheckBounds(&t.Angular); err != nil {
+		return types.InField("angular", err)
+	}
+	return nil
+}
+
 // TwistPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TwistPublisher struct {

@@ -59,6 +59,20 @@ func (t *BoundingBox3DArray) GetTypeSupport() types.MessageTypeSupport {
 	return BoundingBox3DArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *BoundingBox3DArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Boxes {
+		if err := types.CheckBounds(&t.Boxes[i]); err != nil {
+			return types.InElement("boxes", i, err)
+		}
+	}
+	return nil
+}
+
 // BoundingBox3DArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BoundingBox3DArrayPublisher struct {
@@ -162,6 +176,7 @@ type CBoundingBox3DArray__Sequence = C.vision_msgs__msg__BoundingBox3DArray__Seq
 
 func BoundingBox3DArray__Sequence_to_Go(goSlice *[]BoundingBox3DArray, cSlice CBoundingBox3DArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BoundingBox3DArray, cSlice.size)
@@ -171,13 +186,16 @@ func BoundingBox3DArray__Sequence_to_Go(goSlice *[]BoundingBox3DArray, cSlice CB
 	}
 }
 func BoundingBox3DArray__Sequence_into_C(cSlice *CBoundingBox3DArray__Sequence, goSlice []BoundingBox3DArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__BoundingBox3DArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__BoundingBox3DArray)(C.malloc(C.sizeof_struct_vision_msgs__msg__BoundingBox3DArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__BoundingBox3DArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__BoundingBox3DArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

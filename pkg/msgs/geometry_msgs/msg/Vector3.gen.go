@@ -58,6 +58,12 @@ func (t *Vector3) GetTypeSupport() types.MessageTypeSupport {
 	return Vector3TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Vector3) CheckBounds() error {
+	return nil
+}
+
 // Vector3Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Vector3Publisher struct {

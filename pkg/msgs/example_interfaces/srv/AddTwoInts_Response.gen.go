@@ -52,6 +52,12 @@ func (t *AddTwoInts_Response) GetTypeSupport() types.MessageTypeSupport {
 	return AddTwoInts_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *AddTwoInts_Response) CheckBounds() error {
+	return nil
+}
+
 // AddTwoInts_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type AddTwoInts_ResponsePublisher struct {

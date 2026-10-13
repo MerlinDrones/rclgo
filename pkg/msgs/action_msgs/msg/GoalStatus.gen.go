@@ -64,6 +64,15 @@ func (t *GoalStatus) SetDefaults() {
 func (t *GoalStatus) GetTypeSupport() types.MessageTypeSupport {
 	return GoalStatusTypeSupport
 }
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *GoalStatus) CheckBounds() error {
+	if err := types.CheckBounds(&t.GoalInfo); err != nil {
+		return types.InField("goal_info", err)
+	}
+	return nil
+}
 func (t *GoalStatus) GetGoalID() *types.GoalID {
 	return (*types.GoalID)(&t.GoalInfo.GoalId.Uuid)
 }

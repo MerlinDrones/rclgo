@@ -55,6 +55,18 @@ func (t *Transform) GetTypeSupport() types.MessageTypeSupport {
 	return TransformTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Transform) CheckBounds() error {
+	if err := types.CheckBounds(&t.Translation); err != nil {
+		return types.InField("translation", err)
+	}
+	if err := types.CheckBounds(&t.Rotation); err != nil {
+		return types.InField("rotation", err)
+	}
+	return nil
+}
+
 // TransformPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TransformPublisher struct {

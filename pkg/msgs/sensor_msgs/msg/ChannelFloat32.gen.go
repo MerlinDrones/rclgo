@@ -59,6 +59,12 @@ func (t *ChannelFloat32) GetTypeSupport() types.MessageTypeSupport {
 	return ChannelFloat32TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ChannelFloat32) CheckBounds() error {
+	return nil
+}
+
 // ChannelFloat32Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ChannelFloat32Publisher struct {

@@ -61,6 +61,12 @@ func (t *ColorRGBA) GetTypeSupport() types.MessageTypeSupport {
 	return ColorRGBATypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ColorRGBA) CheckBounds() error {
+	return nil
+}
+
 // ColorRGBAPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ColorRGBAPublisher struct {

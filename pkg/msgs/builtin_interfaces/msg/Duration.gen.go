@@ -55,6 +55,12 @@ func (t *Duration) GetTypeSupport() types.MessageTypeSupport {
 	return DurationTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Duration) CheckBounds() error {
+	return nil
+}
+
 // DurationPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type DurationPublisher struct {

@@ -56,6 +56,15 @@ func (t *AccelWithCovariance) GetTypeSupport() types.MessageTypeSupport {
 	return AccelWithCovarianceTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *AccelWithCovariance) CheckBounds() error {
+	if err := types.CheckBounds(&t.Accel); err != nil {
+		return types.InField("accel", err)
+	}
+	return nil
+}
+
 // AccelWithCovariancePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type AccelWithCovariancePublisher struct {

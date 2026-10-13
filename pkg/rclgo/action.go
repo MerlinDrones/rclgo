@@ -571,6 +571,14 @@ func (s *ActionServer) executeGoal(ctx context.Context, goal *GoalHandle) {
 		}()
 		result, err = s.action.ExecuteGoal(ctx, goal)
 	}()
+	if err == nil && result != nil {
+		// A result that can't be sent aborts the goal, so that the client
+		// gets an answer.
+		if berr := types.CheckBounds(result); berr != nil {
+			s.logGoalError(&goal.ID, "aborting, the result can't be sent: ", berr)
+			result, err = nil, berr
+		}
+	}
 	s.finishGoal(goal, result, err)
 }
 
@@ -691,6 +699,9 @@ func (s *ActionServer) getGoal(id *types.GoalID) *GoalHandle {
 func (s *ActionServer) sendResultResponse(status GoalStatus, result types.Message, header *C.rmw_request_id_t) error {
 	ts := s.typeSupport.GetResult().Response()
 	resp := s.typeSupport.NewGetResultResponse(int8(status), result)
+	if err := types.CheckBounds(resp); err != nil {
+		return err
+	}
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)
 	ts.AsCStruct(buf, resp)
@@ -814,6 +825,9 @@ func (s *ActionServer) handleCancelRequest() {
 
 func (s *ActionServer) sendFeedback(goal *GoalHandle, fb types.Message) error {
 	msg := s.typeSupport.NewFeedbackMessage(&goal.ID, fb)
+	if err := types.CheckBounds(msg); err != nil {
+		return err
+	}
 	ts := s.typeSupport.FeedbackMessage()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)

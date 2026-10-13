@@ -56,6 +56,12 @@ func (t *SetCameraInfo_Response) GetTypeSupport() types.MessageTypeSupport {
 	return SetCameraInfo_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *SetCameraInfo_Response) CheckBounds() error {
+	return nil
+}
+
 // SetCameraInfo_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type SetCameraInfo_ResponsePublisher struct {

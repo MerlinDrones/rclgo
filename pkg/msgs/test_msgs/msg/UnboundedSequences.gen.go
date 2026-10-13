@@ -239,6 +239,27 @@ func (t *UnboundedSequences) GetTypeSupport() types.MessageTypeSupport {
 	return UnboundedSequencesTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *UnboundedSequences) CheckBounds() error {
+	for i := range t.BasicTypesValues {
+		if err := types.CheckBounds(&t.BasicTypesValues[i]); err != nil {
+			return types.InElement("basic_types_values", i, err)
+		}
+	}
+	for i := range t.ConstantsValues {
+		if err := types.CheckBounds(&t.ConstantsValues[i]); err != nil {
+			return types.InElement("constants_values", i, err)
+		}
+	}
+	for i := range t.DefaultsValues {
+		if err := types.CheckBounds(&t.DefaultsValues[i]); err != nil {
+			return types.InElement("defaults_values", i, err)
+		}
+	}
+	return nil
+}
+
 // UnboundedSequencesPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type UnboundedSequencesPublisher struct {

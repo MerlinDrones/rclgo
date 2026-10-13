@@ -59,6 +59,20 @@ func (t *Classification) GetTypeSupport() types.MessageTypeSupport {
 	return ClassificationTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Classification) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Results {
+		if err := types.CheckBounds(&t.Results[i]); err != nil {
+			return types.InElement("results", i, err)
+		}
+	}
+	return nil
+}
+
 // ClassificationPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ClassificationPublisher struct {
@@ -162,6 +176,7 @@ type CClassification__Sequence = C.vision_msgs__msg__Classification__Sequence
 
 func Classification__Sequence_to_Go(goSlice *[]Classification, cSlice CClassification__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Classification, cSlice.size)
@@ -171,13 +186,16 @@ func Classification__Sequence_to_Go(goSlice *[]Classification, cSlice CClassific
 	}
 }
 func Classification__Sequence_into_C(cSlice *CClassification__Sequence, goSlice []Classification) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__Classification__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__Classification)(C.malloc(C.sizeof_struct_vision_msgs__msg__Classification * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__Classification)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__Classification))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

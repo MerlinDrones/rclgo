@@ -73,6 +73,12 @@ func (t *PointField) GetTypeSupport() types.MessageTypeSupport {
 	return PointFieldTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PointField) CheckBounds() error {
+	return nil
+}
+
 // PointFieldPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PointFieldPublisher struct {

@@ -55,6 +55,17 @@ func (t *Polygon) GetTypeSupport() types.MessageTypeSupport {
 	return PolygonTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Polygon) CheckBounds() error {
+	for i := range t.Points {
+		if err := types.CheckBounds(&t.Points[i]); err != nil {
+			return types.InElement("points", i, err)
+		}
+	}
+	return nil
+}
+
 // PolygonPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PolygonPublisher struct {

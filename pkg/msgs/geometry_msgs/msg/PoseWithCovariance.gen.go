@@ -56,6 +56,15 @@ func (t *PoseWithCovariance) GetTypeSupport() types.MessageTypeSupport {
 	return PoseWithCovarianceTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PoseWithCovariance) CheckBounds() error {
+	if err := types.CheckBounds(&t.Pose); err != nil {
+		return types.InField("pose", err)
+	}
+	return nil
+}
+
 // PoseWithCovariancePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PoseWithCovariancePublisher struct {

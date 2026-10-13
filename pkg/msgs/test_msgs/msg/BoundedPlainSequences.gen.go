@@ -227,6 +227,114 @@ func (t *BoundedPlainSequences) GetTypeSupport() types.MessageTypeSupport {
 	return BoundedPlainSequencesTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *BoundedPlainSequences) CheckBounds() error {
+	if len(t.BoolValues) > 3 {
+		return types.BoundExceeded("bool_values", len(t.BoolValues), 3)
+	}
+	if len(t.ByteValues) > 3 {
+		return types.BoundExceeded("byte_values", len(t.ByteValues), 3)
+	}
+	if len(t.CharValues) > 3 {
+		return types.BoundExceeded("char_values", len(t.CharValues), 3)
+	}
+	if len(t.Float32Values) > 3 {
+		return types.BoundExceeded("float32_values", len(t.Float32Values), 3)
+	}
+	if len(t.Float64Values) > 3 {
+		return types.BoundExceeded("float64_values", len(t.Float64Values), 3)
+	}
+	if len(t.Int8Values) > 3 {
+		return types.BoundExceeded("int8_values", len(t.Int8Values), 3)
+	}
+	if len(t.Uint8Values) > 3 {
+		return types.BoundExceeded("uint8_values", len(t.Uint8Values), 3)
+	}
+	if len(t.Int16Values) > 3 {
+		return types.BoundExceeded("int16_values", len(t.Int16Values), 3)
+	}
+	if len(t.Uint16Values) > 3 {
+		return types.BoundExceeded("uint16_values", len(t.Uint16Values), 3)
+	}
+	if len(t.Int32Values) > 3 {
+		return types.BoundExceeded("int32_values", len(t.Int32Values), 3)
+	}
+	if len(t.Uint32Values) > 3 {
+		return types.BoundExceeded("uint32_values", len(t.Uint32Values), 3)
+	}
+	if len(t.Int64Values) > 3 {
+		return types.BoundExceeded("int64_values", len(t.Int64Values), 3)
+	}
+	if len(t.Uint64Values) > 3 {
+		return types.BoundExceeded("uint64_values", len(t.Uint64Values), 3)
+	}
+	if len(t.BasicTypesValues) > 3 {
+		return types.BoundExceeded("basic_types_values", len(t.BasicTypesValues), 3)
+	}
+	for i := range t.BasicTypesValues {
+		if err := types.CheckBounds(&t.BasicTypesValues[i]); err != nil {
+			return types.InElement("basic_types_values", i, err)
+		}
+	}
+	if len(t.ConstantsValues) > 3 {
+		return types.BoundExceeded("constants_values", len(t.ConstantsValues), 3)
+	}
+	for i := range t.ConstantsValues {
+		if err := types.CheckBounds(&t.ConstantsValues[i]); err != nil {
+			return types.InElement("constants_values", i, err)
+		}
+	}
+	if len(t.DefaultsValues) > 3 {
+		return types.BoundExceeded("defaults_values", len(t.DefaultsValues), 3)
+	}
+	for i := range t.DefaultsValues {
+		if err := types.CheckBounds(&t.DefaultsValues[i]); err != nil {
+			return types.InElement("defaults_values", i, err)
+		}
+	}
+	if len(t.BoolValuesDefault) > 3 {
+		return types.BoundExceeded("bool_values_default", len(t.BoolValuesDefault), 3)
+	}
+	if len(t.ByteValuesDefault) > 3 {
+		return types.BoundExceeded("byte_values_default", len(t.ByteValuesDefault), 3)
+	}
+	if len(t.CharValuesDefault) > 3 {
+		return types.BoundExceeded("char_values_default", len(t.CharValuesDefault), 3)
+	}
+	if len(t.Float32ValuesDefault) > 3 {
+		return types.BoundExceeded("float32_values_default", len(t.Float32ValuesDefault), 3)
+	}
+	if len(t.Float64ValuesDefault) > 3 {
+		return types.BoundExceeded("float64_values_default", len(t.Float64ValuesDefault), 3)
+	}
+	if len(t.Int8ValuesDefault) > 3 {
+		return types.BoundExceeded("int8_values_default", len(t.Int8ValuesDefault), 3)
+	}
+	if len(t.Uint8ValuesDefault) > 3 {
+		return types.BoundExceeded("uint8_values_default", len(t.Uint8ValuesDefault), 3)
+	}
+	if len(t.Int16ValuesDefault) > 3 {
+		return types.BoundExceeded("int16_values_default", len(t.Int16ValuesDefault), 3)
+	}
+	if len(t.Uint16ValuesDefault) > 3 {
+		return types.BoundExceeded("uint16_values_default", len(t.Uint16ValuesDefault), 3)
+	}
+	if len(t.Int32ValuesDefault) > 3 {
+		return types.BoundExceeded("int32_values_default", len(t.Int32ValuesDefault), 3)
+	}
+	if len(t.Uint32ValuesDefault) > 3 {
+		return types.BoundExceeded("uint32_values_default", len(t.Uint32ValuesDefault), 3)
+	}
+	if len(t.Int64ValuesDefault) > 3 {
+		return types.BoundExceeded("int64_values_default", len(t.Int64ValuesDefault), 3)
+	}
+	if len(t.Uint64ValuesDefault) > 3 {
+		return types.BoundExceeded("uint64_values_default", len(t.Uint64ValuesDefault), 3)
+	}
+	return nil
+}
+
 // BoundedPlainSequencesPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BoundedPlainSequencesPublisher struct {

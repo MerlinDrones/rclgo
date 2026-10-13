@@ -75,6 +75,15 @@ func (t *Image) GetTypeSupport() types.MessageTypeSupport {
 	return ImageTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Image) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // ImagePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ImagePublisher struct {

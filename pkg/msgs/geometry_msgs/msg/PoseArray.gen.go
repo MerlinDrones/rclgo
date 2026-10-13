@@ -59,6 +59,20 @@ func (t *PoseArray) GetTypeSupport() types.MessageTypeSupport {
 	return PoseArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PoseArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Poses {
+		if err := types.CheckBounds(&t.Poses[i]); err != nil {
+			return types.InElement("poses", i, err)
+		}
+	}
+	return nil
+}
+
 // PoseArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PoseArrayPublisher struct {

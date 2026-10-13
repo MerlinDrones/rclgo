@@ -54,6 +54,17 @@ func (t *GoalStatusArray) SetDefaults() {
 func (t *GoalStatusArray) GetTypeSupport() types.MessageTypeSupport {
 	return GoalStatusArrayTypeSupport
 }
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *GoalStatusArray) CheckBounds() error {
+	for i := range t.StatusList {
+		if err := types.CheckBounds(&t.StatusList[i]); err != nil {
+			return types.InElement("status_list", i, err)
+		}
+	}
+	return nil
+}
 func (t *GoalStatusArray) CallForEach(f func(interface{})) {
 	for i := range t.StatusList {
 		f(&t.StatusList[i])

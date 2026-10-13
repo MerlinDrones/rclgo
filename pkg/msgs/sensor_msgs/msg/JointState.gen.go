@@ -78,6 +78,15 @@ func (t *JointState) GetTypeSupport() types.MessageTypeSupport {
 	return JointStateTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *JointState) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // JointStatePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type JointStatePublisher struct {

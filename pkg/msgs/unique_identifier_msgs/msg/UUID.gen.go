@@ -53,6 +53,12 @@ func (t *UUID) GetTypeSupport() types.MessageTypeSupport {
 	return UUIDTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *UUID) CheckBounds() error {
+	return nil
+}
+
 // UUIDPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type UUIDPublisher struct {

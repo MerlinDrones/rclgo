@@ -600,6 +600,29 @@ func cloneCode(f *ROS2Field) string {
 	return "//<MISSING cloneCode!!>"
 }
 
+// checkBoundsCode returns the CheckBounds statements for f: a length check
+// for a bounded sequence, and a check of each nested message. Nested
+// messages are checked through types.CheckBounds, so that messages generated
+// without CheckBounds still compile.
+func checkBoundsCode(f *ROS2Field) string {
+	var b strings.Builder
+	if bound := strings.TrimPrefix(f.ArrayBounded, "<="); bound != "" {
+		fmt.Fprintf(&b, "if len(t.%s) > %s {\n\t\treturn types.BoundExceeded(%q, len(t.%s), %s)\n\t}", f.GoName, bound, f.RosName, f.GoName, bound)
+	}
+	if f.PkgName == "" {
+		return b.String()
+	}
+	if b.Len() > 0 {
+		b.WriteString("\n\t")
+	}
+	if f.TypeArray == "" {
+		fmt.Fprintf(&b, "if err := types.CheckBounds(&t.%s); err != nil {\n\t\treturn types.InField(%q, err)\n\t}", f.GoName, f.RosName)
+	} else {
+		fmt.Fprintf(&b, "for i := range t.%s {\n\t\tif err := types.CheckBounds(&t.%s[i]); err != nil {\n\t\t\treturn types.InElement(%q, i, err)\n\t\t}\n\t}", f.GoName, f.GoName, f.RosName)
+	}
+	return b.String()
+}
+
 // Names and values are checked as rosidl checks them (rosidl_adapter's
 // parser), so that a definition rosidl accepts is never rejected here, and a
 // line rosidl would reject is reported instead of being turned into a field.
@@ -735,7 +758,7 @@ func checkPrimitiveValue(rosType, value string, stringBound int) error {
 var generatedMethods = map[string]bool{
 	"CallForEach": true, "Clone": true, "CloneMsg": true, "GetGoalAccepted": true,
 	"GetGoalDescription": true, "GetGoalID": true, "GetTypeSupport": true,
-	"SetDefaults": true, "SetGoalDescription": true, "SetGoalID": true,
+	"SetDefaults": true, "CheckBounds": true, "SetGoalDescription": true, "SetGoalID": true,
 }
 
 // uniqueFieldGoName returns name, with underscores appended (as rclpy appends

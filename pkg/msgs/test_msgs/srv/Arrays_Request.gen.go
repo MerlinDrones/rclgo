@@ -150,6 +150,27 @@ func (t *Arrays_Request) GetTypeSupport() types.MessageTypeSupport {
 	return Arrays_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Arrays_Request) CheckBounds() error {
+	for i := range t.BasicTypesValues {
+		if err := types.CheckBounds(&t.BasicTypesValues[i]); err != nil {
+			return types.InElement("basic_types_values", i, err)
+		}
+	}
+	for i := range t.ConstantsValues {
+		if err := types.CheckBounds(&t.ConstantsValues[i]); err != nil {
+			return types.InElement("constants_values", i, err)
+		}
+	}
+	for i := range t.DefaultsValues {
+		if err := types.CheckBounds(&t.DefaultsValues[i]); err != nil {
+			return types.InElement("defaults_values", i, err)
+		}
+	}
+	return nil
+}
+
 // Arrays_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Arrays_RequestPublisher struct {
