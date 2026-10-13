@@ -199,14 +199,21 @@ var (
 		return &p
 	}()
 	loggingInitialized = false
-	loggingAllocator   = func() *C.rcl_allocator_t {
+	// rosoutPublishers counts the nodes whose /rosout publisher is not
+	// finalized yet, and finiPending records a FiniLogging deferred until it
+	// reaches zero: a node whose finalization is deferred (a running wait set
+	// still holds one of its entities) finalizes its publisher in rcl's
+	// logging state after Uninit. Both are guarded by loggingMutex.
+	rosoutPublishers int
+	finiPending      bool
+	loggingAllocator = func() *C.rcl_allocator_t {
 		alloc := (*C.rcl_allocator_t)(C.malloc(C.sizeof_rcl_allocator_t))
 		*alloc = C.rcl_get_default_allocator()
 		return alloc
 	}()
 	// realtimeLogging enables unbuffered, immediate flush logging when true.
 	// Set via RCLGO_REALTIME_LOGGING=1 environment variable.
-	realtimeLogging = false
+	realtimeLogging atomic.Bool
 )
 
 func rclInitLogging(rclArgs *Args, update bool) error {
@@ -220,6 +227,7 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 	}
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
+	finiPending = false
 	if loggingInitialized && !update {
 		return nil
 	}
@@ -227,7 +235,7 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 
 	// Check environment variable for realtime logging mode
 	if os.Getenv("RCLGO_REALTIME_LOGGING") == "1" {
-		realtimeLogging = true
+		realtimeLogging.Store(true)
 
 		// Also set RCUTILS_LOGGING_BUFFERED_STREAM=0 if not already set
 		// This ensures both rclgo's stdout/stderr flushing AND rcutils console
@@ -263,6 +271,17 @@ func FiniLogging() error {
 	if !loggingInitialized {
 		return nil
 	}
+	if rosoutPublishers > 0 {
+		// Finalized when the last node's /rosout publisher is.
+		finiPending = true
+		return nil
+	}
+	return finiLoggingLocked()
+}
+
+// finiLoggingLocked finalizes the logging system; loggingMutex must be held
+// and the OS thread pinned.
+func finiLoggingLocked() error {
 	rc := C.rclgo_logging_fini()
 	if rc != C.RCL_RET_OK {
 		return errorsCastC(rc, "rcl_logging_fini()")
@@ -271,11 +290,33 @@ func FiniLogging() error {
 	return nil
 }
 
+// rosoutPublisherAdded records a node's new /rosout publisher.
+func rosoutPublisherAdded() {
+	loggingMutex.Lock()
+	defer loggingMutex.Unlock()
+	rosoutPublishers++
+}
+
+// rosoutPublisherRemoved records that a node's /rosout publisher was
+// finalized, and runs a FiniLogging that was waiting for it.
+func rosoutPublisherRemoved() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	loggingMutex.Lock()
+	defer loggingMutex.Unlock()
+	rosoutPublishers--
+	if rosoutPublishers == 0 && finiPending {
+		finiPending = false
+		return finiLoggingLocked()
+	}
+	return nil
+}
+
 // IsRealtimeLogging returns true if realtime (unbuffered) logging is enabled.
 func IsRealtimeLogging() bool {
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
-	return realtimeLogging
+	return realtimeLogging.Load()
 }
 
 var rcutilsLogFormat = C.CString("%s")
@@ -373,12 +414,14 @@ func (l *Logger) Child(name string) *Logger {
 // Level returns the logging level of l. Note that this is not necessarily the
 // same as EffectiveLevel.
 func (l *Logger) Level() (LogSeverity, error) {
+	runtime.LockOSThread() // rcutils error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
 	level := C.rcutils_logging_get_logger_level(l.cname)
 	runtime.KeepAlive(l)
 	if level < 0 {
-		return 0, errors.New("failed to get log level")
+		return 0, errors.New("failed to get log level: " + errorString())
 	}
 	return LogSeverity(level), nil
 }
@@ -411,12 +454,14 @@ func (l *Logger) IsEnabledFor(level LogSeverity) bool {
 // logging levels of l's ancestors as well as the logging level of l itself.
 // Note that this is not necessarily the same as Level.
 func (l *Logger) EffectiveLevel() (LogSeverity, error) {
+	runtime.LockOSThread() // rcutils error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
 	level := C.rcutils_logging_get_logger_effective_level(l.cname)
 	runtime.KeepAlive(l)
 	if level < 0 {
-		return 0, errors.New("failed to get effective log level")
+		return 0, errors.New("failed to get effective log level: " + errorString())
 	}
 	return LogSeverity(level), nil
 }

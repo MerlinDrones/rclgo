@@ -167,20 +167,24 @@ func closeOrder(resources []rosResource) []rosResource {
 }
 
 var (
+	// defaultContextMu guards defaultContext, which Init sets and Uninit
+	// clears.
+	defaultContextMu sync.Mutex
 	defaultContext   *Context
 	errInitNotCalled = errors.New("Init has not been called")
 )
 
 // DefaultContext returns the global default context or nil if Init has not yet
 // been called.
-func DefaultContext() *Context { return defaultContext }
+func DefaultContext() *Context {
+	defaultContextMu.Lock()
+	defer defaultContextMu.Unlock()
+	return defaultContext
+}
 
 // Init is like InitWithOpts except that it always uses default options.
 func Init(args *Args) (err error) {
-	if defaultContext == nil {
-		defaultContext, err = NewContextWithOpts(args, nil)
-	}
-	return
+	return InitWithOpts(args, nil)
 }
 
 // InitWithOpts initializes the global default context and logging system if
@@ -191,6 +195,8 @@ func Init(args *Args) (err error) {
 //
 // If opts is nil, default options are used.
 func InitWithOpts(args *Args, opts *ContextOptions) (err error) {
+	defaultContextMu.Lock()
+	defer defaultContextMu.Unlock()
 	if defaultContext == nil {
 		defaultContext, err = NewContextWithOpts(args, opts)
 	}
@@ -202,9 +208,12 @@ func InitWithOpts(args *Args, opts *ContextOptions) (err error) {
 // Uninit should be called before program termination if Init has been called
 // successfully.
 func Uninit() (err error) {
-	if defaultContext != nil {
-		err = defaultContext.Close()
-		defaultContext = nil
+	defaultContextMu.Lock()
+	c := defaultContext
+	defaultContext = nil
+	defaultContextMu.Unlock()
+	if c != nil {
+		err = c.Close()
 	}
 	// Finalize logging system to flush all buffered logs
 	if loggingErr := FiniLogging(); loggingErr != nil {
@@ -217,10 +226,11 @@ func Uninit() (err error) {
 // waiting such as nodes and subscriptions. Spin returns when an error occurs or
 // ctx is canceled.
 func Spin(ctx context.Context) error {
-	if defaultContext == nil {
+	c := DefaultContext()
+	if c == nil {
 		return errInitNotCalled
 	}
-	return defaultContext.Spin(ctx)
+	return c.Spin(ctx)
 }
 
 // ContextOptions can be used to configure a Context.
