@@ -57,7 +57,6 @@ func TestPubSub(t *testing.T) {
 				)
 				So(err, ShouldBeNil)
 				go func() { subErrChan <- rclContextSub.Spin(subCtx) }()
-				time.Sleep(200 * time.Millisecond)
 			})
 			Convey("And a Publisher", func() {
 				var err error
@@ -69,6 +68,13 @@ func TestPubSub(t *testing.T) {
 					std_msgs_msg.ColorRGBATypeSupport,
 				)
 				So(err, ShouldBeNil)
+				// A message published before the subscription matches is lost.
+				requireEventually(t, "subscription matched", func() error {
+					if n, err := publisher.GetSubscriptionCount(); err != nil || n == 0 {
+						return fmt.Errorf("%d subscriptions matched, err %v", n, err)
+					}
+					return nil
+				})
 			})
 			Convey("When the Publisher publishes", func() {
 				err := publishColorRGBA(publisher, 1.55, 2.66, 3.77, 4.88)
