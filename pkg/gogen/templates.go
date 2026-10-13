@@ -817,15 +817,23 @@ import (
 )
 
 func errorsCastC(rcl_ret_t C.rcl_ret_t, context string) error {
-	stackTraceBuffer := make([]byte, 2048)
-	runtime.Stack(stackTraceBuffer, false) // Get stack trace of the current running thread only
+	// A take that finds no data is routine (subscriptions are polled), so it
+	// gets no stack trace; other errors get the calling goroutine's stack.
+	var stackTrace string
+	switch rcl_ret_t {
+	case C.RCL_RET_SUBSCRIPTION_TAKE_FAILED, C.RCL_RET_CLIENT_TAKE_FAILED, C.RCL_RET_SERVICE_TAKE_FAILED,
+		C.RCL_RET_ACTION_CLIENT_TAKE_FAILED, C.RCL_RET_ACTION_SERVER_TAKE_FAILED, C.RCL_RET_EVENT_TAKE_FAILED:
+	default:
+		buf := make([]byte, 2048)
+		stackTrace = string(buf[:runtime.Stack(buf, false)])
+	}
 
 	// https://stackoverflow.com/questions/9928221/table-of-functions-vs-switch-in-golang
 	// switch-case is faster thanks to compiler optimization than a dispatcher?
 	switch rcl_ret_t {
 	{{range $e := .errorTypes -}}{{if $e.Rcl_ret_t -}}{{if not (index $P.dedupFilter $e.Name) -}}
 	case C.{{$e.Name}}:
-		return &{{$e.Name|cReturnCodeNameToGo}}{rclError: rclError{rclRetCode: {{$e.Rcl_ret_t}}, trace: string(stackTraceBuffer), context: errorsBuildContext(&{{$e.Name|cReturnCodeNameToGo}}{}, context, string(stackTraceBuffer))}}
+		return &{{$e.Name|cReturnCodeNameToGo}}{rclError: rclError{rclRetCode: {{$e.Rcl_ret_t}}, trace: stackTrace, context: errorsBuildContext(&{{$e.Name|cReturnCodeNameToGo}}{}, context, stackTrace)}}
 	{{""}}
 	{{- end}}{{- end}}{{- end}}
 	default:

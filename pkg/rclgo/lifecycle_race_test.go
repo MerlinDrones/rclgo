@@ -244,3 +244,21 @@ func TestZeroActionServerOptionsKeepResults(t *testing.T) {
 	require.EqualValues(t, rclgo.GoalSucceeded, res.Status)
 	require.Equal(t, []int32{1, 1}, res.Result.Sequence)
 }
+
+// A take that finds no message is routine, so its error carries no stack
+// trace; other rcl errors carry the stack without padding.
+func TestRCLErrorStackTraces(t *testing.T) {
+	rclctx := newSpinTestContext(t)
+	node, err := rclctx.NewNode("error_traces", "/race_test")
+	require.NoError(t, err)
+	sub, err := node.NewSubscription("nothing_here", std_msgs_msg.StringTypeSupport, nil, nil)
+	require.NoError(t, err)
+	_, err = sub.TakeMessage(std_msgs_msg.NewString())
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "goroutine", "a take-failed error captured a stack trace")
+
+	_, err = node.NewPublisher("invalid topic name", std_msgs_msg.StringTypeSupport, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "goroutine")
+	require.NotContains(t, err.Error(), "\x00", "the stack trace is padded with NUL bytes")
+}
