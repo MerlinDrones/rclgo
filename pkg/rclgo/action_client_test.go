@@ -236,3 +236,61 @@ func TestActionClientFeedbackInOrderAndPanicsRecovered(t *testing.T) {
 		require.Greater(t, got[i], got[i-1], "feedback out of order: %v", got)
 	}
 }
+
+// When WatchGoal's context ends and Spin stops with it, WatchGoal still
+// cancels the goal on the server and returns at once, instead of waiting for
+// a cancel response that no one takes.
+func TestActionClientWatchGoalCancelWithSharedSpinContext(t *testing.T) {
+	executing := make(chan struct{})
+	canceled := make(chan struct{})
+	_ = newActionFixture(t, "shared_ctx", nil, func(ctx context.Context, goal *rclgo.GoalHandle) (types.Message, error) {
+		if _, err := goal.Accept(); err != nil {
+			return nil, err
+		}
+		if goal.Description.(*example_interfaces_action.Fibonacci_Goal).Order != 7 {
+			return fibResult(1), nil
+		}
+		close(executing)
+		<-ctx.Done()
+		close(canceled)
+		return nil, ctx.Err()
+	})
+	clientCtx := newSpinTestContext(t)
+	node, err := clientCtx.NewNode("shared_ctx_client", "/action_test")
+	require.NoError(t, err)
+	client, err := node.NewActionClient("shared_ctx", example_interfaces_action.FibonacciTypeSupport, nil)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	spinDone := make(chan struct{})
+	go func() { defer close(spinDone); _ = clientCtx.Spin(ctx) }()
+	// Wait until the client can reach the server.
+	deadline := time.Now().Add(spinTimeout)
+	for {
+		c, stop := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		_, _, err := client.WatchGoal(c, fibGoal(1), nil)
+		stop()
+		if err == nil {
+			break
+		}
+		require.True(t, time.Now().Before(deadline), "server not reachable: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := client.WatchGoal(ctx, fibGoal(7), nil)
+		done <- err
+	}()
+	requireClosed(t, executing, "goal never started")
+	start := time.Now()
+	cancel()
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+		require.Less(t, time.Since(start), time.Second, "WatchGoal waited for the cancel response")
+	case <-time.After(actionTimeout):
+		t.Fatal("WatchGoal did not return")
+	}
+	requireClosed(t, canceled, "the goal was not canceled on the server")
+	<-spinDone
+}
