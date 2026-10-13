@@ -300,6 +300,11 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 			switch {
 			case guardConditions[i] == nil:
 			case guardConditions[i] == w.cancelWait.rclGuardCondition:
+				if errctx.Err() == nil {
+					// Left triggered by an earlier Run that ended for
+					// another reason; this Run was not asked to stop.
+					break
+				}
 				if err := ctx.Err(); err != nil {
 					return err
 				}

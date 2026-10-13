@@ -164,3 +164,41 @@ func TestClockClosedWhileTimerUsesIt(t *testing.T) {
 	require.NoError(t, timer.Close())
 	require.NoError(t, stop())
 }
+
+// A manual WaitSet can be run again after a Run ended for a reason other than
+// a stop (here a panicking callback): the next Run doesn't see a leftover
+// stop request.
+func TestWaitSetRunsAgainAfterPanic(t *testing.T) {
+	rclctx := newSpinTestContext(t)
+	ws, err := rclctx.NewWaitSet()
+	require.NoError(t, err)
+	var (
+		mu    sync.Mutex
+		ticks int
+		panik = true
+	)
+	timer, err := rclctx.NewTimer(5*time.Millisecond, func(*rclgo.Timer) {
+		mu.Lock()
+		defer mu.Unlock()
+		if panik {
+			panik = false
+			panic("first tick")
+		}
+		ticks++
+	})
+	require.NoError(t, err)
+	ws.AddTimers(timer)
+
+	func() {
+		defer func() { require.NotNil(t, recover(), "the callback's panic did not reach Run's caller") }()
+		_ = ws.Run(context.Background())
+	}()
+	time.Sleep(20 * time.Millisecond) // let the wake-up goroutine trigger
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	require.ErrorIs(t, ws.Run(ctx), context.DeadlineExceeded)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Positive(t, ticks, "the second Run did not service the timer")
+}
