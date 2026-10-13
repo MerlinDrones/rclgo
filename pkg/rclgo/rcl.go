@@ -736,6 +736,9 @@ func (p *Publisher) fini() (err error) {
 
 type Clock struct {
 	rosID
+	// life keeps the clock until the timers and action servers using it are
+	// finalized, as they hold rclcpp's clock through a shared pointer.
+	life        lifetime
 	rcl_clock_t *C.rcl_clock_t
 	context     *Context
 
@@ -793,15 +796,20 @@ func (c *Context) NewClock(clockType ClockType) (clock *Clock, err error) {
 /*
 Close frees the allocated memory
 */
-func (c *Clock) Close() (err error) {
+// Close closes the clock. Its handle is finalized once the timers and action
+// servers that use it are finalized.
+func (c *Clock) Close() error {
+	return closeEntity(&c.life, "clock", func() { c.context.removeResource(c) }, &c.context.life, c.fini)
+}
+
+func (c *Clock) fini() (err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
 	c.jumpMu.Lock()
 	defer c.jumpMu.Unlock()
 	if c.rcl_clock_t == nil {
-		return closeErr("clock")
+		return nil
 	}
-	c.context.removeResource(c)
 	rc := C.rcl_clock_fini(c.rcl_clock_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
@@ -843,11 +851,12 @@ func (c *Clock) SetROSTimeOverride(t time.Duration) error {
 func (c *Clock) override(what string, f func() C.rcl_ret_t) error {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
-	c.jumpMu.Lock()
-	defer c.jumpMu.Unlock()
-	if c.rcl_clock_t == nil {
+	if !c.life.acquire() {
 		return closedErr("clock")
 	}
+	defer c.life.release()
+	c.jumpMu.Lock()
+	defer c.jumpMu.Unlock()
 	if rc := f(); rc != C.RCL_RET_OK {
 		return errorsCastC(rc, "failed to "+what+" ROS time override")
 	}
@@ -857,6 +866,10 @@ func (c *Clock) override(what string, f func() C.rcl_ret_t) error {
 func (c *Clock) now() (time.Duration, error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	if !c.life.use() {
+		return 0, closedErr("clock")
+	}
+	defer c.life.release()
 	var t C.rcl_time_point_value_t
 	rc := C.rcl_clock_get_now(c.rcl_clock_t, &t)
 	if rc != C.RCL_RET_OK {
@@ -872,6 +885,8 @@ type Timer struct {
 	Callback    func(*Timer)
 	context     *Context
 	clock       *Clock
+	// holdsClock is set while the timer holds clock's lifetime.
+	holdsClock bool
 }
 
 func NewTimer(timeout time.Duration, timerCallback func(*Timer)) (*Timer, error) {
@@ -900,6 +915,11 @@ func (c *Context) NewTimer(timeout time.Duration, timer_callback func(*Timer)) (
 	}
 	*timer.rcl_timer_t = C.rcl_get_zero_initialized_timer()
 	defer onErr(&err, timer.Close)
+	// The timer uses the clock until it is finalized.
+	if !timer.clock.life.acquire() {
+		return nil, closedErr("clock")
+	}
+	timer.holdsClock = true
 
 	timer.clock.jumpMu.Lock()
 	defer timer.clock.jumpMu.Unlock()
@@ -984,6 +1004,12 @@ func (t *Timer) Close() error {
 func (t *Timer) fini() (err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	defer func() {
+		if t.holdsClock {
+			t.holdsClock = false
+			t.clock.life.release()
+		}
+	}()
 	if t.rcl_timer_t == nil {
 		return nil
 	}
@@ -1619,6 +1645,22 @@ func (s *requestSender) addPendingRequest(req types.Message) (<-chan *sendResult
 	resultChan := make(chan *sendResult, 1)
 	s.pendingRequests[seqNum] = resultChan
 	return resultChan, seqNum, nil
+}
+
+// sendNoWait sends req without waiting for its response, which is dropped
+// when it arrives.
+func (s *requestSender) sendNoWait(req types.Message) error {
+	ts := s.transport.TypeSupport.Request()
+	buf := ts.PrepareMemory()
+	defer ts.ReleaseMemory(buf)
+	ts.AsCStruct(buf, req)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if s.closed {
+		return closedErr("sender")
+	}
+	_, err := s.transport.SendRequest(buf)
+	return err
 }
 
 func (s *requestSender) HandleResponse() {

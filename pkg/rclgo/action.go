@@ -288,6 +288,8 @@ type ActionServer struct {
 	action      Action
 	typeSupport types.ActionTypeSupport
 	clock       *Clock
+	// holdsClock is set while the server holds clock's lifetime.
+	holdsClock bool
 
 	// goalCtx is the parent of every goal's context. It is canceled when
 	// the server is closed.
@@ -326,6 +328,11 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 	if s.clock == nil {
 		s.clock = n.context.Clock()
 	}
+	// The server uses the clock (for goal expiry) until it is finalized.
+	if !s.clock.life.acquire() {
+		return nil, closedErr("clock")
+	}
+	s.holdsClock = true
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 	rclOpts := C.rcl_action_server_options_t{
@@ -350,6 +357,8 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 	)
 	s.clock.jumpMu.Unlock()
 	if rc != C.RCL_RET_OK {
+		s.holdsClock = false
+		s.clock.life.release()
 		return nil, errorsCastC(rc, "failed to create action server")
 	}
 	s.goalCtx, s.cancelGoal = context.WithCancel(context.Background())
@@ -377,6 +386,12 @@ func (s *ActionServer) Close() error {
 func (s *ActionServer) fini() (err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	defer func() {
+		if s.holdsClock {
+			s.holdsClock = false
+			s.clock.life.release()
+		}
+	}()
 	s.rclServerMu.Lock()
 	defer s.rclServerMu.Unlock()
 	s.clock.jumpMu.Lock()
@@ -1112,15 +1127,14 @@ func (c *ActionClient) WatchGoal(ctx context.Context, goal types.Message, onFeed
 	// Registered before the goal is sent: if ctx ends while the goal request
 	// is in flight, the server may already have accepted the goal, and it
 	// must not be left running. Canceling a goal the server never accepted
-	// is harmless.
+	// is harmless. The cancel request is sent without waiting for its
+	// response (like rclcpp's async_cancel_goal): Spin may have stopped with
+	// the same ctx, and then no response would be taken.
 	defer func() {
 		if ctx.Err() != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
 			cancelReq := c.typeSupport.CancelGoal().Request().New()
 			cancelReq.(goalIDMessage).SetGoalID(req.GetGoalID())
-			_, err := c.CancelGoal(ctx, cancelReq) //nolint:contextcheck
-			if err != nil {
+			if err := c.cancelSender.sendNoWait(cancelReq); err != nil && !errors.Is(err, ErrClosed) {
 				retErr = errors.Join(err, retErr)
 			}
 		}

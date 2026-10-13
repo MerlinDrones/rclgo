@@ -129,3 +129,38 @@ func TestClientSendRacingClose(t *testing.T) {
 		}
 	}
 }
+
+// A clock stays alive while timers use it, as rclcpp's timers hold their
+// clock: closing it doesn't free the handle under a running timer, and calls
+// on the closed clock return ErrClosed.
+func TestClockClosedWhileTimerUsesIt(t *testing.T) {
+	rclctx := newSpinTestContext(t)
+	clk, err := rclctx.NewClock(rclgo.ClockTypeSteadyTime)
+	require.NoError(t, err)
+	rclctx.SetClock(clk)
+	var (
+		mu    sync.Mutex
+		ticks int
+	)
+	timer, err := rclctx.NewTimer(5*time.Millisecond, func(*rclgo.Timer) {
+		mu.Lock()
+		ticks++
+		mu.Unlock()
+	})
+	require.NoError(t, err)
+	rclctx.SetClock(nil)
+	stop := startSpin(t, rclctx.Spin)
+
+	require.NoError(t, clk.Close())
+	require.ErrorIs(t, clk.EnableROSTimeOverride(), rclgo.ErrClosed)
+	mu.Lock()
+	before := ticks
+	mu.Unlock()
+	time.Sleep(100 * time.Millisecond)
+	mu.Lock()
+	after := ticks
+	mu.Unlock()
+	require.Greater(t, after, before, "the timer stopped when its clock was closed")
+	require.NoError(t, timer.Close())
+	require.NoError(t, stop())
+}

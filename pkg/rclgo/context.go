@@ -246,6 +246,7 @@ type Context struct {
 	rcl_allocator_t *C.rcutils_allocator_t
 	rcl_context_t   *C.rcl_context_t
 	defaultClock    *Clock
+	clockMu         sync.RWMutex // guards clock
 	clock           *Clock
 
 	rosResourceStore
@@ -403,11 +404,18 @@ func (c *Context) fini() error {
 	return errs
 }
 
+// Clock returns the clock that timers and action servers created on c use.
 func (c *Context) Clock() *Clock {
+	c.clockMu.RLock()
+	defer c.clockMu.RUnlock()
 	return c.clock
 }
 
+// SetClock sets the clock for timers and action servers created on c from now
+// on; nil restores the context's default clock. Existing ones keep theirs.
 func (c *Context) SetClock(newClock *Clock) {
+	c.clockMu.Lock()
+	defer c.clockMu.Unlock()
 	if newClock == nil {
 		c.clock = c.defaultClock
 	} else {
