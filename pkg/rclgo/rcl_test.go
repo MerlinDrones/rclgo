@@ -4,7 +4,6 @@ package rclgo_test
 
 import (
 	"fmt"
-	"go.uber.org/goleak"
 	"math/rand"
 	"os"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo/internal/rclgotest"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 var (

@@ -109,6 +109,11 @@ type GoalHandle struct {
 
 	result     types.Message
 	resultCond *sync.Cond
+	// finished is set, and finalStatus to the terminal state the server
+	// decided, when ExecuteGoal has returned and the goal was handled, even
+	// if updating its state in rcl failed. Guarded by resultCond.L.
+	finished    bool
+	finalStatus GoalStatus
 }
 
 func newEmptyGoal(s *ActionServer, cancel context.CancelFunc) *GoalHandle {
@@ -201,13 +206,18 @@ func (g *GoalHandle) waitResult() (GoalStatus, types.Message) {
 	defer g.resultCond.L.Unlock()
 	for {
 		status, err := g.status()
-		if err != nil {
+		if err != nil && !g.finished {
 			g.server.logGoalError(&g.ID, err)
 			return GoalUnknown, nil
 		}
-		switch status {
-		case GoalSucceeded, GoalAborted, GoalCanceled:
+		switch {
+		case err == nil && (status == GoalSucceeded || status == GoalAborted || status == GoalCanceled):
 			return status, g.result
+		case g.finished:
+			// rcl's state could not be updated (the error was logged);
+			// answer with the state the server decided rather than wait
+			// forever.
+			return g.finalStatus, g.result
 		default:
 			g.resultCond.Wait()
 		}
@@ -587,6 +597,13 @@ func (s *ActionServer) executeGoal(ctx context.Context, goal *GoalHandle) {
 func (s *ActionServer) finishGoal(goal *GoalHandle, result types.Message, execErr error) {
 	goal.resultCond.L.Lock()
 	defer goal.resultCond.L.Unlock()
+	// Whatever happens below, result requests waiting for this goal get an
+	// answer.
+	goal.finalStatus = GoalAborted
+	defer func() {
+		goal.finished = true
+		goal.resultCond.Broadcast()
+	}()
 	if goal.handle == nil {
 		if execErr == nil {
 			s.logGoalError(&goal.ID, "ExecuteGoal returned without calling Accept, rejecting the goal")
@@ -613,8 +630,10 @@ func (s *ActionServer) finishGoal(goal *GoalHandle, result types.Message, execEr
 	switch {
 	case status == GoalCanceling && (execErr == nil || errors.Is(execErr, context.Canceled)):
 		event = C.GOAL_EVENT_CANCELED
+		goal.finalStatus = GoalCanceled
 	case execErr == nil && result != nil:
 		event = C.GOAL_EVENT_SUCCEED
+		goal.finalStatus = GoalSucceeded
 	default:
 		if execErr == nil {
 			s.logGoalError(&goal.ID, "a nil result was returned even though the goal was executed successfully")
@@ -638,7 +657,6 @@ func (s *ActionServer) finishGoal(goal *GoalHandle, result types.Message, execEr
 	if err != nil {
 		s.logGoalDebug(&goal.ID, err)
 	}
-	goal.resultCond.Broadcast()
 }
 
 func (s *ActionServer) expireGoals() error {
