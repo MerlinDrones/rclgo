@@ -87,6 +87,21 @@ func TestCLI(t *testing.T) {
 	// Generation errors exit with status 1 and report the file, line and
 	// problem once, without the usage text.
 	check("bad package", "jazzy", 1, list("Bad.msg", "line 2", "unknown type 'this'"), list("Usage:"), gen(bad)...)
+	// generate-cgo-flags finds packages in merged (include/<pkg>) and isolated
+	// (<pkg>/include/<pkg>) install trees without parsing interfaces.
+	install := t.TempDir()
+	for _, d := range []string{"merged/include/merged_msgs", "merged/lib", "iso/iso_msgs/include/iso_msgs", "iso/iso_msgs/lib"} {
+		if err := os.MkdirAll(filepath.Join(install, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check("generate-cgo-flags", "jazzy", 0, list(
+		"CGO_CFLAGS=", "CGO_LDFLAGS=",
+		"-I"+filepath.Join(install, "merged/include/merged_msgs"),
+		"-I"+filepath.Join(install, "iso/iso_msgs/include/iso_msgs"),
+		"-L"+filepath.Join(install, "iso/iso_msgs/lib"),
+		"-Wl,-rpath="+filepath.Join(install, "merged/lib"),
+	), nil, "generate-cgo-flags", "-r", filepath.Join(install, "merged"), "-r", filepath.Join(install, "iso"), "--output", "-")
 	check("package not found", "jazzy", 1, list("no_such_package: package not found"), list("Usage:"),
 		gen(good, "--include-package-deps", "no_such_package")...)
 }

@@ -11,6 +11,8 @@ is covered, how to run it, and what is not covered yet.
 source /opt/ros/jazzy/setup.bash
 go test -count=1 ./...          # what CI runs (make test)
 go test -race -count=1 ./...    # make test-race; what CI runs. Most defects found were concurrency defects
+make test-faults                # every rcl call made to fail in turn; what CI runs (about 5 minutes)
+make cover                      # coverage of rclgo's own code; CI fails below the minimum
 ```
 
 - With a Go workspace (`go.work`) that does not contain rclgo, set `GOWORK=off`.
@@ -45,6 +47,43 @@ Known upstream issues, reproduced with plain rcl in C (so not rclgo defects); th
 
 Zenoh also differs from DDS where ROS leaves behaviour open, and the tests allow for it: the order of a topic's types
 in graph queries, and matching (and counting) endpoints whose durability is incompatible under DDS rules.
+
+## Failure injection
+
+rclcpp tests its error paths by making individual rcl calls fail (mimick and rcutils fault injection). The binary
+rcl packages are built without fault injection, so rclgo wraps the rcl calls instead:
+`pkg/rclgo/internal/faultinject` routes every call rclgo makes to an rcl, rcl_action, rmw or rcutils function that
+can fail (119 functions; `go generate` there regenerates the wrappers from the headers) through a wrapper, using the
+linker's `--wrap`. Only test binaries that import the package are wrapped. A wrapper passes the call through unless
+it is the one chosen with `faultinject.Arm`, which returns an error code (or NULL) and sets the rcl error message
+"injected fault in <function>".
+
+`TestFaultSweep` (`make test-faults`; `RCLGO_FAULT_CALLS` sets how many calls of each function fail, default 2) runs
+six scenarios: a node with graph queries and logging, publish/subscribe, a service call, a timer, an action goal with
+feedback and cancellation, and parameter services. It records the calls each scenario makes, then reruns it once for
+each call, making that call fail, as rclcpp's `RCUTILS_FAULT_INJECTION_TEST` does. Every run must:
+
+- neither crash nor hang;
+- return the failure to the caller or log it with the node's logger;
+- leave the process able to create and use new contexts.
+
+A node that cannot be finalized is leaked with its context rather than freed, because rcl's rosout map and the
+middleware may still use them (`TestNodeFiniFailureLeaksNodeAndContext`).
+
+## Signals
+
+rclgo installs no signal handler; programs stop on SIGINT and SIGTERM with `signal.NotifyContext` and close their
+context, as the examples do. `TestSignals` (after system_tests' `test_sigint_handler`) runs a node in a child process
+and signals it while it spins, while it waits for a service response and while it watches an action goal: it must
+exit with status 0 within 5 seconds, having closed its context, and leave the ROS graph at once. Without a handler,
+Go's default applies: the process dies of the signal without finalizing rcl, and other nodes only notice when the
+middleware's liveliness lease expires.
+
+## Coverage
+
+`make cover` (`tools/coverage.sh`) runs the suite with coverage of rclgo's own packages (generated message packages
+and internal test helpers excluded), writes `coverage.out`, and fails below `COVERAGE_MIN` percent. View it with
+`go tool cover -html=coverage.out`.
 
 ## Go-specific checks
 
@@ -89,6 +128,8 @@ memory cap, for example
 | Logging, `/rosout` | `logging_test.go`, `node_test.go` | `test_logging`, `test_rosout_subscription`, `test_logging_rosout.py` |
 | ROS time, clock, rate | `rostime/` | `test_time_source`, `test_rate`, `test_clock` |
 | Error handling (rcl error state) | `error_internal_test.go`, `misc_test.go` | rcl `test_common` |
+| **Signals**: SIGINT/SIGTERM while spinning, in a service call, with an action goal | `signal_test.go` | system_tests `test_sigint_handler` |
+| **Error paths**: every rcl call failing in turn | `internal/faultinject/` | rclcpp's mimick and `RCUTILS_FAULT_INJECTION_TEST` tests |
 | **Code generator**: output is deterministic and matches the committed `pkg/msgs`; every installed interface package generates and compiles; a custom package (every field kind, defaults, bounds, constants, nested and cross-package types, services, actions) round-trips with rclpy; invalid definitions are rejected as rosidl rejects them, with the file and line; `rclgo-gen` exit codes and messages | `pkg/gogen/` (`golden_test.go`, `validation_test.go`, `e2e_test.go`), `cmd/rclgo-gen/cmd/cli_test.go` | rosidl_adapter and rosidl_generator_* tests |
 | **Interop with rclcpp and rclpy** (other processes): every `test_msgs` type both ways with rclpy; topics, services and actions both ways with C++ and Python demo nodes; `ros2 service call`, `ros2 action send_goal`; transient-local and best-effort QoS | `interop_test.go`, `testdata/interop/*.py` | system_tests `test_communication`, `test_quality_of_service` |
 | **Parameter services** through real services and the `ros2 param` tool; `/parameter_events` | `params/services_test.go` | `test_parameter_service`, `test_parameter_client`, ros2cli tests |
@@ -100,7 +141,4 @@ These areas have no rclgo implementation or no tests yet; they are planned next.
 
 - **Lifecycle nodes, QoS event callbacks, executors and callback groups, `logger_level` parameter, waiting for a
   service**: not implemented in rclgo (see `ROADMAP.md`).
-- **Failure injection**: rclcpp forces individual rcl calls to fail (mimick, `RCUTILS_FAULT_INJECTION`) to test error
-  paths. rclgo has no equivalent, so paths such as a failing `rcl_action_process_cancel_request` are untested.
-- **Signals**: SIGINT/SIGTERM handling of a running node (system_tests `test_sigint_handler`).
 - **Benchmarks**: a first set exists (`bench_test.go`); none yet for Spin wake-up latency or executors.
