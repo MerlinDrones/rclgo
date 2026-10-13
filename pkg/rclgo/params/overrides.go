@@ -18,6 +18,8 @@ void rclgo_params_fini(rcl_params_t * params) {
 import "C"
 import (
 	"fmt"
+	"regexp"
+	"strings"
 	"unsafe"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo"
@@ -54,40 +56,44 @@ func ApplyOverrides(m *Manager, nodeName string, args *rclgo.Args) error {
 	cparams := (*C.rcl_params_t)(cparamsPtr)
 	defer C.rclgo_params_fini(cparams)
 
-	// Find node-specific parameters
-	var nodeParams *C.rcl_node_params_t
+	// Like rclcpp, apply every section whose node name matches this node, in
+	// the order rcl stores them, so that a later section overrides an earlier
+	// one: -p values are in the "/**" section, and each --params-file adds its
+	// own sections.
+	names := matchNames(m, nodeName)
+	type override struct {
+		name string
+		val  Value
+	}
+	var merged []override
+	index := map[string]int{}
 	for i := 0; i < int(cparams.num_nodes); i++ {
-		// Access node name from array
-		nodeNamePtr := *(**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(cparams.node_names)) + uintptr(i)*unsafe.Sizeof((*C.char)(nil))))
-		nodeName_c := C.GoString(nodeNamePtr)
-		// Match if it's the wildcard node "/**" OR matches our specific node name
-		if nodeName_c == "/**" || nodeName_c == nodeName || nodeName_c == "/"+nodeName {
-			// Access node params from array
-			nodeParams = (*C.rcl_node_params_t)(unsafe.Pointer(uintptr(unsafe.Pointer(cparams.params)) + uintptr(i)*unsafe.Sizeof(C.rcl_node_params_t{})))
-			break
+		sectionPtr := *(**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(cparams.node_names)) + uintptr(i)*unsafe.Sizeof((*C.char)(nil))))
+		if !sectionMatches(C.GoString(sectionPtr), names) {
+			continue
+		}
+		nodeParams := (*C.rcl_node_params_t)(unsafe.Pointer(uintptr(unsafe.Pointer(cparams.params)) + uintptr(i)*unsafe.Sizeof(C.rcl_node_params_t{})))
+		for j := 0; j < int(nodeParams.num_params); j++ {
+			paramNamePtr := *(**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(nodeParams.parameter_names)) + uintptr(j)*unsafe.Sizeof((*C.char)(nil))))
+			paramName := C.GoString(paramNamePtr)
+			variant := (*C.rcl_variant_t)(unsafe.Pointer(uintptr(unsafe.Pointer(nodeParams.parameter_values)) + uintptr(j)*unsafe.Sizeof(C.rcl_variant_t{})))
+			val, ok := valueFromVariant(variant)
+			if !ok {
+				return fmt.Errorf("unsupported parameter type for %s", paramName)
+			}
+			if k, seen := index[paramName]; seen {
+				merged[k].val = val
+			} else {
+				index[paramName] = len(merged)
+				merged = append(merged, override{paramName, val})
+			}
 		}
 	}
-	if nodeParams == nil {
-		// No overrides for this node
-		return nil
-	}
 
-	// Apply each parameter override
-	for i := 0; i < int(nodeParams.num_params); i++ {
-		// Access parameter name from array
-		paramNamePtr := *(**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(nodeParams.parameter_names)) + uintptr(i)*unsafe.Sizeof((*C.char)(nil))))
-		paramName := C.GoString(paramNamePtr)
-		// Access parameter value from array
-		variant := (*C.rcl_variant_t)(unsafe.Pointer(uintptr(unsafe.Pointer(nodeParams.parameter_values)) + uintptr(i)*unsafe.Sizeof(C.rcl_variant_t{})))
-
-		val, ok := valueFromVariant(variant)
-		if !ok {
-			return fmt.Errorf("unsupported parameter type for %s", paramName)
-		}
-
+	for _, o := range merged {
 		// A later Declare in code attaches its descriptor to this value.
-		if err := m.applyOverride(paramName, val, Descriptor{}); err != nil {
-			return fmt.Errorf("failed to apply override for %s: %w", paramName, err)
+		if err := m.applyOverride(o.name, o.val, Descriptor{}); err != nil {
+			return fmt.Errorf("failed to apply override for %s: %w", o.name, err)
 		}
 	}
 
@@ -146,4 +152,39 @@ func valueFromVariant(v *C.rcl_variant_t) (Value, bool) {
 	}
 	// Byte arrays not commonly used for ROS params, skip for now
 	return Value{}, false
+}
+
+// matchNames returns the fully qualified names an override section is matched
+// against: the manager's node, and nodeName as given (with a leading slash).
+func matchNames(m *Manager, nodeName string) []string {
+	var names []string
+	if m.n != nil {
+		names = append(names, m.n.FullyQualifiedName())
+	}
+	if nodeName != "" {
+		names = append(names, "/"+strings.TrimPrefix(nodeName, "/"))
+	}
+	return names
+}
+
+// sectionMatches reports whether a parameter section applies to one of names,
+// with rclcpp's rules: a missing leading slash is added, "/*" matches one name
+// token and "/**" any number of them.
+func sectionMatches(section string, names []string) bool {
+	if !strings.HasPrefix(section, "/") {
+		section = "/" + section
+	}
+	pattern := regexp.QuoteMeta(section)
+	pattern = strings.ReplaceAll(pattern, `/\*\*`, `(/\w+)*`)
+	pattern = strings.ReplaceAll(pattern, `/\*`, `(/\w+)`)
+	re, err := regexp.Compile("^" + pattern + "$")
+	if err != nil {
+		return false
+	}
+	for _, n := range names {
+		if re.MatchString(n) {
+			return true
+		}
+	}
+	return false
 }
