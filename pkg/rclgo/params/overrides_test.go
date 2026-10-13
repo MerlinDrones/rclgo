@@ -38,7 +38,7 @@ func TestApplyOverrides_ScalarTypes(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare parameters with defaults
 	_, _ = mgr.Declare("bool_param", Value{Kind: KindBool, Bool: false}, Descriptor{})
@@ -107,7 +107,7 @@ func TestApplyOverrides_ArrayTypes(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare array parameters with empty defaults
 	_, _ = mgr.Declare("bool_array", Value{Kind: KindBoolArray, Bools: []bool{}}, Descriptor{})
@@ -184,7 +184,7 @@ func TestApplyOverrides_WildcardNode(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare a parameter
 	_, _ = mgr.Declare("wildcard_param", Value{Kind: KindInt64, Int64: 0}, Descriptor{})
@@ -227,7 +227,7 @@ func TestApplyOverrides_WithYAML(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Create temporary YAML file
 	tmpDir := t.TempDir()
@@ -301,7 +301,7 @@ func TestApplyOverrides_NoArgs(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare a parameter
 	_, _ = mgr.Declare("test_param", Value{Kind: KindInt64, Int64: 100}, Descriptor{})
@@ -346,7 +346,7 @@ func TestApplyOverrides_UndeclaredParam(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// DO NOT declare the parameter first
 
@@ -386,7 +386,7 @@ func TestApplyOverrides_MergesAllMatchingSections(t *testing.T) {
 		t.Fatalf("NewNode: %v", err)
 	}
 	defer n.Close()
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	yamlPath := filepath.Join(t.TempDir(), "params.yaml")
 	yamlContent := `/ns/merge_test:

@@ -43,7 +43,7 @@ func TestOnSetCallbackReadsAndCannotChange(t *testing.T) {
 		_ = pm.List()
 		_, setErr = pm.Set(params.Parameter{Name: "b", Value: intValue(11)})
 		_, declareErr = pm.Declare("c", intValue(0), params.Descriptor{})
-		undeclared = pm.Undeclare("b")
+		undeclared = pm.Undeclare("b") == nil
 		return params.SetResult{Successful: ps[0].Value.Int64 < 100, Reason: "too large"}
 	})
 

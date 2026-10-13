@@ -44,8 +44,12 @@ type Clock struct {
 	cond   *sync.Cond
 
 	node       *rclgo.Node
+	pm         *params.Manager
 	sub        *rclgo.Subscription
 	removeHook func()
+	// switchMu serializes switches between system and simulated time;
+	// overriding and the /clock subscription change only under it.
+	switchMu   sync.Mutex
 	overriding bool // whether the context's rcl clock is in ROS-time override
 }
 
@@ -53,28 +57,37 @@ type Clock struct {
 // pm, if pm is not nil: its value now, and every later change (for example
 // from `ros2 param set`). Call Shutdown when done with it.
 func NewClock(_ context.Context, node *rclgo.Node, pm *params.Manager) (*Clock, error) {
-	c := &Clock{node: node, now: time.Unix(0, 0)}
+	c := &Clock{node: node, pm: pm, now: time.Unix(0, 0)}
 	c.cond = sync.NewCond(&c.mu)
-	useSim := false
-	if pm != nil {
-		// Parameter event stamps use ROS time.
-		pm.SetNowProvider(c.NowMsg)
-		if p, ok := pm.Get("use_sim_time"); ok && p.Value.Kind == params.KindBool && p.Value.Bool {
-			useSim = true
-		}
-		c.removeHook = pm.AddPostSetCallback(func(ps []params.Parameter) {
-			for _, p := range ps {
-				if p.Name == "use_sim_time" && p.Value.Kind == params.KindBool {
-					c.setUseSim(p.Value.Bool)
-				}
-			}
-		})
+	if pm == nil {
+		return c, nil
 	}
-	c.setUseSim(useSim)
+	// Parameter event stamps use ROS time.
+	pm.SetNowProvider(c.NowMsg)
+	// Register for changes first, then sync with the current value: a change
+	// in between is then seen by one of the two, and both apply the value the
+	// parameter has when they run.
+	c.removeHook = pm.AddPostSetCallback(func(ps []params.Parameter) {
+		for _, p := range ps {
+			if p.Name == "use_sim_time" {
+				c.syncUseSim()
+				return
+			}
+		}
+	})
+	c.syncUseSim()
 	return c, nil
 }
 
-// IsSimTime reports whether the clock is currently using simulated time.
+// syncUseSim switches to simulated or system time to match the use_sim_time
+// parameter as it is now.
+func (c *Clock) syncUseSim() {
+	c.switchMu.Lock()
+	defer c.switchMu.Unlock()
+	p, ok := c.pm.Get("use_sim_time")
+	c.setUseSimLocked(ok && p.Value.Kind == params.KindBool && p.Value.Bool)
+}
+
 func (c *Clock) IsSimTime() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -199,10 +212,14 @@ func (c *Clock) Shutdown() {
 		c.removeHook()
 		c.removeHook = nil
 	}
-	c.setUseSim(false)
+	c.switchMu.Lock()
+	defer c.switchMu.Unlock()
+	c.setUseSimLocked(false)
 }
 
-func (c *Clock) setUseSim(enable bool) {
+// setUseSimLocked switches between system and simulated time. switchMu must
+// be held.
+func (c *Clock) setUseSimLocked(enable bool) {
 	c.mu.Lock()
 	if c.useSim == enable {
 		c.mu.Unlock()

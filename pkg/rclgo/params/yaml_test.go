@@ -42,7 +42,7 @@ ros__parameters:
 `
 	path := writeTemp(t, td, "params.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 
 	if err := LoadYAML(m, "ignored_node", path); err != nil {
 		t.Fatalf("LoadYAML: %v", err)
@@ -92,7 +92,7 @@ param_demo:
 `
 	path := writeTemp(t, td, "node_params.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 
 	if err := LoadYAML(m, "param_demo", path); err != nil {
 		t.Fatalf("LoadYAML: %v", err)
@@ -114,7 +114,7 @@ some_other_key:
 `
 	path := writeTemp(t, td, "bad.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	err := LoadYAML(m, "param_demo", path)
 	if err == nil || !strings.Contains(err.Error(), "no ros__parameters block") {
 		t.Fatalf("expected missing block error, got: %v", err)
@@ -131,7 +131,7 @@ ros__parameters:
 `
 	path := writeTemp(t, td, "unsupported.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	err := LoadYAML(m, "node", path)
 	if err == nil || !strings.Contains(err.Error(), "unsupported YAML type for complex") {
 		t.Fatalf("expected unsupported type error, got: %v", err)
@@ -146,7 +146,7 @@ ros__parameters:
 `
 	path := writeTemp(t, td, "override.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	// Pre-declare with different value
 	_, _ = m.Declare("k", Value{Kind: KindInt64, Int64: 0}, Descriptor{})
 
@@ -188,7 +188,7 @@ robot:
     cam: {a: 1}
     cam.a: 2
 `)
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	if err := LoadYAML(m, "/robot/camera", path); err != nil {
 		t.Fatalf("LoadYAML: %v", err)
 	}
