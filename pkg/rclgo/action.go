@@ -19,7 +19,9 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -62,6 +64,34 @@ const (
 	GoalCanceled                    // Canceled
 	GoalAborted                     // Aborted
 )
+
+// GoalFailedError is returned by ActionClient.WatchGoal, together with the
+// result, when the goal ended in a state other than GoalSucceeded (aborted,
+// canceled, or unknown to the server, e.g. because its result expired).
+type GoalFailedError struct {
+	Status GoalStatus
+}
+
+func (e *GoalFailedError) Error() string {
+	return "goal did not succeed: " + e.Status.String()
+}
+
+// resultStatus returns the Status field of a GetResult response. Every
+// generated <Action>_GetResult_Response has one.
+func resultStatus(resp types.Message) (GoalStatus, bool) {
+	v := reflect.ValueOf(resp)
+	if v.Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return 0, false
+	}
+	f := v.FieldByName("Status")
+	if !f.IsValid() || f.Kind() != reflect.Int8 {
+		return 0, false
+	}
+	return GoalStatus(f.Int()), true
+}
 
 type FeedbackSender struct{ goal *GoalHandle }
 
@@ -865,17 +895,76 @@ func NewDefaultActionClientOptions() *ActionClientOptions {
 
 type actionClientHandler = func(context.Context, types.Message)
 
-type actionClientHandlerMapEntry struct {
+// handlerQueue delivers messages to one feedback or status handler in the
+// order they arrived, from at most one goroutine at a time, as rclcpp and rclpy
+// deliver them in order on their executor. It stops delivering when stopped or
+// when its context ends; a handler call already running is not interrupted.
+type handlerQueue struct {
 	ctx     context.Context //nolint:containedctx // track lifetimes
 	handler actionClientHandler
+	logger  *Logger
+
+	mu      sync.Mutex
+	pending []types.Message
+	running bool
+	stopped bool
 }
 
-type actionClientHandlerMap map[uint64]actionClientHandlerMapEntry
+func (q *handlerQueue) push(msg types.Message) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.stopped || q.ctx.Err() != nil {
+		return
+	}
+	q.pending = append(q.pending, msg)
+	if !q.running {
+		q.running = true
+		go q.drain()
+	}
+}
+
+func (q *handlerQueue) drain() {
+	for {
+		q.mu.Lock()
+		if q.stopped || q.ctx.Err() != nil || len(q.pending) == 0 {
+			q.running = false
+			if q.stopped || q.ctx.Err() != nil {
+				q.pending = nil
+			}
+			q.mu.Unlock()
+			return
+		}
+		msg := q.pending[0]
+		q.pending[0] = nil
+		q.pending = q.pending[1:]
+		q.mu.Unlock()
+		q.deliver(msg)
+	}
+}
+
+// deliver calls the handler. A panicking handler is logged instead of ending
+// the process, since it runs on a goroutine of rclgo's.
+func (q *handlerQueue) deliver(msg types.Message) {
+	defer func() {
+		if r := recover(); r != nil {
+			q.logger.Errorf("action client handler panicked: %v\n%s", r, debug.Stack()) //nolint:errcheck
+		}
+	}()
+	q.handler(q.ctx, msg)
+}
+
+func (q *handlerQueue) stop() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.stopped = true
+	q.pending = nil
+}
+
+type actionClientHandlerMap map[uint64]*handlerQueue
 
 func (m actionClientHandlerMap) call(msg types.Message) {
-	for _, entry := range m {
-		entry := entry
-		go func() { entry.handler(entry.ctx, msg.CloneMsg()) }()
+	for _, q := range m {
+		q.push(msg.CloneMsg())
 	}
 }
 
@@ -990,12 +1079,17 @@ func (c *ActionClient) fini() error {
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCastC(rc, "failed to finalize action client"))
 	}
-	c.typeSupport = nil
+	// typeSupport stays set: methods called after Close use it to build their
+	// request before the rcl call reports ErrClosed.
 	return err
 }
 
 func (c *ActionClient) Node() *Node { return c.node }
 
+// WatchGoal sends goal, calls onFeedback (if not nil) with its feedback, in
+// order, and waits for its result. If the goal is rejected it returns an error;
+// if it ends in a state other than GoalSucceeded it returns the result and a
+// *GoalFailedError with the final status.
 func (c *ActionClient) WatchGoal(ctx context.Context, goal types.Message, onFeedback FeedbackHandler) (result types.Message, goalID *types.GoalID, retErr error) {
 	req, err := c.newSendGoalRequest(goal)
 	if err != nil {
@@ -1032,7 +1126,13 @@ func (c *ActionClient) WatchGoal(ctx context.Context, goal types.Message, onFeed
 		return nil, req.GetGoalID(), errors.New("goal was rejected")
 	}
 	result, err = c.GetResult(ctx, req.GetGoalID())
-	return result, req.GetGoalID(), err
+	if err != nil {
+		return result, req.GetGoalID(), err
+	}
+	if status, ok := resultStatus(result); ok && status != GoalSucceeded {
+		return result, req.GetGoalID(), &GoalFailedError{Status: status}
+	}
+	return result, req.GetGoalID(), nil
 }
 
 func (c *ActionClient) SendGoal(ctx context.Context, goal types.Message) (types.Message, *types.GoalID, error) {
@@ -1172,21 +1272,22 @@ func (c *ActionClient) WatchFeedback(ctx context.Context, goalID *types.GoalID, 
 func (c *ActionClient) subscribe(ctx context.Context, subs *actionClientSubs, id *types.GoalID, handler actionClientHandler) (unsubscribe func()) {
 	c.rclClientMu.Lock()
 	defer c.rclClientMu.Unlock()
+	q := &handlerQueue{ctx: ctx, handler: handler, logger: c.node.Logger()}
 	// A status watcher first gets the latest known status, so that it also
 	// learns the state of goals whose status does not change again.
 	if subs == &c.statusSubs {
 		for goalID, status := range c.lastStatus {
 			if id == nil || goalID == *id {
-				status := status.CloneMsg()
-				go handler(ctx, status)
+				q.push(status.CloneMsg())
 			}
 		}
 	}
 	if id == nil {
 		subID := c.nextSubscriberID
 		c.nextSubscriberID++
-		subs.allGoals[subID] = actionClientHandlerMapEntry{ctx: ctx, handler: handler}
+		subs.allGoals[subID] = q
 		return func() {
+			q.stop()
 			c.rclClientMu.Lock()
 			defer c.rclClientMu.Unlock()
 			delete(subs.allGoals, subID)
@@ -1200,8 +1301,9 @@ func (c *ActionClient) subscribe(ctx context.Context, subs *actionClientSubs, id
 	}
 	subID := c.nextSubscriberID
 	c.nextSubscriberID++
-	handlers[subID] = actionClientHandlerMapEntry{ctx: ctx, handler: handler}
+	handlers[subID] = q
 	return func() {
+		q.stop()
 		c.rclClientMu.Lock()
 		defer c.rclClientMu.Unlock()
 		if handlers := subs.perGoal[goalID]; handlers != nil {
