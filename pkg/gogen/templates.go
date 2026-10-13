@@ -323,6 +323,7 @@ type C{{$Md.Name}}__Sequence = C.{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}}__Se
 
 func {{$Md.Name}}__Sequence_to_Go(goSlice *[]{{$Md.Name}}, cSlice C{{$Md.Name}}__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]{{$Md.Name}}, cSlice.size)
@@ -332,13 +333,16 @@ func {{$Md.Name}}__Sequence_to_Go(goSlice *[]{{$Md.Name}}, cSlice C{{$Md.Name}}_
 	}
 }
 func {{$Md.Name}}__Sequence_to_C(cSlice *C{{$Md.Name}}__Sequence, goSlice []{{$Md.Name}}) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}}__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}})(C.malloc(C.sizeof_struct_{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}} * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}})(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}}))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -732,6 +736,7 @@ package primitives
 
 #include "rosidl_runtime_c/string.h"
 #include "rosidl_runtime_c/primitives_sequence.h"
+#include "rosidl_runtime_c/primitives_sequence_functions.h"
 
 */
 import "C"
@@ -746,6 +751,7 @@ type C{{.RosType | ucFirst}}__Sequence = C.rosidl_runtime_c__{{.CStructName}}__S
 
 func {{.RosType | ucFirst}}__Sequence_to_Go(goSlice *[]{{.GoType}}, cSlice C{{.RosType | ucFirst}}__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]{{.GoType}}, cSlice.size)
@@ -755,6 +761,8 @@ func {{.RosType | ucFirst}}__Sequence_to_Go(goSlice *[]{{.GoType}}, cSlice C{{.R
 	}
 }
 func {{.RosType | ucFirst}}__Sequence_to_C(cSlice *C{{.RosType | ucFirst}}__Sequence, goSlice []{{.GoType}}) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__{{.CStructName}}__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0

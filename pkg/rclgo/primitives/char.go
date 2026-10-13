@@ -12,6 +12,7 @@ package primitives
 /*
 #include "string.h"
 #include "rosidl_runtime_c/primitives_sequence.h"
+#include "rosidl_runtime_c/primitives_sequence_functions.h"
 */
 import "C"
 import (
@@ -26,6 +27,7 @@ type CChar__Sequence = C.rosidl_runtime_c__char__Sequence
 
 func Char__Sequence_to_Go(goSlice *[]byte, cSlice CChar__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]byte, cSlice.size)
@@ -33,6 +35,8 @@ func Char__Sequence_to_Go(goSlice *[]byte, cSlice CChar__Sequence) {
 	copy(*goSlice, src)
 }
 func Char__Sequence_to_C(cSlice *CChar__Sequence, goSlice []byte) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__char__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0

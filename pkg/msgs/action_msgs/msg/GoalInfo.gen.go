@@ -160,6 +160,7 @@ type CGoalInfo__Sequence = C.action_msgs__msg__GoalInfo__Sequence
 
 func GoalInfo__Sequence_to_Go(goSlice *[]GoalInfo, cSlice CGoalInfo__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]GoalInfo, cSlice.size)
@@ -169,13 +170,16 @@ func GoalInfo__Sequence_to_Go(goSlice *[]GoalInfo, cSlice CGoalInfo__Sequence) {
 	}
 }
 func GoalInfo__Sequence_to_C(cSlice *CGoalInfo__Sequence, goSlice []GoalInfo) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.action_msgs__msg__GoalInfo__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.action_msgs__msg__GoalInfo)(C.malloc(C.sizeof_struct_action_msgs__msg__GoalInfo * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.action_msgs__msg__GoalInfo)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_action_msgs__msg__GoalInfo))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

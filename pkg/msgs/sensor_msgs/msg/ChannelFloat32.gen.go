@@ -162,6 +162,7 @@ type CChannelFloat32__Sequence = C.sensor_msgs__msg__ChannelFloat32__Sequence
 
 func ChannelFloat32__Sequence_to_Go(goSlice *[]ChannelFloat32, cSlice CChannelFloat32__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ChannelFloat32, cSlice.size)
@@ -171,13 +172,16 @@ func ChannelFloat32__Sequence_to_Go(goSlice *[]ChannelFloat32, cSlice CChannelFl
 	}
 }
 func ChannelFloat32__Sequence_to_C(cSlice *CChannelFloat32__Sequence, goSlice []ChannelFloat32) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__ChannelFloat32__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__ChannelFloat32)(C.malloc(C.sizeof_struct_sensor_msgs__msg__ChannelFloat32 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__ChannelFloat32)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__ChannelFloat32))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

@@ -174,6 +174,7 @@ type CCancelGoal_Response__Sequence = C.action_msgs__srv__CancelGoal_Response__S
 
 func CancelGoal_Response__Sequence_to_Go(goSlice *[]CancelGoal_Response, cSlice CCancelGoal_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]CancelGoal_Response, cSlice.size)
@@ -183,13 +184,16 @@ func CancelGoal_Response__Sequence_to_Go(goSlice *[]CancelGoal_Response, cSlice 
 	}
 }
 func CancelGoal_Response__Sequence_to_C(cSlice *CCancelGoal_Response__Sequence, goSlice []CancelGoal_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.action_msgs__srv__CancelGoal_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.action_msgs__srv__CancelGoal_Response)(C.malloc(C.sizeof_struct_action_msgs__srv__CancelGoal_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.action_msgs__srv__CancelGoal_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_action_msgs__srv__CancelGoal_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

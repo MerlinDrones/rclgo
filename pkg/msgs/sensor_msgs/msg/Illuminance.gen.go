@@ -164,6 +164,7 @@ type CIlluminance__Sequence = C.sensor_msgs__msg__Illuminance__Sequence
 
 func Illuminance__Sequence_to_Go(goSlice *[]Illuminance, cSlice CIlluminance__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Illuminance, cSlice.size)
@@ -173,13 +174,16 @@ func Illuminance__Sequence_to_Go(goSlice *[]Illuminance, cSlice CIlluminance__Se
 	}
 }
 func Illuminance__Sequence_to_C(cSlice *CIlluminance__Sequence, goSlice []Illuminance) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__Illuminance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__Illuminance)(C.malloc(C.sizeof_struct_sensor_msgs__msg__Illuminance * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__Illuminance)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__Illuminance))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

@@ -158,6 +158,7 @@ type CPose__Sequence = C.geometry_msgs__msg__Pose__Sequence
 
 func Pose__Sequence_to_Go(goSlice *[]Pose, cSlice CPose__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Pose, cSlice.size)
@@ -167,13 +168,16 @@ func Pose__Sequence_to_Go(goSlice *[]Pose, cSlice CPose__Sequence) {
 	}
 }
 func Pose__Sequence_to_C(cSlice *CPose__Sequence, goSlice []Pose) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Pose__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Pose)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Pose * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Pose)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Pose))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

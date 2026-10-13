@@ -163,6 +163,7 @@ type CTransitionDescription__Sequence = C.lifecycle_msgs__msg__TransitionDescrip
 
 func TransitionDescription__Sequence_to_Go(goSlice *[]TransitionDescription, cSlice CTransitionDescription__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]TransitionDescription, cSlice.size)
@@ -172,13 +173,16 @@ func TransitionDescription__Sequence_to_Go(goSlice *[]TransitionDescription, cSl
 	}
 }
 func TransitionDescription__Sequence_to_C(cSlice *CTransitionDescription__Sequence, goSlice []TransitionDescription) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__msg__TransitionDescription__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__msg__TransitionDescription)(C.malloc(C.sizeof_struct_lifecycle_msgs__msg__TransitionDescription * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__msg__TransitionDescription)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__msg__TransitionDescription))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

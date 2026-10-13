@@ -213,6 +213,7 @@ type CStrings__Sequence = C.test_msgs__msg__Strings__Sequence
 
 func Strings__Sequence_to_Go(goSlice *[]Strings, cSlice CStrings__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Strings, cSlice.size)
@@ -222,13 +223,16 @@ func Strings__Sequence_to_Go(goSlice *[]Strings, cSlice CStrings__Sequence) {
 	}
 }
 func Strings__Sequence_to_C(cSlice *CStrings__Sequence, goSlice []Strings) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__Strings__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__Strings)(C.malloc(C.sizeof_struct_test_msgs__msg__Strings * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__Strings)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__Strings))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

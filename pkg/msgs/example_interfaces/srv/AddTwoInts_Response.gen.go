@@ -153,6 +153,7 @@ type CAddTwoInts_Response__Sequence = C.example_interfaces__srv__AddTwoInts_Resp
 
 func AddTwoInts_Response__Sequence_to_Go(goSlice *[]AddTwoInts_Response, cSlice CAddTwoInts_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]AddTwoInts_Response, cSlice.size)
@@ -162,13 +163,16 @@ func AddTwoInts_Response__Sequence_to_Go(goSlice *[]AddTwoInts_Response, cSlice 
 	}
 }
 func AddTwoInts_Response__Sequence_to_C(cSlice *CAddTwoInts_Response__Sequence, goSlice []AddTwoInts_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__srv__AddTwoInts_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__srv__AddTwoInts_Response)(C.malloc(C.sizeof_struct_example_interfaces__srv__AddTwoInts_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__srv__AddTwoInts_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__srv__AddTwoInts_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

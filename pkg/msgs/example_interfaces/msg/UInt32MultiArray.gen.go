@@ -162,6 +162,7 @@ type CUInt32MultiArray__Sequence = C.example_interfaces__msg__UInt32MultiArray__
 
 func UInt32MultiArray__Sequence_to_Go(goSlice *[]UInt32MultiArray, cSlice CUInt32MultiArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]UInt32MultiArray, cSlice.size)
@@ -171,13 +172,16 @@ func UInt32MultiArray__Sequence_to_Go(goSlice *[]UInt32MultiArray, cSlice CUInt3
 	}
 }
 func UInt32MultiArray__Sequence_to_C(cSlice *CUInt32MultiArray__Sequence, goSlice []UInt32MultiArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__UInt32MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__UInt32MultiArray)(C.malloc(C.sizeof_struct_example_interfaces__msg__UInt32MultiArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__UInt32MultiArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__UInt32MultiArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

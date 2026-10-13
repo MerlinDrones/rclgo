@@ -157,6 +157,7 @@ type CSetParametersAtomically_Request__Sequence = C.rcl_interfaces__srv__SetPara
 
 func SetParametersAtomically_Request__Sequence_to_Go(goSlice *[]SetParametersAtomically_Request, cSlice CSetParametersAtomically_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetParametersAtomically_Request, cSlice.size)
@@ -166,13 +167,16 @@ func SetParametersAtomically_Request__Sequence_to_Go(goSlice *[]SetParametersAto
 	}
 }
 func SetParametersAtomically_Request__Sequence_to_C(cSlice *CSetParametersAtomically_Request__Sequence, goSlice []SetParametersAtomically_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__srv__SetParametersAtomically_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__srv__SetParametersAtomically_Request)(C.malloc(C.sizeof_struct_rcl_interfaces__srv__SetParametersAtomically_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__srv__SetParametersAtomically_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__srv__SetParametersAtomically_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

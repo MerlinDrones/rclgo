@@ -164,6 +164,7 @@ type CMultiArrayDimension__Sequence = C.std_msgs__msg__MultiArrayDimension__Sequ
 
 func MultiArrayDimension__Sequence_to_Go(goSlice *[]MultiArrayDimension, cSlice CMultiArrayDimension__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]MultiArrayDimension, cSlice.size)
@@ -173,13 +174,16 @@ func MultiArrayDimension__Sequence_to_Go(goSlice *[]MultiArrayDimension, cSlice 
 	}
 }
 func MultiArrayDimension__Sequence_to_C(cSlice *CMultiArrayDimension__Sequence, goSlice []MultiArrayDimension) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__MultiArrayDimension__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__MultiArrayDimension)(C.malloc(C.sizeof_struct_std_msgs__msg__MultiArrayDimension * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__MultiArrayDimension)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__MultiArrayDimension))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

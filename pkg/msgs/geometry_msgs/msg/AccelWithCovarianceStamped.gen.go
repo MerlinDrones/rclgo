@@ -159,6 +159,7 @@ type CAccelWithCovarianceStamped__Sequence = C.geometry_msgs__msg__AccelWithCova
 
 func AccelWithCovarianceStamped__Sequence_to_Go(goSlice *[]AccelWithCovarianceStamped, cSlice CAccelWithCovarianceStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]AccelWithCovarianceStamped, cSlice.size)
@@ -168,13 +169,16 @@ func AccelWithCovarianceStamped__Sequence_to_Go(goSlice *[]AccelWithCovarianceSt
 	}
 }
 func AccelWithCovarianceStamped__Sequence_to_C(cSlice *CAccelWithCovarianceStamped__Sequence, goSlice []AccelWithCovarianceStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__AccelWithCovarianceStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__AccelWithCovarianceStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__AccelWithCovarianceStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__AccelWithCovarianceStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__AccelWithCovarianceStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
