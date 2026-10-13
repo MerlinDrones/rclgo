@@ -253,35 +253,36 @@ string input
 func TestCErrorTypeParser(t *testing.T) {
 	SetDefaultFailureMode(FailureContinues)
 	Convey("", t, func() {
-		et := parseROS2ErrorType("/// Success return code.")
+		p := newErrorTypeParser()
+		et := p.parse("/// Success return code.")
 		So(et, ShouldBeNil)
-		So(ros2errorTypesCommentsBuffer.String(), ShouldEqual, "Success return code.")
+		So(p.comments.String(), ShouldEqual, "Success return code.")
 
-		et = parseROS2ErrorType("#define RCL_RET_OK RMW_RET_OK")
+		et = p.parse("#define RCL_RET_OK RMW_RET_OK")
 		So(et, ShouldResemble, &ROS2ErrorType{
 			Name:      "RCL_RET_OK",
 			Rcl_ret_t: "",
 			Reference: "RMW_RET_OK",
 			Comment:   "Success return code.",
 		})
-		So(ros2errorTypesCommentsBuffer.Len(), ShouldEqual, 0)
+		So(p.comments.Len(), ShouldEqual, 0)
 
-		et = parseROS2ErrorType("/// This comment is flushed because it is not part of a continuous stream.")
+		et = p.parse("/// This comment is flushed because it is not part of a continuous stream.")
 		So(et, ShouldBeNil)
-		So(ros2errorTypesCommentsBuffer.Len(), ShouldBeGreaterThan, 0)
+		So(p.comments.Len(), ShouldBeGreaterThan, 0)
 
-		et = parseROS2ErrorType("")
+		et = p.parse("")
 		So(et, ShouldBeNil)
-		So(ros2errorTypesCommentsBuffer.String(), ShouldEqual, "")
+		So(p.comments.String(), ShouldEqual, "")
 
-		et = parseROS2ErrorType("#define RCL_RET_NOT_INIT 101")
+		et = p.parse("#define RCL_RET_NOT_INIT 101")
 		So(et, ShouldResemble, &ROS2ErrorType{
 			Name:      "RCL_RET_NOT_INIT",
 			Rcl_ret_t: "101",
 			Reference: "",
 			Comment:   "",
 		})
-		So(ros2errorTypesCommentsBuffer.Len(), ShouldEqual, 0)
+		So(p.comments.Len(), ShouldEqual, 0)
 	})
 }
 

@@ -33,9 +33,11 @@ func (n *Node) GetNodeNames() (names, namespaces []string, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
 	rcnames := C.rcutils_get_zero_initialized_string_array()
-	defer C.rcutils_string_array_fini(&rcnames)
+	defer func() { joinFiniErr(&err, C.rcl_ret_t(C.rcutils_string_array_fini(&rcnames)), "node names") }()
 	rcnamespaces := C.rcutils_get_zero_initialized_string_array()
-	defer C.rcutils_string_array_fini(&rcnamespaces)
+	defer func() {
+		joinFiniErr(&err, C.rcl_ret_t(C.rcutils_string_array_fini(&rcnamespaces)), "node namespaces")
+	}()
 	rc := C.rcl_get_node_names(
 		n.rcl_node_t,
 		*n.context.rcl_allocator_t,
@@ -136,7 +138,7 @@ func (n *Node) getNamesAndTypes(
 		node, namespace *C.char,
 		namesAndTypes *C.rmw_names_and_types_t,
 	) C.int,
-) (map[string][]string, error) {
+) (_ map[string][]string, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
 	cnode := C.CString(node)
@@ -144,7 +146,7 @@ func (n *Node) getNamesAndTypes(
 	cnamespace := C.CString(namespace)
 	defer C.free(unsafe.Pointer(cnamespace))
 	cnamesAndTypes := C.rcl_get_zero_initialized_names_and_types()
-	defer C.rcl_names_and_types_fini(&cnamesAndTypes)
+	defer func() { joinFiniErr(&err, C.rcl_names_and_types_fini(&cnamesAndTypes), "names and types") }()
 	rc := get(cnode, cnamespace, &cnamesAndTypes)
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to get topic names and types")
@@ -201,13 +203,15 @@ func (n *Node) getInfoByTopic(kind, topic string, mangle bool, get func(
 	topic *C.char,
 	noMangle C.bool,
 	infoArray *C.rmw_topic_endpoint_info_array_t,
-) C.int) ([]TopicEndpointInfo, error) {
+) C.int) (_ []TopicEndpointInfo, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
 	ctopic := C.CString(topic)
 	defer C.free(unsafe.Pointer(ctopic))
 	infoArray := C.rmw_get_zero_initialized_topic_endpoint_info_array()
-	defer C.rmw_topic_endpoint_info_array_fini(&infoArray, n.context.rcl_allocator_t)
+	defer func() {
+		joinFiniErr(&err, C.rcl_ret_t(C.rmw_topic_endpoint_info_array_fini(&infoArray, n.context.rcl_allocator_t)), "endpoint info")
+	}()
 	rc := get(ctopic, !C.bool(mangle), &infoArray)
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to get "+kind+" info by topic")

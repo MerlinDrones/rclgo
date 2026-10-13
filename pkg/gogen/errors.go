@@ -26,6 +26,7 @@ func prepareErrorTypesCFileMatchingRegexp() {
 func (g *Generator) GenerateROS2ErrorTypes() error {
 	destFilePath := filepath.Join(g.config.DestPath, "pkg/rclgo/errortypes.gen.go")
 	var errorTypes []*ROS2ErrorType
+	parser := newErrorTypeParser()
 
 	for _, includeLookupDir := range g.config.RootPaths {
 		for tries := 0; tries < 10; tries++ {
@@ -34,7 +35,7 @@ func (g *Generator) GenerateROS2ErrorTypes() error {
 			filepath.Walk(includeLookupDir, func(path string, info os.FileInfo, err error) error { //nolint:errcheck
 				if err == nil && re.M(path, errorTypesCFileMatchingRegexp) {
 					PrintErrf("Analyzing: %s\n", path)
-					errorTypes, err = generateGolangErrorTypesFromROS2ErrorDefinitionsPath(errorTypes, path)
+					errorTypes, err = parser.parseFile(errorTypes, path)
 					if err != nil {
 						PrintErrf("Error converting ROS2 Errors from '%s' to '%s', error: %v\n", path, destFilePath, err)
 					}
@@ -64,19 +65,35 @@ func (g *Generator) GenerateROS2ErrorTypes() error {
 		templateData{
 			"errorTypes":  errorTypes,
 			"includes":    cErrorTypeFiles,
-			"dedupFilter": ros2errorTypesDeduplicationFilter,
+			"dedupFilter": parser.dedupFilter,
 		},
 	)
 }
 
-func generateGolangErrorTypesFromROS2ErrorDefinitionsPath(errorTypes []*ROS2ErrorType, path string) ([]*ROS2ErrorType, error) {
+// errorTypeParser parses rcl and rmw error code definitions. Its state belongs
+// to one generation run, so that generating twice in a process gives the same
+// result.
+type errorTypeParser struct {
+	comments    strings.Builder   // Collect pre-field comments here to be included in the comments. Flushed on empty lines.
+	dedupMap    map[string]string // Some RMW and RCL error codes overlap, so we need to deduplicate them from the dynamic type casting switch-case
+	dedupFilter map[string]string // Entries ending up here actually filter template entries
+}
+
+func newErrorTypeParser() *errorTypeParser {
+	return &errorTypeParser{
+		dedupMap:    make(map[string]string, 1024),
+		dedupFilter: make(map[string]string, 1024),
+	}
+}
+
+func (p *errorTypeParser) parseFile(errorTypes []*ROS2ErrorType, path string) ([]*ROS2ErrorType, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, line := range strings.Split(string(content), "\n") {
-		errType := parseROS2ErrorType(line)
+		errType := p.parse(line)
 		if errType != nil {
 			errorTypes = append(errorTypes, errType)
 		}
@@ -85,11 +102,7 @@ func generateGolangErrorTypesFromROS2ErrorDefinitionsPath(errorTypes []*ROS2Erro
 	return errorTypes, nil
 }
 
-var ros2errorTypesCommentsBuffer = strings.Builder{}                  // Collect pre-field comments here to be included in the comments. Flushed on empty lines.
-var ros2errorTypesDeduplicationMap = make(map[string]string, 1024)    // Some RMW and RCL error codes overlap, so we need to deduplicate them from the dynamic type casting switch-case
-var ros2errorTypesDeduplicationFilter = make(map[string]string, 1024) // Entries ending up here actually filter template entries
-
-func parseROS2ErrorType(row string) *ROS2ErrorType {
+func (p *errorTypeParser) parse(row string) *ROS2ErrorType {
 	if re.M(row, `m!
 		^
 		\#define\s+
@@ -102,21 +115,21 @@ func parseROS2ErrorType(row string) *ROS2ErrorType {
 			Name:      re.R0.Z["name"],
 			Rcl_ret_t: re.R0.Z["int"],
 			Reference: re.R0.Z["reference"],
-			Comment:   commentSerializer(re.R0.Z["comment"], &ros2errorTypesCommentsBuffer),
+			Comment:   commentSerializer(re.R0.Z["comment"], &p.comments),
 		}
-		ros2errorTypesCommentsBuffer.Reset()
-		updateROS2errorTypesDeduplicationMap(et.Rcl_ret_t, et.Name)
+		p.comments.Reset()
+		p.updateDeduplicationMap(et.Rcl_ret_t, et.Name)
 		return et
 
 	} else if re.M(row, `m!/{2,}\s*(.+)$!`) { // this is a comment line
 		if re.R0.S[1] != "" {
-			ros2errorTypesCommentsBuffer.WriteString(re.R0.S[1])
+			p.comments.WriteString(re.R0.S[1])
 		}
 
 		return nil
 
 	} else if row == "" { // do not process empty lines or comment lines
-		ros2errorTypesCommentsBuffer.Reset()
+		p.comments.Reset()
 
 		return nil
 
@@ -124,11 +137,11 @@ func parseROS2ErrorType(row string) *ROS2ErrorType {
 	return nil
 }
 
-func updateROS2errorTypesDeduplicationMap(rcl_ret_t string, name string) {
-	_, ok := ros2errorTypesDeduplicationMap[rcl_ret_t]
+func (p *errorTypeParser) updateDeduplicationMap(rcl_ret_t string, name string) {
+	_, ok := p.dedupMap[rcl_ret_t]
 	if ok {
-		ros2errorTypesDeduplicationFilter[name] = rcl_ret_t // If the rcl_ret_t was taken, deduplicate
+		p.dedupFilter[name] = rcl_ret_t // If the rcl_ret_t was taken, deduplicate
 	} else {
-		ros2errorTypesDeduplicationMap[rcl_ret_t] = name // On first match, simply register that the map key is taken
+		p.dedupMap[rcl_ret_t] = name // On first match, simply register that the map key is taken
 	}
 }

@@ -663,7 +663,13 @@ func (s *ActionServer) handleCancelRequest() {
 	go func() {
 		defer ts.Request().ReleaseMemory(reqBuf)
 		respBuf := C.rcl_action_get_zero_initialized_cancel_response()
-		defer C.rcl_action_cancel_response_fini(&respBuf)
+		defer func() {
+			runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+			defer runtime.UnlockOSThread()
+			if rc := C.rcl_action_cancel_response_fini(&respBuf); rc != C.RCL_RET_OK {
+				s.node.Logger().Error(errorsCastC(rc, "failed to finalize cancel response")) //nolint:errcheck
+			}
+		}()
 		err := s.withServer(func() error {
 			runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 			defer runtime.UnlockOSThread()
@@ -740,7 +746,11 @@ func (s *ActionServer) publishStatusesLocked() {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
 	statuses := C.rcl_action_get_zero_initialized_goal_status_array()
-	defer C.rcl_action_goal_status_array_fini(&statuses)
+	defer func() {
+		if rc := C.rcl_action_goal_status_array_fini(&statuses); rc != C.RCL_RET_OK {
+			s.node.Logger().Error(errorsCastC(rc, "failed to finalize status array")) //nolint:errcheck
+		}
+	}()
 	rc := C.rcl_action_get_goal_status_array(&s.rclServer, &statuses)
 	if rc != C.RCL_RET_OK {
 		s.node.Logger().Error("failed to get status array: ", errorsCast(rc))

@@ -27,6 +27,7 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -244,6 +245,11 @@ type Context struct {
 	// its nodes.
 	spinnersMu sync.Mutex
 	spinners   map[*WaitSet]struct{}
+
+	// leakedNodes counts nodes that could not be finalized. rcl and the
+	// middleware still use the context for them, so it is not finalized
+	// either; its memory is leaked instead of being freed while in use.
+	leakedNodes atomic.Int32
 }
 
 // NewContext calls NewContextWithOpts with default options except for
@@ -302,7 +308,12 @@ func NewContextWithOpts(rclArgs *Args, opts *ContextOptions) (ctx *Context, err 
 		return nil, errorsCast(rc)
 	}
 	// rcl_init copies the options into the context.
-	defer C.rcl_init_options_fini(&rcl_init_options_t)
+	defer func() {
+		if rc := C.rcl_init_options_fini(&rcl_init_options_t); rc != C.RCL_RET_OK {
+			// Only memory is lost; the context is usable.
+			GetLogger("rclgo").Error(errorsCastC(rc, "failed to finalize init options")) //nolint:errcheck
+		}
+	}()
 	rc = C.rcl_init_options_set_domain_id(&rcl_init_options_t, C.size_t(opts.DomainID))
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCast(rc)
@@ -357,6 +368,13 @@ func (c *Context) fini() error {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
 	errs := c.rosResourceStore.closeAll(nil)
+	if n := c.leakedNodes.Load(); n > 0 && c.rcl_context_t != nil {
+		// rcl_context_fini would free the middleware context under the
+		// nodes' feet (rcl frees it even when the middleware refuses).
+		c.rcl_context_t = nil
+		c.rcl_allocator_t = nil
+		return errors.Join(errs, fmt.Errorf("context not finalized because %d of its nodes could not be; its memory is leaked", n))
+	}
 	if c.rcl_context_t != nil {
 		if rc := C.rcl_shutdown(c.rcl_context_t); rc != C.RCL_RET_OK {
 			errs = errors.Join(errs, errorsCastC(rc, fmt.Sprintf("C.rcl_shutdown(%+v)", c.rcl_context_t)))
@@ -394,12 +412,17 @@ func (c *Context) Spin(ctx context.Context) error {
 
 // spin waits for and handles the resources in store, following changes to it,
 // until an error occurs or ctx is canceled.
-func (c *Context) spin(ctx context.Context, store *rosResourceStore) error {
+func (c *Context) spin(ctx context.Context, store *rosResourceStore) (err error) {
 	ws, err := c.NewWaitSet()
 	if err != nil {
 		return err
 	}
-	defer ws.Close()
+	defer func() {
+		var closed closeError
+		if cerr := ws.Close(); cerr != nil && !errors.As(cerr, &closed) {
+			err = errors.Join(err, cerr)
+		}
+	}()
 	if err := ws.followResources(store); err != nil {
 		return err
 	}
@@ -412,9 +435,10 @@ func (c *Context) resourcesChanged() {
 	defer c.spinnersMu.Unlock()
 	for ws := range c.spinners {
 		// A failed trigger only delays the refresh until the wait set
-		// wakes for another reason, so there is nothing better to do with
-		// the error.
-		ws.refresh.Trigger() //nolint:errcheck
+		// wakes for another reason.
+		if err := ws.refresh.Trigger(); err != nil {
+			GetLogger("rclgo").Error("waking the wait set for new entities failed: ", err) //nolint:errcheck
+		}
 	}
 }
 
