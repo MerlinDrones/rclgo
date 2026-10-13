@@ -324,6 +324,11 @@ func scenarioAction(*testing.T) []error {
 				default:
 				}
 			})
+			// The goal is canceled below, so WatchGoal reports it as failed.
+			var failed *rclgo.GoalFailedError
+			if errors.As(err, &failed) && failed.Status == rclgo.GoalCanceled {
+				return
+			}
 			if !errors.Is(err, context.Canceled) {
 				e.add(err)
 			}
