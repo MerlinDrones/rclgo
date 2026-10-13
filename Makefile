@@ -33,6 +33,19 @@ test-race:
 test-rmw:
 	tools/test-rmw.sh -count=1 ./...
 
+# Makes every rcl call that test scenarios reach fail in turn
+# (pkg/rclgo/internal/faultinject); RCLGO_FAULT_CALLS sets how many calls of
+# each function (default 2).
+.PHONY: test-faults
+test-faults:
+	RCLGO_FAULT_SWEEP=1 go test -count=1 -timeout 90m -run TestFaultSweep -v ./pkg/rclgo/internal/faultinject/
+
+# Fails if the suite covers less than COVERAGE_MIN percent of rclgo's own
+# code; writes coverage.out.
+.PHONY: cover
+cover:
+	tools/coverage.sh
+
 .PHONY: test-verbose
 test-verbose:
 	export LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH

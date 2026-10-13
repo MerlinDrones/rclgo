@@ -37,6 +37,12 @@ jobs:
       - name: Run tests on every installed RMW
         run: make test-rmw
 
+      - name: Make every rcl call fail in turn
+        run: make test-faults
+
+      - name: Check test coverage
+        run: make cover
+
   run-linter:
     runs-on: ubuntu-latest
     container: ghcr.io/merlindrones/fog-ros-baseimage-builder:sha-7fca749

@@ -230,3 +230,30 @@ func TestGenerateAllInstalledPackages(t *testing.T) {
 		t.Fatalf("building the generated bindings: %v\n%s", err, out)
 	}
 }
+
+func TestParseMessageAndRules(t *testing.T) {
+	msg, err := ParseMessage(&DefaultConfig, "# comment\nint32 a 5\nstring B = \"b\"\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msg.Fields) != 1 || msg.Fields[0].RosName != "a" || len(msg.Constants) != 1 || msg.Constants[0].RosName != "B" {
+		t.Errorf("parsed %+v %+v", msg.Fields, msg.Constants)
+	}
+	if _, err := ParseMessage(&DefaultConfig, "not valid at all"); err == nil {
+		t.Error("ParseMessage accepted an invalid definition")
+	}
+
+	rule, err := NewRule("std_.*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := RuleSet{rule}
+	for pkg, want := range map[string]bool{"std_msgs": true, "std_srvs": true, "my_std_msgs": false, "": false} {
+		if set.Includes(pkg) != want {
+			t.Errorf("Includes(%q) = %v", pkg, !want)
+		}
+	}
+	if _, err := NewRule("("); err == nil {
+		t.Error("NewRule accepted an invalid pattern")
+	}
+}
