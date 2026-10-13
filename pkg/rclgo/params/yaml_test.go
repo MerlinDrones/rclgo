@@ -163,3 +163,48 @@ ros__parameters:
 		t.Errorf("k: got %d, want 10 (YAML should override declared value)", p.Value.Int64)
 	}
 }
+
+// Like rcl's --params-file: every section matching the node applies in file
+// order ("/**", the fully qualified name, nested namespace keys, wildcards),
+// a later one overriding an earlier one; other nodes' sections are ignored.
+func TestLoadYAML_AllMatchingSectionsInOrder(t *testing.T) {
+	td := t.TempDir()
+	path := writeTemp(t, td, "params.yaml", `
+/**:
+  ros__parameters:
+    use_sim_time: true
+    shared: 1
+robot:
+  camera:
+    ros__parameters:
+      shared: 2
+      fps: 30
+/robot/other:
+  ros__parameters:
+    nope: 1
+/*/camera:
+  ros__parameters:
+    star: 5
+    cam: {a: 1}
+    cam.a: 2
+`)
+	m := &Manager{st: newStore()}
+	if err := LoadYAML(m, "/robot/camera", path); err != nil {
+		t.Fatalf("LoadYAML: %v", err)
+	}
+	for name, want := range map[string]Value{
+		"use_sim_time": {Kind: KindBool, Bool: true},
+		"shared":       {Kind: KindInt64, Int64: 2},
+		"fps":          {Kind: KindInt64, Int64: 30},
+		"star":         {Kind: KindInt64, Int64: 5},
+		"cam.a":        {Kind: KindInt64, Int64: 2}, // the later spelling wins
+	} {
+		p, ok := m.Get(name)
+		if !ok || p.Value.Kind != want.Kind || p.Value.Bool != want.Bool || p.Value.Int64 != want.Int64 {
+			t.Errorf("%s: got %+v (present %v), want %+v", name, p.Value, ok, want)
+		}
+	}
+	if _, ok := m.Get("nope"); ok {
+		t.Error("a section for another node was applied")
+	}
+}
