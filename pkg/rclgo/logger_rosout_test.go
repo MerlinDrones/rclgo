@@ -143,10 +143,13 @@ func TestLoggerMethodsReachRosout(t *testing.T) {
 }
 
 func TestLoggerLevels(t *testing.T) {
-	parent := rclgo.GetLogger("levels_test")
+	// Logger levels are process-wide: a unique name keeps repeated and
+	// reordered runs independent.
+	name := fmt.Sprintf("levels_test%d", time.Now().UnixNano())
+	parent := rclgo.GetLogger(name)
 	child := parent.Child("child")
-	require.Equal(t, "levels_test.child", child.Name())
-	require.Equal(t, "levels_test", child.Parent().Name())
+	require.Equal(t, name+".child", child.Name())
+	require.Equal(t, name, child.Parent().Name())
 
 	require.NoError(t, parent.SetLevel(rclgo.LogSeverityWarn))
 	level, err := parent.Level()
