@@ -2,8 +2,8 @@ package params_test
 
 import (
 	"fmt"
+	"go.uber.org/goleak"
 	"math"
-	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -25,7 +25,7 @@ import (
 
 func TestMain(m *testing.M) {
 	rclgotest.UseIsolatedDomain()
-	os.Exit(m.Run())
+	goleak.VerifyTestMain(m)
 }
 
 func i64(v int64) *int64     { return &v }

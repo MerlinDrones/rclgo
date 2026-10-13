@@ -96,6 +96,7 @@ These come from Go's runtime and cgo rather than from ROS, so the rclcpp/rclpy s
 | rcl error text stays with its goroutine (rcl's error state is per OS thread) | always on | `TestRCLErrorTextBelongsToItsCall` |
 | Many contexts in parallel goroutines | always on | `TestContextsInParallel` |
 | No goroutine left after everything is closed | always on | `TestNoGoroutineLeaks` |
+| No goroutine left when a test package finishes (goleak) | always on | `TestMain` in `pkg/rclgo`, `params`, `rostime`, `internal/faultinject` |
 | A panic in a callback reaches Spin's caller and leaves the context closable | always on | `TestPanicInCallbackReachesSpinCaller` |
 | Garbage-collector stress on finalizers (goal handles, `Args`, loggers) | `GOGC=1 go test ./pkg/...` | whole suite |
 | cgo pointer-passing rules | `GOEXPERIMENT=cgocheck2 go test ./pkg/...` | whole suite |

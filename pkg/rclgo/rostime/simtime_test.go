@@ -3,7 +3,7 @@ package rostime_test
 import (
 	"context"
 	"fmt"
-	"os"
+	"go.uber.org/goleak"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,7 +24,7 @@ import (
 
 func TestMain(m *testing.M) {
 	rclgotest.UseIsolatedDomain()
-	os.Exit(m.Run())
+	goleak.VerifyTestMain(m)
 }
 
 // simulator publishes /clock from its own context, as Gazebo or a bag
