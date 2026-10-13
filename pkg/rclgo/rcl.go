@@ -28,6 +28,9 @@ package rclgo
 #include <rmw/rmw.h>
 
 // Defined in logging.go; they hold rclgo's logging mutex.
+rcl_ret_t rclgo_node_init(rcl_node_t* node, const char* name, const char* namespace_,
+    rcl_context_t* context, const rcl_node_options_t* options);
+rcl_ret_t rclgo_node_fini(rcl_node_t* node);
 rcl_ret_t rclgo_rosout_init_publisher_for_node(rcl_node_t* node);
 rcl_ret_t rclgo_rosout_fini_publisher_for_node(rcl_node_t* node);
 
@@ -413,7 +416,7 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 	cnamespace := C.CString(namespace)
 	defer C.free(unsafe.Pointer(cnamespace))
 	rcl_node_options := C.rcl_node_get_default_options()
-	rc := C.rcl_node_init(
+	rc := C.rclgo_node_init(
 		node.rcl_node_t,
 		cname,
 		cnamespace,
@@ -499,7 +502,7 @@ func (n *Node) fini() (err error) {
 		n.rosoutInitialized = false
 	}
 
-	if rc := C.rcl_node_fini(n.rcl_node_t); rc != C.RCL_RET_OK {
+	if rc := C.rclgo_node_fini(n.rcl_node_t); rc != C.RCL_RET_OK {
 		return leak(errorsCast(rc))
 	}
 	C.free(unsafe.Pointer(n.rcl_node_t))
