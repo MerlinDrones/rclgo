@@ -122,13 +122,6 @@ func normalizeMsgDefaultArrayValue(defaultsField string) string {
 }
 
 func defaultValueSanitizer(ros2type string, defaultValue string) string {
-	switch ros2type {
-	// CSV parser removes the double quotes only, here we invoke the defaults parsing directly, and need to deal with double quotations manually
-	case "string", "wstring", "U16String":
-		if defaultValue != "" {
-			re.S(&defaultValue, `s!(?:^")|(?:"$)!!gsm`)
-		}
-	}
 	return defaultValueSanitizer_(ros2type, defaultValue)
 }
 
@@ -141,14 +134,6 @@ func splitMsgDefaultArrayValues(ros2type string, defaultsField string) []string 
 	if err != nil && !errors.Is(err, io.EOF) {
 		PrintErrf("%+v", err)
 	}
-	switch ros2type {
-	// ROS2 string defaults CAN be quoted differently than how Golang MUST be quoted.
-	case "string", "wstring", "U16String":
-		for i := range defaultValues {
-			defaultValues[i] = defaultValueSanitizer_(ros2type, defaultValues[i])
-		}
-	}
-
 	return defaultValues
 }
 
@@ -157,18 +142,24 @@ func defaultValueSanitizer_(ros2type, defaultValue string) string {
 		return v
 	}
 	switch ros2type {
-	// ROS2 string defaults CAN be quoted differently than how Golang MUST be quoted.
 	case "string", "wstring", "U16String":
-		if defaultValue != "" {
-			re.S(&defaultValue, `s!(?:^')|(?:'$)!!gsm`)
-			re.S(&defaultValue, `s!(?:\\)?"!\"!gsm`)
-			re.S(&defaultValue, `s!(?:\\)?'!'!gsm`)
-			re.S(&defaultValue, `s!(?:^)|(?:$)!"!gsm`)
-		} else {
-			defaultValue = "\"\""
-		}
+		// The value rosidl reads, as a Go string literal.
+		return strconv.Quote(rosidlStringValue(strings.TrimSpace(defaultValue)))
 	}
 	return defaultValue
+}
+
+// rosidlStringValue returns the value of a string default or constant as
+// rosidl_adapter reads it (parse_primitive_value_string): one pair of matching
+// outer quotes is removed, and inside them only an escaped quote of that kind
+// is unescaped; any other backslash is part of the value.
+func rosidlStringValue(s string) string {
+	for _, q := range []string{`"`, `'`} {
+		if len(s) >= 2 && strings.HasPrefix(s, q) && strings.HasSuffix(s, q) {
+			return strings.ReplaceAll(s[1:len(s)-1], `\`+q, q)
+		}
+	}
+	return s
 }
 
 func srvNameFromSrvMsgName(s string) string {

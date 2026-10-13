@@ -224,8 +224,14 @@ string input
 		So(splitMsgDefaultArrayValues("int", ``), ShouldResemble, nilAry)
 		So(splitMsgDefaultArrayValues("int", `[]`), ShouldResemble, nilAry)
 		So(splitMsgDefaultArrayValues("int", `[1,2,3]`), ShouldResemble, []string{`1`, `2`, `3`})
-		So(splitMsgDefaultArrayValues("string", `["", "this is a", "test msg"]`), ShouldResemble, []string{`""`, `"this is a"`, `"test msg"`})
-		So(splitMsgDefaultArrayValues("string", `[1  ,  2 ,   "3"]`), ShouldResemble, []string{`"1  "`, `"2 "`, `"3"`})
+		So(splitMsgDefaultArrayValues("string", `["", "this is a", "test msg"]`), ShouldResemble, []string{``, `this is a`, `test msg`})
+		So(splitMsgDefaultArrayValues("string", `[1  ,  2 ,   "3"]`), ShouldResemble, []string{`1  `, `2 `, `3`})
+		// String values as rosidl reads them: outer quotes removed, only an
+		// escaped quote of the same kind unescaped, other backslashes kept.
+		So(defaultValueSanitizer("string", `'a\b'`), ShouldEqual, `"a\\b"`)
+		So(defaultValueSanitizer("string", `'it\'s'`), ShouldEqual, `"it's"`)
+		So(defaultValueSanitizer("string", `"tab\t"`), ShouldEqual, `"tab\\t"`)
+		So(defaultValueSanitizer("string", `unquoted`), ShouldEqual, `"unquoted"`)
 		So(defaultValueSanitizer("string", `"Hello world!"`), ShouldEqual, `"Hello world!"`)
 		So(defaultValueSanitizer("string", `"Hello\"world!"`), ShouldEqual, `"Hello\"world!"`)
 	})

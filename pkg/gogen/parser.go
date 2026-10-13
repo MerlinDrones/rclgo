@@ -217,8 +217,18 @@ func (p *parser) parseMessageLine(testRow string, ros2msg *ROS2Message) (interfa
 		p.ros2messagesCommentsBuffer.Reset()
 		return nil, nil
 	}
+	// As rosidl_adapter does, a comment starts at the first '#' of the line,
+	// even right after a value ("int32 x 5#c") or inside quotes.
+	comment, hasComment := "", false
+	if i := strings.IndexByte(testRow, '#'); i >= 0 {
+		comment, hasComment = strings.TrimSpace(strings.TrimLeft(testRow[i:], "#")), true
+		testRow = strings.TrimSpace(testRow[:i])
+	}
 
 	typeChar, capture := isRowConstantOrField(testRow)
+	if hasComment && capture != nil {
+		capture["comment"] = comment
+	}
 	switch typeChar {
 	case 'c':
 		con, err := p.ParseROS2MessageConstant(capture)
@@ -231,6 +241,7 @@ func (p *parser) parseMessageLine(testRow string, ros2msg *ROS2Message) (interfa
 		if err != nil {
 			return nil, fmt.Errorf("invalid field '%s': %w", testRow, err)
 		}
+		f.GoName = uniqueFieldGoName(f.GoName, ros2msg)
 		return f, nil
 	}
 	return nil, fmt.Errorf("couldn't parse the input row as either ROS2 Field or Constant? input '%s'", testRow)
@@ -717,4 +728,33 @@ func checkPrimitiveValue(rosType, value string, stringBound int) error {
 		return nil
 	}
 	return nil
+}
+
+// generatedMethods are the methods generated on message types; a field may not
+// have one of these Go names.
+var generatedMethods = map[string]bool{
+	"CallForEach": true, "Clone": true, "CloneMsg": true, "GetGoalAccepted": true,
+	"GetGoalDescription": true, "GetGoalID": true, "GetTypeSupport": true,
+	"SetDefaults": true, "SetGoalDescription": true, "SetGoalID": true,
+}
+
+// uniqueFieldGoName returns name, with underscores appended (as rclpy appends
+// one to Python keywords) if it is the name of a generated method or of an
+// earlier field of msg: a_1 and a1 both become A1 in Go.
+func uniqueFieldGoName(name string, msg *ROS2Message) string {
+	taken := func(n string) bool {
+		if generatedMethods[n] {
+			return true
+		}
+		for _, f := range msg.Fields {
+			if f.GoName == n {
+				return true
+			}
+		}
+		return false
+	}
+	for taken(name) {
+		name += "_"
+	}
+	return name
 }

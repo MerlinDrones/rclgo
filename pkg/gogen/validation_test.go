@@ -248,3 +248,49 @@ func TestParseMessageAndRules(t *testing.T) {
 		t.Error("NewRule accepted an invalid pattern")
 	}
 }
+
+// As rosidl_adapter, a comment starts at the first '#', also right after a
+// value.
+func TestCommentRightAfterValue(t *testing.T) {
+	msg, err := ParseMessage(&DefaultConfig, "int32 x 5#c\nstring S='a'#d\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msg.Fields) != 1 || msg.Fields[0].DefaultValue != "5" || msg.Fields[0].Comment != "c" {
+		t.Errorf("field: %+v", msg.Fields)
+	}
+	if len(msg.Constants) != 1 || msg.Constants[0].Value != "'a'" || msg.Constants[0].Comment != "d" {
+		t.Errorf("constant: %+v", msg.Constants)
+	}
+}
+
+// Fields whose Go names would collide with a generated method or with an
+// earlier field get underscores appended, so the generated code compiles.
+func TestFieldGoNameCollisions(t *testing.T) {
+	msg, err := ParseMessage(&DefaultConfig, "int32 clone\nint32 set_defaults\nint32 a_1\nint32 a1\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range msg.Fields {
+		got = append(got, f.GoName)
+	}
+	want := []string{"Clone_", "SetDefaults_", "A1", "A1_"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("Go names %v, want %v", got, want)
+	}
+}
+
+// Paths too short to hold <package>/<type>/<Name>.<ext> are an error, not a
+// panic (a relative root path produced them).
+func TestParseMetadataFromShortPaths(t *testing.T) {
+	for _, p := range []string{"msg/Foo.msg", "Foo.msg", "pkg/msg/Foo", ""} {
+		if _, err := parseMetadataFromPath(p); err == nil {
+			t.Errorf("%q: no error", p)
+		}
+	}
+	m, err := parseMetadataFromPath("share/my_pkg/msg/Foo.msg")
+	if err != nil || m.Package != "my_pkg" || m.Type != "msg" || m.Name != "Foo" {
+		t.Errorf("got %+v, %v", m, err)
+	}
+}
