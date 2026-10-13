@@ -81,9 +81,14 @@ import (
 
 // pkg/rclgo/rcl.go
 // ...
-// qosToC writes a qos.Profile into a rmw_qos_profile_t.
-// qosToC writes a qos.Profile into a rmw_qos_profile_t.
-func qosToC(p qos.Profile, dst *C.rmw_qos_profile_t) {
+// qosToC writes a qos.Profile into a rmw_qos_profile_t after normalizing it
+// (KeepLast with a depth below 1 uses depth 1) and validating it: a negative
+// depth or an unknown policy value is an error instead of reaching rmw.
+func qosToC(p qos.Profile, dst *C.rmw_qos_profile_t) error {
+	p.Normalize()
+	if err := p.Validate(); err != nil {
+		return fmt.Errorf("invalid QoS profile: %w", err)
+	}
 	deadlineSec, deadlineNsec := qos.DurationToRMW(p.Deadline)
 	lifespanSec, lifespanNsec := qos.DurationToRMW(p.Lifespan)
 	leaseSec, leaseNsec := qos.DurationToRMW(p.LivelinessLeaseDuration)
@@ -99,6 +104,7 @@ func qosToC(p qos.Profile, dst *C.rmw_qos_profile_t) {
 		C.uint64_t(leaseSec), C.uint64_t(leaseNsec),
 		C.bool(p.AvoidROSNamespaceConventions),
 	)
+	return nil
 }
 
 // qosFromC creates a qos.Profile from a rmw_qos_profile_t.
@@ -631,7 +637,9 @@ func (n *Node) NewPublisher(
 	defer onErr(&err, pub.Close)
 	rcl_publisher_options_t := C.rcl_publisher_get_default_options()
 	rcl_publisher_options_t.allocator = *n.context.rcl_allocator_t
-	qosToC(options.Qos, &rcl_publisher_options_t.qos)
+	if err := qosToC(options.Qos, &rcl_publisher_options_t.qos); err != nil {
+		return nil, err
+	}
 
 	var rc C.rcl_ret_t = C.rcl_publisher_init(
 		pub.rcl_publisher_t,
@@ -1077,7 +1085,9 @@ func (n *Node) NewSubscription(
 	defer onErr(&err, sub.Close)
 	rclOpts := C.rcl_subscription_get_default_options()
 	rclOpts.allocator = *n.context.rcl_allocator_t
-	qosToC(options.Qos, &rclOpts.qos)
+	if err := qosToC(options.Qos, &rclOpts.qos); err != nil {
+		return nil, err
+	}
 
 	rc := C.rcl_subscription_init(
 		sub.rcl_subscription_t,
@@ -1341,7 +1351,9 @@ func (n *Node) NewService(
 	*s.rclService = C.rcl_get_zero_initialized_service()
 	defer onErr(&err, s.Close)
 	opts := C.rcl_service_options_t{allocator: *n.context.rcl_allocator_t}
-	qosToC(options.Qos, &opts.qos)
+	if err := qosToC(options.Qos, &opts.qos); err != nil {
+		return nil, err
+	}
 	retCode := C.rcl_service_init(
 		s.rclService,
 		n.rcl_node_t,
@@ -1475,7 +1487,9 @@ func (n *Node) NewClient(
 	*c.rclClient = C.rcl_get_zero_initialized_client()
 	defer onErr(&err, c.Close)
 	opts := C.rcl_client_options_t{allocator: *n.context.rcl_allocator_t}
-	qosToC(options.Qos, &opts.qos)
+	if err := qosToC(options.Qos, &opts.qos); err != nil {
+		return nil, err
+	}
 	cserviceName := C.CString(serviceName)
 	defer C.free(unsafe.Pointer(cserviceName))
 	rc := C.rcl_client_init(

@@ -20,6 +20,8 @@ import (
 	example_interfaces_srv "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/srv"
 	std_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -210,4 +212,35 @@ func TestWaitSetRunsAgainAfterPanic(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	require.Positive(t, ticks, "the second Run did not service the timer")
+}
+
+// An invalid QoS profile (here a negative depth, which would wrap to a huge
+// size in C) is an error instead of reaching rmw.
+func TestNegativeQoSDepthIsAnError(t *testing.T) {
+	rclctx := newSpinTestContext(t)
+	node, err := rclctx.NewNode("bad_qos", "/race_test")
+	require.NoError(t, err)
+	opts := rclgo.NewDefaultPublisherOptions()
+	opts.Qos.History = qos.HistorySystemDefault
+	opts.Qos.Depth = -1
+	_, err = node.NewPublisher("topic", std_msgs_msg.StringTypeSupport, opts)
+	require.ErrorContains(t, err, "negative")
+}
+
+// A zero ActionServerOptions takes the defaults, as rclcpp starts from
+// rcl_action_server_get_default_options: finished goals keep their results
+// for clients to fetch (a zero result timeout discarded them at once).
+func TestZeroActionServerOptionsKeepResults(t *testing.T) {
+	f := newActionFixture(t, "zero_opts", &rclgo.ActionServerOptions{}, func(_ context.Context, goal *rclgo.GoalHandle) (types.Message, error) {
+		if _, err := goal.Accept(); err != nil {
+			return nil, err
+		}
+		return fibResult(1, 1), nil
+	})
+	resp, id := f.sendGoal(2)
+	require.True(t, resp.Accepted)
+	time.Sleep(200 * time.Millisecond) // the goal finishes; its result must still be there
+	res := f.getResult(id)
+	require.EqualValues(t, rclgo.GoalSucceeded, res.Status)
+	require.Equal(t, []int32{1, 1}, res.Result.Sequence)
 }
