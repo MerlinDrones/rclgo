@@ -32,6 +32,7 @@ void rcutils_log_wrapper(
 
 #include <pthread.h>
 #include <rcl/logging_rosout.h>
+#include <rcl/node.h>
 
 // The Go output handler (logginghandler.go).
 extern void loggingOutputHandler(rcutils_log_location_t* location, int severity, char* name,
@@ -93,7 +94,25 @@ static rcutils_ret_t rclgo_set_logger_level(const char* name, int level) {
     return rc;
 }
 
-// Used by rcl.go when nodes are created and closed.
+// Used by rcl.go when nodes are created and closed. rcl_node_init and
+// rcl_node_fini also take the mutex, as rclcpp's NodeBase holds its logging
+// mutex around them: creating and finalizing nodes on several threads at once
+// crashed in rcl_node_fini without it.
+rcl_ret_t rclgo_node_init(rcl_node_t* node, const char* name, const char* namespace_,
+    rcl_context_t* context, const rcl_node_options_t* options) {
+    rclgo_logging_lock();
+    rcl_ret_t rc = rcl_node_init(node, name, namespace_, context, options);
+    rclgo_logging_unlock();
+    return rc;
+}
+
+rcl_ret_t rclgo_node_fini(rcl_node_t* node) {
+    rclgo_logging_lock();
+    rcl_ret_t rc = rcl_node_fini(node);
+    rclgo_logging_unlock();
+    return rc;
+}
+
 rcl_ret_t rclgo_rosout_init_publisher_for_node(rcl_node_t* node) {
     rclgo_logging_lock();
     rcl_ret_t rc = rcl_logging_rosout_init_publisher_for_node(node);
