@@ -12,7 +12,6 @@ package qos
 import (
 	"errors"
 	"fmt"
-	"time"
 )
 
 // Normalize mutates q to a canonical form.
@@ -35,9 +34,6 @@ func (q *Profile) Normalize() {
 	if q.LivelinessLeaseDuration < 0 {
 		q.LivelinessLeaseDuration = 0
 	}
-	if q.Liveliness == LivelinessAutomatic {
-		q.LivelinessLeaseDuration = 0
-	}
 }
 
 // Validate checks internal consistency; call after Normalize.
@@ -55,25 +51,22 @@ func (q Profile) Validate() error {
 	}
 
 	switch q.Reliability {
-	case ReliabilityBestEffort, ReliabilityReliable, ReliabilitySystemDefault, ReliabilityUnknown:
+	case ReliabilityBestEffort, ReliabilityReliable, ReliabilitySystemDefault, ReliabilityUnknown, ReliabilityBestAvailable:
 	default:
 		return fmt.Errorf("invalid Reliability=%v", q.Reliability)
 	}
 	switch q.Durability {
-	case DurabilityVolatile, DurabilityTransientLocal, DurabilitySystemDefault, DurabilityUnknown:
+	case DurabilityVolatile, DurabilityTransientLocal, DurabilitySystemDefault, DurabilityUnknown, DurabilityBestAvailable:
 	default:
 		return fmt.Errorf("invalid Durability=%v", q.Durability)
 	}
 	switch q.Liveliness {
-	case LivelinessAutomatic, LivelinessManualByTopic, LivelinessSystemDefault, LivelinessUnknown:
+	case LivelinessAutomatic, LivelinessManualByTopic, LivelinessSystemDefault, LivelinessUnknown, LivelinessBestAvailable:
 	default:
 		return fmt.Errorf("invalid Liveliness=%v", q.Liveliness)
 	}
-
-	const year = 365 * 24 * time.Hour
-	if q.Lifespan > 100*year || q.Deadline > 100*year || q.LivelinessLeaseDuration > 100*year {
-		return errors.New("duration too large (>100y)")
-	}
+	// Every time.Duration fits an rmw_time_t; DurationInfinite is
+	// RMW_DURATION_INFINITE.
 	return nil
 }
 
