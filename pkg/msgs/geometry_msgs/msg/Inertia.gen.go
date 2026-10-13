@@ -188,6 +188,7 @@ type CInertia__Sequence = C.geometry_msgs__msg__Inertia__Sequence
 
 func Inertia__Sequence_to_Go(goSlice *[]Inertia, cSlice CInertia__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Inertia, cSlice.size)
@@ -197,13 +198,16 @@ func Inertia__Sequence_to_Go(goSlice *[]Inertia, cSlice CInertia__Sequence) {
 	}
 }
 func Inertia__Sequence_to_C(cSlice *CInertia__Sequence, goSlice []Inertia) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Inertia__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Inertia)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Inertia * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Inertia)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Inertia))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

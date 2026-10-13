@@ -165,6 +165,7 @@ type CNestedMessage_Feedback__Sequence = C.test_msgs__action__NestedMessage_Feed
 
 func NestedMessage_Feedback__Sequence_to_Go(goSlice *[]NestedMessage_Feedback, cSlice CNestedMessage_Feedback__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]NestedMessage_Feedback, cSlice.size)
@@ -174,13 +175,16 @@ func NestedMessage_Feedback__Sequence_to_Go(goSlice *[]NestedMessage_Feedback, c
 	}
 }
 func NestedMessage_Feedback__Sequence_to_C(cSlice *CNestedMessage_Feedback__Sequence, goSlice []NestedMessage_Feedback) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__NestedMessage_Feedback__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__NestedMessage_Feedback)(C.malloc(C.sizeof_struct_test_msgs__action__NestedMessage_Feedback * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__NestedMessage_Feedback)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__NestedMessage_Feedback))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

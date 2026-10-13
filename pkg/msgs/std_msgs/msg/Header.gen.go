@@ -160,6 +160,7 @@ type CHeader__Sequence = C.std_msgs__msg__Header__Sequence
 
 func Header__Sequence_to_Go(goSlice *[]Header, cSlice CHeader__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Header, cSlice.size)
@@ -169,13 +170,16 @@ func Header__Sequence_to_Go(goSlice *[]Header, cSlice CHeader__Sequence) {
 	}
 }
 func Header__Sequence_to_C(cSlice *CHeader__Sequence, goSlice []Header) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Header__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Header)(C.malloc(C.sizeof_struct_std_msgs__msg__Header * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Header)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Header))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

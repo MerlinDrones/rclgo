@@ -164,6 +164,7 @@ type CRelativeHumidity__Sequence = C.sensor_msgs__msg__RelativeHumidity__Sequenc
 
 func RelativeHumidity__Sequence_to_Go(goSlice *[]RelativeHumidity, cSlice CRelativeHumidity__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]RelativeHumidity, cSlice.size)
@@ -173,13 +174,16 @@ func RelativeHumidity__Sequence_to_Go(goSlice *[]RelativeHumidity, cSlice CRelat
 	}
 }
 func RelativeHumidity__Sequence_to_C(cSlice *CRelativeHumidity__Sequence, goSlice []RelativeHumidity) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__RelativeHumidity__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__RelativeHumidity)(C.malloc(C.sizeof_struct_sensor_msgs__msg__RelativeHumidity * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__RelativeHumidity)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__RelativeHumidity))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

@@ -402,6 +402,7 @@ type CUnboundedSequences__Sequence = C.test_msgs__msg__UnboundedSequences__Seque
 
 func UnboundedSequences__Sequence_to_Go(goSlice *[]UnboundedSequences, cSlice CUnboundedSequences__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]UnboundedSequences, cSlice.size)
@@ -411,13 +412,16 @@ func UnboundedSequences__Sequence_to_Go(goSlice *[]UnboundedSequences, cSlice CU
 	}
 }
 func UnboundedSequences__Sequence_to_C(cSlice *CUnboundedSequences__Sequence, goSlice []UnboundedSequences) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__UnboundedSequences__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__UnboundedSequences)(C.malloc(C.sizeof_struct_test_msgs__msg__UnboundedSequences * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__UnboundedSequences)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__UnboundedSequences))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

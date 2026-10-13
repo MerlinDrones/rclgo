@@ -161,6 +161,7 @@ type CTwistWithCovariance__Sequence = C.geometry_msgs__msg__TwistWithCovariance_
 
 func TwistWithCovariance__Sequence_to_Go(goSlice *[]TwistWithCovariance, cSlice CTwistWithCovariance__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]TwistWithCovariance, cSlice.size)
@@ -170,13 +171,16 @@ func TwistWithCovariance__Sequence_to_Go(goSlice *[]TwistWithCovariance, cSlice 
 	}
 }
 func TwistWithCovariance__Sequence_to_C(cSlice *CTwistWithCovariance__Sequence, goSlice []TwistWithCovariance) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__TwistWithCovariance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__TwistWithCovariance)(C.malloc(C.sizeof_struct_geometry_msgs__msg__TwistWithCovariance * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__TwistWithCovariance)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__TwistWithCovariance))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

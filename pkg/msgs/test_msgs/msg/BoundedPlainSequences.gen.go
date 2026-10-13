@@ -386,6 +386,7 @@ type CBoundedPlainSequences__Sequence = C.test_msgs__msg__BoundedPlainSequences_
 
 func BoundedPlainSequences__Sequence_to_Go(goSlice *[]BoundedPlainSequences, cSlice CBoundedPlainSequences__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BoundedPlainSequences, cSlice.size)
@@ -395,13 +396,16 @@ func BoundedPlainSequences__Sequence_to_Go(goSlice *[]BoundedPlainSequences, cSl
 	}
 }
 func BoundedPlainSequences__Sequence_to_C(cSlice *CBoundedPlainSequences__Sequence, goSlice []BoundedPlainSequences) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__BoundedPlainSequences__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__BoundedPlainSequences)(C.malloc(C.sizeof_struct_test_msgs__msg__BoundedPlainSequences * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__BoundedPlainSequences)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__BoundedPlainSequences))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

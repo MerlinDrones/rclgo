@@ -219,6 +219,7 @@ type CBasicTypes_Response__Sequence = C.test_msgs__srv__BasicTypes_Response__Seq
 
 func BasicTypes_Response__Sequence_to_Go(goSlice *[]BasicTypes_Response, cSlice CBasicTypes_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BasicTypes_Response, cSlice.size)
@@ -228,13 +229,16 @@ func BasicTypes_Response__Sequence_to_Go(goSlice *[]BasicTypes_Response, cSlice 
 	}
 }
 func BasicTypes_Response__Sequence_to_C(cSlice *CBasicTypes_Response__Sequence, goSlice []BasicTypes_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__srv__BasicTypes_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__srv__BasicTypes_Response)(C.malloc(C.sizeof_struct_test_msgs__srv__BasicTypes_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__srv__BasicTypes_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__srv__BasicTypes_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

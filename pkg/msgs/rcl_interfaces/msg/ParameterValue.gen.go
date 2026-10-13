@@ -214,6 +214,7 @@ type CParameterValue__Sequence = C.rcl_interfaces__msg__ParameterValue__Sequence
 
 func ParameterValue__Sequence_to_Go(goSlice *[]ParameterValue, cSlice CParameterValue__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ParameterValue, cSlice.size)
@@ -223,13 +224,16 @@ func ParameterValue__Sequence_to_Go(goSlice *[]ParameterValue, cSlice CParameter
 	}
 }
 func ParameterValue__Sequence_to_C(cSlice *CParameterValue__Sequence, goSlice []ParameterValue) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__ParameterValue__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__ParameterValue)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__ParameterValue * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__ParameterValue)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__ParameterValue))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

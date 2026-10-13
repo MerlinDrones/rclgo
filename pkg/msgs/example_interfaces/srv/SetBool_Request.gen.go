@@ -153,6 +153,7 @@ type CSetBool_Request__Sequence = C.example_interfaces__srv__SetBool_Request__Se
 
 func SetBool_Request__Sequence_to_Go(goSlice *[]SetBool_Request, cSlice CSetBool_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetBool_Request, cSlice.size)
@@ -162,13 +163,16 @@ func SetBool_Request__Sequence_to_Go(goSlice *[]SetBool_Request, cSlice CSetBool
 	}
 }
 func SetBool_Request__Sequence_to_C(cSlice *CSetBool_Request__Sequence, goSlice []SetBool_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__srv__SetBool_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__srv__SetBool_Request)(C.malloc(C.sizeof_struct_example_interfaces__srv__SetBool_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__srv__SetBool_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__srv__SetBool_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

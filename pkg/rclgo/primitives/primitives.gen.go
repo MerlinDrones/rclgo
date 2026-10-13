@@ -12,6 +12,7 @@ package primitives
 
 #include "rosidl_runtime_c/string.h"
 #include "rosidl_runtime_c/primitives_sequence.h"
+#include "rosidl_runtime_c/primitives_sequence_functions.h"
 
 */
 import "C"
@@ -25,6 +26,7 @@ type CBool__Sequence = C.rosidl_runtime_c__boolean__Sequence
 
 func Bool__Sequence_to_Go(goSlice *[]bool, cSlice CBool__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]bool, cSlice.size)
@@ -34,6 +36,8 @@ func Bool__Sequence_to_Go(goSlice *[]bool, cSlice CBool__Sequence) {
 	}
 }
 func Bool__Sequence_to_C(cSlice *CBool__Sequence, goSlice []bool) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__boolean__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -65,6 +69,7 @@ type CByte__Sequence = C.rosidl_runtime_c__octet__Sequence
 
 func Byte__Sequence_to_Go(goSlice *[]byte, cSlice CByte__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]byte, cSlice.size)
@@ -74,6 +79,8 @@ func Byte__Sequence_to_Go(goSlice *[]byte, cSlice CByte__Sequence) {
 	}
 }
 func Byte__Sequence_to_C(cSlice *CByte__Sequence, goSlice []byte) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__octet__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -105,6 +112,7 @@ type CFloat32__Sequence = C.rosidl_runtime_c__float__Sequence
 
 func Float32__Sequence_to_Go(goSlice *[]float32, cSlice CFloat32__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]float32, cSlice.size)
@@ -114,6 +122,8 @@ func Float32__Sequence_to_Go(goSlice *[]float32, cSlice CFloat32__Sequence) {
 	}
 }
 func Float32__Sequence_to_C(cSlice *CFloat32__Sequence, goSlice []float32) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__float__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -145,6 +155,7 @@ type CFloat64__Sequence = C.rosidl_runtime_c__double__Sequence
 
 func Float64__Sequence_to_Go(goSlice *[]float64, cSlice CFloat64__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]float64, cSlice.size)
@@ -154,6 +165,8 @@ func Float64__Sequence_to_Go(goSlice *[]float64, cSlice CFloat64__Sequence) {
 	}
 }
 func Float64__Sequence_to_C(cSlice *CFloat64__Sequence, goSlice []float64) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__double__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -185,6 +198,7 @@ type CInt16__Sequence = C.rosidl_runtime_c__int16__Sequence
 
 func Int16__Sequence_to_Go(goSlice *[]int16, cSlice CInt16__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]int16, cSlice.size)
@@ -194,6 +208,8 @@ func Int16__Sequence_to_Go(goSlice *[]int16, cSlice CInt16__Sequence) {
 	}
 }
 func Int16__Sequence_to_C(cSlice *CInt16__Sequence, goSlice []int16) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__int16__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -225,6 +241,7 @@ type CInt32__Sequence = C.rosidl_runtime_c__int32__Sequence
 
 func Int32__Sequence_to_Go(goSlice *[]int32, cSlice CInt32__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]int32, cSlice.size)
@@ -234,6 +251,8 @@ func Int32__Sequence_to_Go(goSlice *[]int32, cSlice CInt32__Sequence) {
 	}
 }
 func Int32__Sequence_to_C(cSlice *CInt32__Sequence, goSlice []int32) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__int32__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -265,6 +284,7 @@ type CInt64__Sequence = C.rosidl_runtime_c__int64__Sequence
 
 func Int64__Sequence_to_Go(goSlice *[]int64, cSlice CInt64__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]int64, cSlice.size)
@@ -274,6 +294,8 @@ func Int64__Sequence_to_Go(goSlice *[]int64, cSlice CInt64__Sequence) {
 	}
 }
 func Int64__Sequence_to_C(cSlice *CInt64__Sequence, goSlice []int64) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__int64__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -305,6 +327,7 @@ type CInt8__Sequence = C.rosidl_runtime_c__int8__Sequence
 
 func Int8__Sequence_to_Go(goSlice *[]int8, cSlice CInt8__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]int8, cSlice.size)
@@ -314,6 +337,8 @@ func Int8__Sequence_to_Go(goSlice *[]int8, cSlice CInt8__Sequence) {
 	}
 }
 func Int8__Sequence_to_C(cSlice *CInt8__Sequence, goSlice []int8) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__int8__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -345,6 +370,7 @@ type CUint16__Sequence = C.rosidl_runtime_c__uint16__Sequence
 
 func Uint16__Sequence_to_Go(goSlice *[]uint16, cSlice CUint16__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]uint16, cSlice.size)
@@ -354,6 +380,8 @@ func Uint16__Sequence_to_Go(goSlice *[]uint16, cSlice CUint16__Sequence) {
 	}
 }
 func Uint16__Sequence_to_C(cSlice *CUint16__Sequence, goSlice []uint16) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__uint16__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -385,6 +413,7 @@ type CUint32__Sequence = C.rosidl_runtime_c__uint32__Sequence
 
 func Uint32__Sequence_to_Go(goSlice *[]uint32, cSlice CUint32__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]uint32, cSlice.size)
@@ -394,6 +423,8 @@ func Uint32__Sequence_to_Go(goSlice *[]uint32, cSlice CUint32__Sequence) {
 	}
 }
 func Uint32__Sequence_to_C(cSlice *CUint32__Sequence, goSlice []uint32) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__uint32__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -425,6 +456,7 @@ type CUint64__Sequence = C.rosidl_runtime_c__uint64__Sequence
 
 func Uint64__Sequence_to_Go(goSlice *[]uint64, cSlice CUint64__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]uint64, cSlice.size)
@@ -434,6 +466,8 @@ func Uint64__Sequence_to_Go(goSlice *[]uint64, cSlice CUint64__Sequence) {
 	}
 }
 func Uint64__Sequence_to_C(cSlice *CUint64__Sequence, goSlice []uint64) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__uint64__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -465,6 +499,7 @@ type CUint8__Sequence = C.rosidl_runtime_c__uint8__Sequence
 
 func Uint8__Sequence_to_Go(goSlice *[]uint8, cSlice CUint8__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]uint8, cSlice.size)
@@ -474,6 +509,8 @@ func Uint8__Sequence_to_Go(goSlice *[]uint8, cSlice CUint8__Sequence) {
 	}
 }
 func Uint8__Sequence_to_C(cSlice *CUint8__Sequence, goSlice []uint8) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__uint8__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0

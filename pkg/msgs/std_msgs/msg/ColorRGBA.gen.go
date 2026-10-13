@@ -168,6 +168,7 @@ type CColorRGBA__Sequence = C.std_msgs__msg__ColorRGBA__Sequence
 
 func ColorRGBA__Sequence_to_Go(goSlice *[]ColorRGBA, cSlice CColorRGBA__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ColorRGBA, cSlice.size)
@@ -177,13 +178,16 @@ func ColorRGBA__Sequence_to_Go(goSlice *[]ColorRGBA, cSlice CColorRGBA__Sequence
 	}
 }
 func ColorRGBA__Sequence_to_C(cSlice *CColorRGBA__Sequence, goSlice []ColorRGBA) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__ColorRGBA__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__ColorRGBA)(C.malloc(C.sizeof_struct_std_msgs__msg__ColorRGBA * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__ColorRGBA)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__ColorRGBA))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

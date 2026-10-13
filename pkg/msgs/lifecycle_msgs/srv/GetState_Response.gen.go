@@ -154,6 +154,7 @@ type CGetState_Response__Sequence = C.lifecycle_msgs__srv__GetState_Response__Se
 
 func GetState_Response__Sequence_to_Go(goSlice *[]GetState_Response, cSlice CGetState_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]GetState_Response, cSlice.size)
@@ -163,13 +164,16 @@ func GetState_Response__Sequence_to_Go(goSlice *[]GetState_Response, cSlice CGet
 	}
 }
 func GetState_Response__Sequence_to_C(cSlice *CGetState_Response__Sequence, goSlice []GetState_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__srv__GetState_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__srv__GetState_Response)(C.malloc(C.sizeof_struct_lifecycle_msgs__srv__GetState_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__srv__GetState_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__srv__GetState_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

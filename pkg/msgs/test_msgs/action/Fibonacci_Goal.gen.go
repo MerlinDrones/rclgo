@@ -153,6 +153,7 @@ type CFibonacci_Goal__Sequence = C.test_msgs__action__Fibonacci_Goal__Sequence
 
 func Fibonacci_Goal__Sequence_to_Go(goSlice *[]Fibonacci_Goal, cSlice CFibonacci_Goal__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Fibonacci_Goal, cSlice.size)
@@ -162,13 +163,16 @@ func Fibonacci_Goal__Sequence_to_Go(goSlice *[]Fibonacci_Goal, cSlice CFibonacci
 	}
 }
 func Fibonacci_Goal__Sequence_to_C(cSlice *CFibonacci_Goal__Sequence, goSlice []Fibonacci_Goal) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__Fibonacci_Goal__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__Fibonacci_Goal)(C.malloc(C.sizeof_struct_test_msgs__action__Fibonacci_Goal * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__Fibonacci_Goal)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__Fibonacci_Goal))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

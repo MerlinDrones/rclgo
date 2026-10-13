@@ -156,6 +156,7 @@ type CPolygon__Sequence = C.geometry_msgs__msg__Polygon__Sequence
 
 func Polygon__Sequence_to_Go(goSlice *[]Polygon, cSlice CPolygon__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Polygon, cSlice.size)
@@ -165,13 +166,16 @@ func Polygon__Sequence_to_Go(goSlice *[]Polygon, cSlice CPolygon__Sequence) {
 	}
 }
 func Polygon__Sequence_to_C(cSlice *CPolygon__Sequence, goSlice []Polygon) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Polygon__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Polygon)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Polygon * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Polygon)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Polygon))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

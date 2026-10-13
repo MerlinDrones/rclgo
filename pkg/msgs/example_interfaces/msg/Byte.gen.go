@@ -153,6 +153,7 @@ type CByte__Sequence = C.example_interfaces__msg__Byte__Sequence
 
 func Byte__Sequence_to_Go(goSlice *[]Byte, cSlice CByte__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Byte, cSlice.size)
@@ -162,13 +163,16 @@ func Byte__Sequence_to_Go(goSlice *[]Byte, cSlice CByte__Sequence) {
 	}
 }
 func Byte__Sequence_to_C(cSlice *CByte__Sequence, goSlice []Byte) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__Byte__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__Byte)(C.malloc(C.sizeof_struct_example_interfaces__msg__Byte * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__Byte)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__Byte))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

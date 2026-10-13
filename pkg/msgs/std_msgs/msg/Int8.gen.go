@@ -153,6 +153,7 @@ type CInt8__Sequence = C.std_msgs__msg__Int8__Sequence
 
 func Int8__Sequence_to_Go(goSlice *[]Int8, cSlice CInt8__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Int8, cSlice.size)
@@ -162,13 +163,16 @@ func Int8__Sequence_to_Go(goSlice *[]Int8, cSlice CInt8__Sequence) {
 	}
 }
 func Int8__Sequence_to_C(cSlice *CInt8__Sequence, goSlice []Int8) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Int8__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Int8)(C.malloc(C.sizeof_struct_std_msgs__msg__Int8 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Int8)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Int8))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

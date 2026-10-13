@@ -168,6 +168,7 @@ type CMagneticField__Sequence = C.sensor_msgs__msg__MagneticField__Sequence
 
 func MagneticField__Sequence_to_Go(goSlice *[]MagneticField, cSlice CMagneticField__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]MagneticField, cSlice.size)
@@ -177,13 +178,16 @@ func MagneticField__Sequence_to_Go(goSlice *[]MagneticField, cSlice CMagneticFie
 	}
 }
 func MagneticField__Sequence_to_C(cSlice *CMagneticField__Sequence, goSlice []MagneticField) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__MagneticField__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__MagneticField)(C.malloc(C.sizeof_struct_sensor_msgs__msg__MagneticField * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__MagneticField)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__MagneticField))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

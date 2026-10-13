@@ -146,6 +146,7 @@ type CEmpty_Request__Sequence = C.std_srvs__srv__Empty_Request__Sequence
 
 func Empty_Request__Sequence_to_Go(goSlice *[]Empty_Request, cSlice CEmpty_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Empty_Request, cSlice.size)
@@ -155,13 +156,16 @@ func Empty_Request__Sequence_to_Go(goSlice *[]Empty_Request, cSlice CEmpty_Reque
 	}
 }
 func Empty_Request__Sequence_to_C(cSlice *CEmpty_Request__Sequence, goSlice []Empty_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_srvs__srv__Empty_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_srvs__srv__Empty_Request)(C.malloc(C.sizeof_struct_std_srvs__srv__Empty_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_srvs__srv__Empty_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_srvs__srv__Empty_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
