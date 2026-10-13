@@ -79,6 +79,15 @@ func (m *Manager) runPostSet(changed []Parameter) {
 	}
 }
 
+// NewManager creates the parameter manager of node n: it declares
+// use_sim_time and serves the six parameter services that ros2 param and
+// rclcpp/rclpy parameter clients use, and publishes /parameter_events.
+//
+// Unlike rclcpp, which applies parameter overrides when it creates a node,
+// NewManager doesn't read any: apply them before declaring parameters, with
+// ApplyEnvVars (RCL_PARAM_* variables), LoadYAML (parameter files) and
+// ApplyOverrides (--ros-args -p and --params-file), in that order so that
+// later sources win (see ApplyEnvVars).
 func NewManager(n *rclgo.Node) (*Manager, error) {
 	m := &Manager{st: newStore(), n: n}
 	m.st.notify = m.onChange

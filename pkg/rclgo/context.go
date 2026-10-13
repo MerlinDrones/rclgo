@@ -436,6 +436,8 @@ func (c *Context) SetClock(newClock *Clock) {
 // Spin starts and waits for all ROS resources in the context that need waiting
 // such as nodes and subscriptions. Resources created while Spin is running are
 // picked up as well. Spin returns when an error occurs or ctx is canceled.
+// A panic in a callback is not recovered: it reaches Spin's caller, as
+// rclcpp's executors rethrow exceptions from callbacks.
 func (c *Context) Spin(ctx context.Context) error {
 	return spinErr("context", c.spin(ctx, &c.rosResourceStore))
 }

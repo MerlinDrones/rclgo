@@ -69,8 +69,13 @@ func main() {
 		log.Fatalf("params.NewManager: %v", err)
 	}
 
-	// If a YAML is provided, preload it first. Any names loaded here
-	// will be considered "declared", and we won't redeclare them below.
+	// Apply overrides first, lowest priority first, as rclcpp does before
+	// parameters are declared: environment variables (e.g.
+	// RCL_PARAM_camera.fps=30), then the parameter file, then the command
+	// line (e.g. --ros-args -p camera.fps:=30).
+	if err := params.ApplyEnvVars(mgr); err != nil {
+		log.Printf("[param_demo] ApplyEnvVars: %v", err)
+	}
 	if paramsPath != "" {
 		if err := params.LoadYAML(mgr, "param_demo", paramsPath); err != nil {
 			log.Printf("[param_demo] LoadYAML(%s): %v", filepath.Base(paramsPath), err)
@@ -78,47 +83,37 @@ func main() {
 			log.Printf("[param_demo] Loaded YAML params from %s", paramsPath)
 		}
 	}
-
-	// Helper: declare a parameter only if it doesn't already exist.
-	declareIfMissing := func(name string, v params.Value, d params.Descriptor) {
-		if _, ok := mgr.Get(name); ok {
-			return
-		}
-		if _, err := mgr.Declare(name, v, d); err != nil {
-			log.Printf("[param_demo] declare %s: %v", name, err)
-		}
-	}
-
-	// Declare our standard parameters (skip if YAML already provided them)
-	declareIfMissing("camera.fps",
-		params.Value{Kind: params.KindInt64, Int64: 15},
-		params.Descriptor{MinInt: i64(1), MaxInt: i64(120), Description: "Output frame rate"},
-	)
-	declareIfMissing("camera.frame_id",
-		params.Value{Kind: params.KindString, Str: "camera"},
-		params.Descriptor{Description: "TF frame for published images"},
-	)
-	declareIfMissing("camera.exposure",
-		params.Value{Kind: params.KindDouble, Double: 0.02},
-		params.Descriptor{MinDouble: f64(0.001), MaxDouble: f64(0.1), Description: "Exposure time (s)"},
-	)
-	declareIfMissing("build.git_sha",
-		params.Value{Kind: params.KindString, Str: "dev"},
-		params.Descriptor{ReadOnly: true, Description: "Build commit SHA"},
-	)
-
-	// Apply environment variables (e.g., RCL_PARAM_camera.fps=30)
-	if err := params.ApplyEnvVars(mgr); err != nil {
-		log.Printf("[param_demo] ApplyEnvVars: %v", err)
-	}
-
-	// Apply CLI parameter overrides (e.g., --ros-args -p camera.fps:=30)
-	// CLI overrides have highest priority
 	if err := params.ApplyOverrides(mgr, n.Name(), rclArgs); err != nil {
 		log.Printf("[param_demo] ApplyOverrides: %v", err)
 	} else {
 		log.Printf("[param_demo] Applied CLI parameter overrides")
 	}
+
+	// Declare the parameters. DeclareIfMissing keeps an override's value
+	// (converted to the declared type) and attaches the descriptor, so the
+	// ranges and read-only flags below apply to overridden values too; an
+	// override that violates them is reported here.
+	declare := func(name string, v params.Value, d params.Descriptor) {
+		if err := mgr.DeclareIfMissing(name, v, d); err != nil {
+			log.Printf("[param_demo] declare %s: %v", name, err)
+		}
+	}
+	declare("camera.fps",
+		params.Value{Kind: params.KindInt64, Int64: 15},
+		params.Descriptor{MinInt: i64(1), MaxInt: i64(120), Description: "Output frame rate"},
+	)
+	declare("camera.frame_id",
+		params.Value{Kind: params.KindString, Str: "camera"},
+		params.Descriptor{Description: "TF frame for published images"},
+	)
+	declare("camera.exposure",
+		params.Value{Kind: params.KindDouble, Double: 0.02},
+		params.Descriptor{MinDouble: f64(0.001), MaxDouble: f64(0.1), Description: "Exposure time (s)"},
+	)
+	declare("build.git_sha",
+		params.Value{Kind: params.KindString, Str: "dev"},
+		params.Descriptor{ReadOnly: true, Description: "Build commit SHA"},
+	)
 
 	// Maintain local copies for hot paths
 	var fps int64 = 15
