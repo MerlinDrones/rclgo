@@ -37,6 +37,13 @@ status=0
 for rmw in $RMWS; do
 	echo "=== RMW_IMPLEMENTATION=$rmw"
 	if [ "$rmw" = rmw_zenoh_cpp ]; then
+		# Another router on the port would make the sessions join it (and its
+		# network) while ours fails to start unnoticed.
+		if command -v ss >/dev/null && ss -ltn | grep -qE '[:.]7447[[:space:]]'; then
+			echo "port 7447 is already in use (another Zenoh router?); skipping $rmw" >&2
+			status=1
+			continue
+		fi
 		# The override applies to the router only; sessions connect to it on
 		# localhost by default.
 		ZENOH_CONFIG_OVERRIDE='listen/endpoints=["tcp/127.0.0.1:7447"];scouting/multicast/enabled=false' \
@@ -49,6 +56,12 @@ for rmw in $RMWS; do
 			done
 		else
 			sleep 1 # no ss to check the router's port
+		fi
+		if ! kill -0 "$router" 2>/dev/null; then
+			echo "the Zenoh router did not start; skipping $rmw" >&2
+			router=""
+			status=1
+			continue
 		fi
 	fi
 	RMW_IMPLEMENTATION=$rmw go test "${args[@]}" || status=1
