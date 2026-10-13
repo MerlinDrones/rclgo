@@ -33,12 +33,25 @@ import (
 // Timeout bounds every wait in these helpers.
 const Timeout = 10 * time.Second
 
-// UseIsolatedDomain moves the process to a random DDS domain so that tests do
-// not see other ROS traffic on the machine. Call it from TestMain before any
-// context is created; subprocesses started with ROS2 inherit it.
+// UseIsolatedDomain isolates the tests from other ROS traffic: it limits
+// discovery to this machine (ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST, unless
+// the environment sets another range) and moves the process to the domain in
+// RCLGO_TEST_DOMAIN_ID, or else to a random one. Call it from TestMain before
+// any context is created; subprocesses started with ROS2 inherit both.
 func UseIsolatedDomain() {
-	// 0-101 are valid on Linux; avoid 0, the default most systems use.
-	os.Setenv("ROS_DOMAIN_ID", strconv.Itoa(1+rand.Intn(101))) //nolint:gosec,errcheck
+	os.Setenv("ROS_DOMAIN_ID", strconv.Itoa(TestDomainID())) //nolint:errcheck
+	if os.Getenv("ROS_AUTOMATIC_DISCOVERY_RANGE") == "" {
+		os.Setenv("ROS_AUTOMATIC_DISCOVERY_RANGE", "LOCALHOST") //nolint:errcheck
+	}
+}
+
+// TestDomainID returns the domain pinned with RCLGO_TEST_DOMAIN_ID, or a
+// random one in 1-101 (valid on Linux; 0 is avoided, as most systems use it).
+func TestDomainID() int {
+	if id, err := strconv.Atoi(os.Getenv("RCLGO_TEST_DOMAIN_ID")); err == nil {
+		return id
+	}
+	return 1 + rand.Intn(101) //nolint:gosec
 }
 
 // Context returns a new context that is closed when the test ends.

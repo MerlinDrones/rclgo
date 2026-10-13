@@ -16,8 +16,10 @@ make cover                      # coverage of rclgo's own code; CI fails below t
 ```
 
 - With a Go workspace (`go.work`) that does not contain rclgo, set `GOWORK=off`.
-- `TestMain` (`pkg/rclgo/rcl_test.go`) moves the test binary to an unused DDS domain, so tests do not see other ROS
-  traffic on the machine. For extra isolation set `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`.
+- Every test package's `TestMain` isolates it from other ROS traffic: discovery is limited to this machine
+  (`ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, unless the environment sets a range), and the test binary moves to a
+  random DDS domain in 1-101 (`pkg/rclgo` uses a new one for some tests), or to the domain in `RCLGO_TEST_DOMAIN_ID`
+  if set. Pin the domain when random ones could collide with a ROS system on the same machine.
 - `examples/` builds and runs the example programs (`go generate`, `colcon build`), so it needs `colcon`.
 - The interop and `ros2` CLI tests start rclcpp/rclpy programs (`demo_nodes_cpp`, `demo_nodes_py`,
   `action_tutorials_cpp`, rclpy scripts in `pkg/rclgo/testdata/interop/`) as separate processes. They skip when the
