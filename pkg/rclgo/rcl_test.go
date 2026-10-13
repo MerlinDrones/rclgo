@@ -13,6 +13,7 @@ package rclgo_test
 
 import (
 	"fmt"
+	"go.uber.org/goleak"
 	"math/rand"
 	"os"
 	"strconv"
@@ -60,7 +61,7 @@ func setNewDomainID() {
 func TestMain(m *testing.M) {
 	rclgotest.UseIsolatedDomain()
 	setNewDomainID()
-	os.Exit(m.Run())
+	goleak.VerifyTestMain(m)
 }
 
 func ExampleParseArgs() {

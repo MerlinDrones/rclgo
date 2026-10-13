@@ -12,6 +12,7 @@ package faultinject_test
 import (
 	"context"
 	"errors"
+	"go.uber.org/goleak"
 	"strings"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ import (
 
 func TestMain(m *testing.M) {
 	rclgotest.UseIsolatedDomain()
-	m.Run()
+	goleak.VerifyTestMain(m)
 }
 
 // A call from rclgo is routed through its wrapper: the chosen call fails with
