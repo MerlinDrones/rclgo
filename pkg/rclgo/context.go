@@ -63,10 +63,20 @@ type rosResourceStore struct {
 	// added to or removed from the store. It is called without the store's
 	// mutex held.
 	onChange func()
+
+	// closed is set when closeAll starts. Resources created afterwards are
+	// refused, so that none outlives the node or context being closed.
+	closed bool
 }
 
-func (s *rosResourceStore) addResource(r rosResource) {
+// addResource adds r to the store. It returns false, without adding r, once
+// the store is being closed.
+func (s *rosResourceStore) addResource(r rosResource) bool {
 	s.mutex.Lock()
+	if s.closed {
+		s.mutex.Unlock()
+		return false
+	}
 	if s.resources == nil {
 		s.resources = make(map[uint64]rosResource)
 		// The counter starts at one to allow removing zero-initialized
@@ -78,6 +88,7 @@ func (s *rosResourceStore) addResource(r rosResource) {
 	s.idCounter++
 	s.mutex.Unlock()
 	s.changed(r)
+	return true
 }
 
 func (s *rosResourceStore) removeResource(r rosResource) {
@@ -102,6 +113,7 @@ func (s *rosResourceStore) changed(r rosResource) {
 // already closed are ignored.
 func (s *rosResourceStore) closeAll(skip func(rosResource) bool) (err error) {
 	s.mutex.Lock()
+	s.closed = true
 	resources := make([]rosResource, 0, len(s.resources))
 	for _, r := range s.resources {
 		if skip == nil || !skip(r) {
@@ -435,8 +447,9 @@ func (c *Context) resourcesChanged() {
 	defer c.spinnersMu.Unlock()
 	for ws := range c.spinners {
 		// A failed trigger only delays the refresh until the wait set
-		// wakes for another reason.
-		if err := ws.refresh.Trigger(); err != nil {
+		// wakes for another reason; a finalized one belongs to a wait set
+		// that no longer runs.
+		if err := ws.refresh.Trigger(); err != nil && !errors.Is(err, ErrClosed) {
 			GetLogger("rclgo").Error("waking the wait set for new entities failed: ", err) //nolint:errcheck
 		}
 	}

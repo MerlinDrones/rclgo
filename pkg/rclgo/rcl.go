@@ -391,6 +391,8 @@ type Node struct {
 	// rosoutInitialized is true when this node created a /rosout log
 	// publisher that must be finalized when the node is closed.
 	rosoutInitialized bool
+	// done is closed when the node is closed; Node.Spin returns then.
+	done chan struct{}
 }
 
 func NewNode(nodeName, namespace string) (*Node, error) {
@@ -403,9 +405,15 @@ func NewNode(nodeName, namespace string) (*Node, error) {
 func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The context must stay usable while the entity is created on it.
+	if !c.life.acquire() {
+		return nil, closedErr("context")
+	}
+	defer c.life.release()
 	node = &Node{
 		rcl_node_t: (*C.rcl_node_t)(C.malloc(C.sizeof_rcl_node_t)),
 		context:    c,
+		done:       make(chan struct{}),
 	}
 	node.rosResourceStore.onChange = c.resourcesChanged
 	*node.rcl_node_t = C.rcl_get_zero_initialized_node()
@@ -463,7 +471,9 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 		node.rosoutInitialized = true
 	}
 
-	c.addResource(node)
+	if !c.addResource(node) {
+		return nil, closedErr("context")
+	}
 	return node, nil
 }
 
@@ -474,6 +484,7 @@ func (n *Node) Close() error {
 	if !n.life.markClosed() {
 		return closeErr("node")
 	}
+	close(n.done)
 	n.context.removeResource(n)
 	err := n.rosResourceStore.closeAll(nil)
 	return errors.Join(err, n.life.finalize(&n.context.life, "node", n.fini))
@@ -545,9 +556,33 @@ func spinErr(spinner string, err error) error {
 
 // Spin starts and waits for all ROS resources in the node that need waiting
 // such as subscriptions. Resources created on the node while Spin is running
-// are picked up as well. Spin returns when an error occurs or ctx is canceled.
+// are picked up as well. Spin returns when an error occurs, when ctx is
+// canceled, or (with a nil error) when the node is closed. Timers belong to the
+// context, not to a node, so Node.Spin does not run them; use Context.Spin for
+// those.
 func (n *Node) Spin(ctx context.Context) error {
-	return spinErr("node", n.context.spin(ctx, &n.rosResourceStore))
+	if n.life.isClosed() {
+		return spinErr("node", closedErr("node"))
+	}
+	spinCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		select {
+		case <-n.done:
+			cancel()
+		case <-spinCtx.Done():
+		}
+	}()
+	err := n.context.spin(spinCtx, &n.rosResourceStore)
+	select {
+	case <-n.done:
+		if ctx.Err() == nil {
+			// Stopped because the node was closed.
+			return nil
+		}
+	default:
+	}
+	return spinErr("node", err)
 }
 
 type PublisherOptions struct {
@@ -577,6 +612,11 @@ func (n *Node) NewPublisher(
 ) (pub *Publisher, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The node must stay usable while the entity is created on it.
+	if !n.life.acquire() {
+		return nil, closedErr("node")
+	}
+	defer n.life.release()
 	if options == nil {
 		options = NewDefaultPublisherOptions()
 	}
@@ -604,7 +644,9 @@ func (n *Node) NewPublisher(
 		return nil, errorsCast(rc)
 	}
 
-	n.addResource(pub)
+	if !n.addResource(pub) {
+		return nil, closedErr("node")
+	}
 	return pub, nil
 }
 
@@ -714,6 +756,11 @@ func NewClock(clockType ClockType) (*Clock, error) {
 func (c *Context) NewClock(clockType ClockType) (clock *Clock, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The context must stay usable while the entity is created on it.
+	if !c.life.acquire() {
+		return nil, closedErr("context")
+	}
+	defer c.life.release()
 	if clockType == ClockTypeUninitialized {
 		clockType = ClockTypeROSTime
 	}
@@ -736,7 +783,10 @@ func (c *Context) NewClock(clockType ClockType) (clock *Clock, err error) {
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCast(rc)
 	}
-	c.addResource(clock)
+	if !c.addResource(clock) {
+		C.rcl_clock_fini(clock.rcl_clock_t) //nolint:errcheck // refused; the deferred free releases the memory
+		return nil, closedErr("context")
+	}
 	return clock, nil
 }
 
@@ -834,6 +884,11 @@ func NewTimer(timeout time.Duration, timerCallback func(*Timer)) (*Timer, error)
 func (c *Context) NewTimer(timeout time.Duration, timer_callback func(*Timer)) (timer *Timer, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The context must stay usable while the entity is created on it.
+	if !c.life.acquire() {
+		return nil, closedErr("context")
+	}
+	defer c.life.release()
 	if timeout == 0 {
 		timeout = 1000 * time.Millisecond
 	}
@@ -861,7 +916,9 @@ func (c *Context) NewTimer(timeout time.Duration, timer_callback func(*Timer)) (
 		return nil, errorsCast(rc)
 	}
 
-	c.addResource(timer)
+	if !c.addResource(timer) {
+		return nil, closedErr("context")
+	}
 	return timer, nil
 }
 
@@ -974,6 +1031,11 @@ func (n *Node) NewSubscription(
 ) (sub *Subscription, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The node must stay usable while the entity is created on it.
+	if !n.life.acquire() {
+		return nil, closedErr("node")
+	}
+	defer n.life.release()
 	if options == nil {
 		options = NewDefaultSubscriptionOptions()
 	}
@@ -1002,7 +1064,9 @@ func (n *Node) NewSubscription(
 		return sub, errorsCastC(rc, fmt.Sprintf("Topic name '%s'", topicName))
 	}
 
-	n.addResource(sub)
+	if !n.addResource(sub) {
+		return nil, closedErr("node")
+	}
 	return sub, nil
 }
 
@@ -1113,6 +1177,11 @@ type guardCondition struct {
 func (c *Context) newGuardCondition() (g *guardCondition, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The context must stay usable while the entity is created on it.
+	if !c.life.acquire() {
+		return nil, closedErr("context")
+	}
+	defer c.life.release()
 	g = &guardCondition{
 		rclGuardCondition: (*C.rcl_guard_condition_t)(C.malloc(C.sizeof_rcl_guard_condition_t)),
 		context:           c,
@@ -1127,7 +1196,9 @@ func (c *Context) newGuardCondition() (g *guardCondition, err error) {
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCast(rc)
 	}
-	c.addResource(g)
+	if !c.addResource(g) {
+		return nil, closedErr("context")
+	}
 	return g, nil
 }
 
@@ -1150,9 +1221,15 @@ func (c *guardCondition) fini() error {
 	return errorsCast(rc)
 }
 
+// Trigger wakes the wait sets that wait on c. It works while c is closing but
+// a wait set still holds it, and returns ErrClosed once c is finalized.
 func (c *guardCondition) Trigger() error {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	if !c.life.use() {
+		return closedErr("guard condition")
+	}
+	defer c.life.release()
 	rc := C.rcl_trigger_guard_condition(c.rclGuardCondition)
 	if rc != C.RCL_RET_OK {
 		return errorsCast(rc)
@@ -1219,6 +1296,11 @@ func (n *Node) NewService(
 ) (s *Service, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The node must stay usable while the entity is created on it.
+	if !n.life.acquire() {
+		return nil, closedErr("node")
+	}
+	defer n.life.release()
 	if options == nil {
 		options = NewDefaultServiceOptions()
 	}
@@ -1244,7 +1326,9 @@ func (n *Node) NewService(
 	if retCode != C.RCL_RET_OK {
 		return nil, errorsCastC(retCode, "failed to create service")
 	}
-	n.addResource(s)
+	if !n.addResource(s) {
+		return nil, closedErr("node")
+	}
 	return s, nil
 }
 
@@ -1344,6 +1428,11 @@ func (n *Node) NewClient(
 ) (c *Client, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The node must stay usable while the entity is created on it.
+	if !n.life.acquire() {
+		return nil, closedErr("node")
+	}
+	defer n.life.release()
 	if options == nil {
 		options = NewDefaultClientOptions()
 	}
@@ -1373,7 +1462,9 @@ func (n *Node) NewClient(
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to create client")
 	}
-	n.addResource(c)
+	if !n.addResource(c) {
+		return nil, closedErr("node")
+	}
 	return c, nil
 }
 
@@ -1467,6 +1558,9 @@ type requestSender struct {
 	transport       requestSenderTransport
 	pendingRequests map[C.int64_t]chan *sendResult
 	mutex           sync.Mutex
+	// closed is set by Close; later requests fail instead of waiting for a
+	// response that can no longer arrive.
+	closed bool
 }
 
 func newRequestSender(transport requestSenderTransport) requestSender {
@@ -1479,6 +1573,7 @@ func newRequestSender(transport requestSenderTransport) requestSender {
 func (s *requestSender) Close() error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	s.closed = true
 	for seqNum, ch := range s.pendingRequests {
 		delete(s.pendingRequests, seqNum)
 		close(ch)
@@ -1514,6 +1609,9 @@ func (s *requestSender) addPendingRequest(req types.Message) (<-chan *sendResult
 	ts.AsCStruct(buf, req)
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
+	if s.closed {
+		return nil, 0, closedErr("sender")
+	}
 	seqNum, err := s.transport.SendRequest(buf)
 	if err != nil {
 		return nil, 0, err
