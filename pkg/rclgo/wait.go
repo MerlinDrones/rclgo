@@ -58,6 +58,11 @@ func NewWaitSet() (*WaitSet, error) {
 func (c *Context) NewWaitSet() (ws *WaitSet, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The context must stay usable while the entity is created on it.
+	if !c.life.acquire() {
+		return nil, closedErr("context")
+	}
+	defer c.life.release()
 	const (
 		subscriptionsCount   = 0
 		guardConditionsCount = 0
@@ -94,7 +99,9 @@ func (c *Context) NewWaitSet() (ws *WaitSet, err error) {
 		return nil, err
 	}
 	ws.addGuardConditions(ws.cancelWait)
-	c.addResource(ws)
+	if !c.addResource(ws) {
+		return nil, closedErr("context")
+	}
 	return ws, nil
 }
 
@@ -246,7 +253,9 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		// wake it: retry a failed trigger until the loop has returned.
 		for logged := false; ; logged = true {
 			err := w.cancelWait.Trigger()
-			if err == nil {
+			// ErrClosed: the guard condition is finalized, which happens only
+			// after the wait loop has let go of it, so nothing waits on it.
+			if err == nil || errors.Is(err, ErrClosed) {
 				return
 			}
 			if !logged {

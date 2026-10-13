@@ -307,6 +307,11 @@ type ActionServer struct {
 func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOptions) (*ActionServer, error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The node must stay usable while the entity is created on it.
+	if !n.life.acquire() {
+		return nil, closedErr("node")
+	}
+	defer n.life.release()
 	if opts == nil {
 		opts = NewDefaultActionServerOptions()
 	}
@@ -348,7 +353,10 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 		return nil, errorsCastC(rc, "failed to create action server")
 	}
 	s.goalCtx, s.cancelGoal = context.WithCancel(context.Background())
-	n.addResource(s)
+	if !n.addResource(s) {
+		s.Close() //nolint:errcheck // refused before it was added
+		return nil, closedErr("node")
+	}
 	return s, nil
 }
 
@@ -997,6 +1005,11 @@ type ActionClient struct {
 func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *ActionClientOptions) (*ActionClient, error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
+	// The node must stay usable while the entity is created on it.
+	if !n.life.acquire() {
+		return nil, closedErr("node")
+	}
+	defer n.life.release()
 	if opts == nil {
 		opts = NewDefaultActionClientOptions()
 	}
@@ -1046,7 +1059,10 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to create action client")
 	}
-	n.addResource(c)
+	if !n.addResource(c) {
+		c.Close() //nolint:errcheck // refused before it was added
+		return nil, closedErr("node")
+	}
 	return c, nil
 }
 
