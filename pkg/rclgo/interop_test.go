@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -396,7 +397,8 @@ func TestInteropQoS(t *testing.T) {
 // arrives exactly when the offered QoS satisfies the requested one (rmw's
 // rules, also implemented by qos.IsReliabilityCompatible and
 // qos.IsDurabilityCompatible). A best-available rclgo subscriber matches
-// every publisher. One rclpy process holds that side's endpoints.
+// every publisher. One rclpy process holds that side's endpoints. With
+// rmw_zenoh_cpp, which doesn't apply these rules, every pair delivers.
 func TestInteropQoSMatrix(t *testing.T) {
 	rclgotest.RequireROS2(t)
 	const ns = "/interop/qos_matrix"
@@ -414,8 +416,10 @@ func TestInteropQoSMatrix(t *testing.T) {
 			combos = append(combos, combo{relName + "_" + durName, p})
 		}
 	}
+	// rmw_zenoh_cpp has no QoS incompatibilities: every pair delivers.
+	zenoh := os.Getenv("RMW_IMPLEMENTATION") == "rmw_zenoh_cpp"
 	compatible := func(requested, offered qos.Profile) bool {
-		return requested.Reliability == qos.ReliabilityBestAvailable ||
+		return zenoh || requested.Reliability == qos.ReliabilityBestAvailable ||
 			qos.IsReliabilityCompatible(requested.Reliability, offered.Reliability) &&
 				qos.IsDurabilityCompatible(requested.Durability, offered.Durability)
 	}
