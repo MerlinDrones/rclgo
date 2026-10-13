@@ -49,6 +49,12 @@ func (t *GetAvailableStates_Request) GetTypeSupport() types.MessageTypeSupport {
 	return GetAvailableStates_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *GetAvailableStates_Request) CheckBounds() error {
+	return nil
+}
+
 // GetAvailableStates_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type GetAvailableStates_RequestPublisher struct {

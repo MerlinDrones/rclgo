@@ -53,6 +53,15 @@ func (t *ChangeState_Request) GetTypeSupport() types.MessageTypeSupport {
 	return ChangeState_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ChangeState_Request) CheckBounds() error {
+	if err := types.CheckBounds(&t.Transition); err != nil {
+		return types.InField("transition", err)
+	}
+	return nil
+}
+
 // ChangeState_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ChangeState_RequestPublisher struct {

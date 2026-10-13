@@ -278,7 +278,10 @@ func (m *serializedMessage) ToSlice() []byte {
 func Serialize(msg types.Message) (buf []byte, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
-	defer wrapErr("failed to serialize: %v", &err)
+	defer wrapErr("failed to serialize: %w", &err)
+	if err := types.CheckBounds(msg); err != nil {
+		return nil, err
+	}
 	ts := msg.GetTypeSupport()
 	cmsg := ts.PrepareMemory()
 	defer ts.ReleaseMemory(cmsg)
@@ -304,7 +307,7 @@ func Serialize(msg types.Message) (buf []byte, err error) {
 func Deserialize(buf []byte, ts types.MessageTypeSupport) (msg types.Message, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
-	defer wrapErr("failed to deserialize: %v", &err)
+	defer wrapErr("failed to deserialize: %w", &err)
 	// Every CDR buffer starts with a 4-byte encapsulation header. Some RMWs
 	// (Cyclone DDS on Jazzy) crash on shorter input instead of failing.
 	if len(buf) < 4 {
@@ -681,6 +684,9 @@ func (p *Publisher) Publish(ros2msg types.Message) error {
 		return closedErr("publisher")
 	}
 	defer p.life.release()
+	if err := types.CheckBounds(ros2msg); err != nil {
+		return err
+	}
 	var rc C.rcl_ret_t
 
 	ptr := p.typeSupport.PrepareMemory()
@@ -1446,6 +1452,9 @@ func (s *Service) handleRequest() {
 					return closedErr("service")
 				}
 				defer s.life.release()
+				if err := types.CheckBounds(resp); err != nil {
+					return err
+				}
 				respBuffer := s.responseTypeSupport.PrepareMemory()
 				defer s.responseTypeSupport.ReleaseMemory(respBuffer)
 				s.responseTypeSupport.AsCStruct(respBuffer, resp)
@@ -1671,6 +1680,9 @@ func (s *requestSender) Send(ctx context.Context, req types.Message) (types.Mess
 }
 
 func (s *requestSender) addPendingRequest(req types.Message) (<-chan *sendResult, C.int64_t, error) {
+	if err := types.CheckBounds(req); err != nil {
+		return nil, 0, err
+	}
 	ts := s.transport.TypeSupport.Request()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)
@@ -1692,6 +1704,9 @@ func (s *requestSender) addPendingRequest(req types.Message) (<-chan *sendResult
 // sendNoWait sends req without waiting for its response, which is dropped
 // when it arrives.
 func (s *requestSender) sendNoWait(req types.Message) error {
+	if err := types.CheckBounds(req); err != nil {
+		return err
+	}
 	ts := s.transport.TypeSupport.Request()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)

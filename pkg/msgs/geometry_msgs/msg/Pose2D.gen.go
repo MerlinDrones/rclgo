@@ -58,6 +58,12 @@ func (t *Pose2D) GetTypeSupport() types.MessageTypeSupport {
 	return Pose2DTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Pose2D) CheckBounds() error {
+	return nil
+}
+
 // Pose2DPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Pose2DPublisher struct {

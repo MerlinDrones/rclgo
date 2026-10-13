@@ -56,6 +56,18 @@ func (t *PolygonStamped) GetTypeSupport() types.MessageTypeSupport {
 	return PolygonStampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PolygonStamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Polygon); err != nil {
+		return types.InField("polygon", err)
+	}
+	return nil
+}
+
 // PolygonStampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PolygonStampedPublisher struct {

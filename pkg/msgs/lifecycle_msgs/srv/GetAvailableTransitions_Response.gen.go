@@ -56,6 +56,17 @@ func (t *GetAvailableTransitions_Response) GetTypeSupport() types.MessageTypeSup
 	return GetAvailableTransitions_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *GetAvailableTransitions_Response) CheckBounds() error {
+	for i := range t.AvailableTransitions {
+		if err := types.CheckBounds(&t.AvailableTransitions[i]); err != nil {
+			return types.InElement("available_transitions", i, err)
+		}
+	}
+	return nil
+}
+
 // GetAvailableTransitions_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type GetAvailableTransitions_ResponsePublisher struct {

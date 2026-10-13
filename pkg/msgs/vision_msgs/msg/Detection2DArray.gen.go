@@ -59,6 +59,20 @@ func (t *Detection2DArray) GetTypeSupport() types.MessageTypeSupport {
 	return Detection2DArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Detection2DArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Detections {
+		if err := types.CheckBounds(&t.Detections[i]); err != nil {
+			return types.InElement("detections", i, err)
+		}
+	}
+	return nil
+}
+
 // Detection2DArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Detection2DArrayPublisher struct {
@@ -162,6 +176,7 @@ type CDetection2DArray__Sequence = C.vision_msgs__msg__Detection2DArray__Sequenc
 
 func Detection2DArray__Sequence_to_Go(goSlice *[]Detection2DArray, cSlice CDetection2DArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Detection2DArray, cSlice.size)
@@ -171,13 +186,16 @@ func Detection2DArray__Sequence_to_Go(goSlice *[]Detection2DArray, cSlice CDetec
 	}
 }
 func Detection2DArray__Sequence_into_C(cSlice *CDetection2DArray__Sequence, goSlice []Detection2DArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__Detection2DArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__Detection2DArray)(C.malloc(C.sizeof_struct_vision_msgs__msg__Detection2DArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__Detection2DArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__Detection2DArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

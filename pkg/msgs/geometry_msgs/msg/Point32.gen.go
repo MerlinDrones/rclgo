@@ -58,6 +58,12 @@ func (t *Point32) GetTypeSupport() types.MessageTypeSupport {
 	return Point32TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Point32) CheckBounds() error {
+	return nil
+}
+
 // Point32Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Point32Publisher struct {

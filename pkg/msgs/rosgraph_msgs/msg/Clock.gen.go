@@ -53,6 +53,15 @@ func (t *Clock) GetTypeSupport() types.MessageTypeSupport {
 	return ClockTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Clock) CheckBounds() error {
+	if err := types.CheckBounds(&t.Clock); err != nil {
+		return types.InField("clock", err)
+	}
+	return nil
+}
+
 // ClockPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ClockPublisher struct {

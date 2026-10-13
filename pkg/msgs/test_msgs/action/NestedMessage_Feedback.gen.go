@@ -60,6 +60,21 @@ func (t *NestedMessage_Feedback) GetTypeSupport() types.MessageTypeSupport {
 	return NestedMessage_FeedbackTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NestedMessage_Feedback) CheckBounds() error {
+	if err := types.CheckBounds(&t.NestedFieldNoPkg); err != nil {
+		return types.InField("nested_field_no_pkg", err)
+	}
+	if err := types.CheckBounds(&t.NestedField); err != nil {
+		return types.InField("nested_field", err)
+	}
+	if err := types.CheckBounds(&t.NestedDifferentPkg); err != nil {
+		return types.InField("nested_different_pkg", err)
+	}
+	return nil
+}
+
 // NestedMessage_FeedbackPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type NestedMessage_FeedbackPublisher struct {

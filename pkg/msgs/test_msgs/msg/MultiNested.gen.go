@@ -100,6 +100,66 @@ func (t *MultiNested) GetTypeSupport() types.MessageTypeSupport {
 	return MultiNestedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *MultiNested) CheckBounds() error {
+	for i := range t.ArrayOfArrays {
+		if err := types.CheckBounds(&t.ArrayOfArrays[i]); err != nil {
+			return types.InElement("array_of_arrays", i, err)
+		}
+	}
+	for i := range t.ArrayOfBoundedSequences {
+		if err := types.CheckBounds(&t.ArrayOfBoundedSequences[i]); err != nil {
+			return types.InElement("array_of_bounded_sequences", i, err)
+		}
+	}
+	for i := range t.ArrayOfUnboundedSequences {
+		if err := types.CheckBounds(&t.ArrayOfUnboundedSequences[i]); err != nil {
+			return types.InElement("array_of_unbounded_sequences", i, err)
+		}
+	}
+	if len(t.BoundedSequenceOfArrays) > 3 {
+		return types.BoundExceeded("bounded_sequence_of_arrays", len(t.BoundedSequenceOfArrays), 3)
+	}
+	for i := range t.BoundedSequenceOfArrays {
+		if err := types.CheckBounds(&t.BoundedSequenceOfArrays[i]); err != nil {
+			return types.InElement("bounded_sequence_of_arrays", i, err)
+		}
+	}
+	if len(t.BoundedSequenceOfBoundedSequences) > 3 {
+		return types.BoundExceeded("bounded_sequence_of_bounded_sequences", len(t.BoundedSequenceOfBoundedSequences), 3)
+	}
+	for i := range t.BoundedSequenceOfBoundedSequences {
+		if err := types.CheckBounds(&t.BoundedSequenceOfBoundedSequences[i]); err != nil {
+			return types.InElement("bounded_sequence_of_bounded_sequences", i, err)
+		}
+	}
+	if len(t.BoundedSequenceOfUnboundedSequences) > 3 {
+		return types.BoundExceeded("bounded_sequence_of_unbounded_sequences", len(t.BoundedSequenceOfUnboundedSequences), 3)
+	}
+	for i := range t.BoundedSequenceOfUnboundedSequences {
+		if err := types.CheckBounds(&t.BoundedSequenceOfUnboundedSequences[i]); err != nil {
+			return types.InElement("bounded_sequence_of_unbounded_sequences", i, err)
+		}
+	}
+	for i := range t.UnboundedSequenceOfArrays {
+		if err := types.CheckBounds(&t.UnboundedSequenceOfArrays[i]); err != nil {
+			return types.InElement("unbounded_sequence_of_arrays", i, err)
+		}
+	}
+	for i := range t.UnboundedSequenceOfBoundedSequences {
+		if err := types.CheckBounds(&t.UnboundedSequenceOfBoundedSequences[i]); err != nil {
+			return types.InElement("unbounded_sequence_of_bounded_sequences", i, err)
+		}
+	}
+	for i := range t.UnboundedSequenceOfUnboundedSequences {
+		if err := types.CheckBounds(&t.UnboundedSequenceOfUnboundedSequences[i]); err != nil {
+			return types.InElement("unbounded_sequence_of_unbounded_sequences", i, err)
+		}
+	}
+	return nil
+}
+
 // MultiNestedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type MultiNestedPublisher struct {

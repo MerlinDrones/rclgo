@@ -24,6 +24,7 @@ var templateFuncMap template.FuncMap = template.FuncMap{
 	"actionNameFromActionSrvName": actionNameFromActionSrvName,
 	"cReturnCodeNameToGo":         cReturnCodeNameToGo,
 	"cloneCode":                   cloneCode,
+	"checkBoundsCode":             checkBoundsCode,
 	"actionHasSuffix":             actionHasSuffix,
 	"matchMsg":                    matchMsg,
 	"sanitizeValue":               defaultValueSanitizer,
@@ -149,6 +150,15 @@ func (t *{{$Md.Name}}) SetDefaults() {
 
 func (t *{{$Md.Name}}) GetTypeSupport() types.MessageTypeSupport {
 	return {{$Md.Name}}TypeSupport
+}
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *{{$Md.Name}}) CheckBounds() error {
+	{{- range $f := $Md.Fields }}{{ with checkBoundsCode $f }}
+	{{.}}
+	{{- end }}{{- end }}
+	return nil
 }
 
 {{- /* Some special cased methods to avoid cyclic dependency in actions */ -}}
