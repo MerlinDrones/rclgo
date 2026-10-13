@@ -20,6 +20,7 @@ import (
 	"errors"
 	"runtime"
 	"sync"
+	"time"
 	"unsafe"
 )
 
@@ -243,10 +244,30 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		// Closed between acquiring and publishing stopRun.
 		cancel()
 	}
+	// runDone closes when the wait loop has returned (deferred calls run in
+	// reverse order: before cancel and before errs is read).
+	runDone := make(chan struct{})
+	defer close(runDone)
 	go func() {
 		defer close(errs)
 		<-errctx.Done()
-		errs <- w.cancelWait.Trigger()
+		// rcl_wait waits without a timeout, so the trigger is the only way to
+		// wake it: retry a failed trigger until the loop has returned.
+		for logged := false; ; logged = true {
+			err := w.cancelWait.Trigger()
+			if err == nil {
+				return
+			}
+			if !logged {
+				GetLogger("rclgo").Error("waking the wait set failed, retrying: ", err) //nolint:errcheck
+			}
+			select {
+			case <-runDone:
+				errs <- err
+				return
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
 	}()
 	refresh := false
 	for {
@@ -294,7 +315,10 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		for i, t := range w.Timers {
 			if timers[i] != nil && !t.life.isClosed() {
 				if err := t.call(); err != nil {
-					// The timer was canceled after rcl_wait returned.
+					// Canceled after rcl_wait returned: nothing to do.
+					if !errors.Is(err, errTimerCanceled) {
+						GetLogger("rclgo").Error("timer not called: ", err) //nolint:errcheck
+					}
 					continue
 				}
 				if t.Callback != nil {

@@ -425,22 +425,22 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 	}
 	cstr := C.rcl_node_get_name(node.rcl_node_t)
 	if cstr == nil {
-		return nil, errors.New("unexpectedly invalid node")
+		return nil, errors.New("unexpectedly invalid node: " + errorString())
 	}
 	node.name = C.GoString(cstr)
 	cstr = C.rcl_node_get_namespace(node.rcl_node_t)
 	if cstr == nil {
-		return nil, errors.New("unexpectedly invalid node")
+		return nil, errors.New("unexpectedly invalid node: " + errorString())
 	}
 	node.namespace = C.GoString(cstr)
 	cstr = C.rcl_node_get_fully_qualified_name(node.rcl_node_t)
 	if cstr == nil {
-		return nil, errors.New("unexpectedly invalid node")
+		return nil, errors.New("unexpectedly invalid node: " + errorString())
 	}
 	node.fullyQualifiedName = C.GoString(cstr)
 	loggerName := C.rcl_node_get_logger_name(node.rcl_node_t)
 	if loggerName == nil {
-		return nil, errors.New("unexpectedly invalid node")
+		return nil, errors.New("unexpectedly invalid node: " + errorString())
 	}
 	node.logger = GetLogger(C.GoString(loggerName))
 
@@ -482,23 +482,29 @@ func (n *Node) fini() (err error) {
 	if n.rcl_node_t == nil {
 		return nil
 	}
+	// When a step fails, rcl or the middleware may still use the node (rcl's
+	// rosout map keeps pointers into it), so it is leaked rather than freed,
+	// and its context is not finalized either.
+	leak := func(err error) error {
+		n.rcl_node_t = nil
+		n.context.leakedNodes.Add(1)
+		return fmt.Errorf("node %s not finalized; its memory is leaked: %w", n.fullyQualifiedName, err)
+	}
 	// Finalize the /rosout log publisher before finalizing the node, mirroring
 	// the initialization done in NewNode.
 	if n.rosoutInitialized {
 		if rc := C.rclgo_rosout_fini_publisher_for_node(n.rcl_node_t); rc != C.RCL_RET_OK {
-			err = errors.Join(err, errorsCastC(rc, "failed to finalize rosout publisher"))
+			return leak(errorsCastC(rc, "failed to finalize rosout publisher"))
 		}
 		n.rosoutInitialized = false
 	}
 
-	rc := C.rcl_node_fini(n.rcl_node_t)
-	if rc != C.RCL_RET_OK {
-		err = errors.Join(err, errorsCast(rc))
+	if rc := C.rcl_node_fini(n.rcl_node_t); rc != C.RCL_RET_OK {
+		return leak(errorsCast(rc))
 	}
 	C.free(unsafe.Pointer(n.rcl_node_t))
 	n.rcl_node_t = nil
-
-	return err
+	return nil
 }
 
 // Context returns the context n belongs to.
@@ -884,10 +890,14 @@ func (t *Timer) call() error {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
 	rc := C.rcl_timer_call(t.rcl_timer_t)
-	if rc != C.RCL_RET_OK {
-		return errorsCast(rc)
+	switch rc {
+	case C.RCL_RET_OK:
+		return nil
+	case C.RCL_RET_TIMER_CANCELED:
+		C.rcutils_reset_error()
+		return errTimerCanceled
 	}
-	return nil
+	return errorsCast(rc)
 }
 
 func (t *Timer) Reset() error {
@@ -1086,6 +1096,9 @@ func (s *Subscription) fini() (err error) {
 	C.free(unsafe.Pointer(s.topicName))
 	return err
 }
+
+// errTimerCanceled is returned by Timer.call for a canceled timer.
+var errTimerCanceled = errors.New("timer canceled")
 
 type guardCondition struct {
 	rosID

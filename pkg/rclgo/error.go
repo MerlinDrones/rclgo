@@ -16,6 +16,7 @@ package rclgo
 import "C"
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -75,6 +76,14 @@ func rclErrorIsSet() bool {
 
 func errorsBuildContext(e error, ctx string, stackTrace string) string {
 	return fmt.Sprintf("[%T]", e) + " " + ctx + " " + errorString() + "\n" + stackTrace + "\n"
+}
+
+// joinFiniErr adds to *err the error of a failed finalization of what. Use it
+// with defer, from a function that pins its OS thread.
+func joinFiniErr(err *error, rc C.rcl_ret_t, what string) {
+	if rc != C.RCL_RET_OK {
+		*err = errors.Join(*err, errorsCastC(rc, "failed to finalize "+what))
+	}
 }
 
 func errorsCast(rcl_ret_t C.rcl_ret_t) error {
