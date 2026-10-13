@@ -4,21 +4,31 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-// LoadYAML loads parameters from a ROS 2–style YAML file and declares them.
+// LoadYAML loads parameters for a node from a ROS 2 parameter file, as rcl
+// reads --params-file for rclcpp and rclpy, and applies them as overrides: a
+// later Declare in code gives them its type and constraints.
 //
-// Accepted shapes:
+// Every section that applies to the node is used, in file order, a later one
+// overriding an earlier one. A section's name is its key, or the path of nested
+// namespace keys above ros__parameters, and it is matched against the node's
+// fully qualified name (the manager's node, or "/"+nodeName) with rcl's rules:
+// "/*" matches one name token and "/**" any number, as in
 //
-//	node_name:
+//	/**:
+//	  ros__parameters:
+//	    use_sim_time: true
+//	/robot/camera:          # or robot: {camera: {ros__parameters: ...}}
 //	  ros__parameters:
 //	    camera.fps: 30
-//	ros__parameters:
-//	  camera.fps: 30
 //
-// It infers Value kinds from YAML scalar/sequence types.
+// As an rclgo extension, a top-level ros__parameters block applies to any node.
+// Nested maps under ros__parameters become dotted names (camera: {fps: 30} is
+// camera.fps). Value kinds are inferred from the YAML scalars and sequences.
 //
 // Typical use:
 //
@@ -28,36 +38,62 @@ func LoadYAML(m *Manager, nodeName string, path string) error {
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
-	var root map[string]interface{}
-	if err := yaml.Unmarshal(data, &root); err != nil {
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return fmt.Errorf("yaml unmarshal %s: %w", path, err)
 	}
+	var root *yaml.Node
+	if len(doc.Content) == 1 && doc.Content[0].Kind == yaml.MappingNode {
+		root = doc.Content[0]
+	}
 
-	// Find ros__parameters block
-	var paramsMap map[string]interface{}
-
-	// Prefer node-specific block
-	if v, ok := root[nodeName]; ok {
-		if m1, ok := v.(map[string]interface{}); ok {
-			if rp, ok := m1["ros__parameters"]; ok {
-				paramsMap, _ = rp.(map[string]interface{})
+	names := matchNames(m, nodeName)
+	var (
+		order  []string
+		values = map[string]interface{}{}
+		found  bool
+	)
+	apply := func(params *yaml.Node) error {
+		found = true
+		return flattenYAMLNode("", params, func(name string, v interface{}) {
+			if _, seen := values[name]; !seen {
+				order = append(order, name)
+			}
+			values[name] = v
+		})
+	}
+	var walk func(section string, n *yaml.Node) error
+	walk = func(section string, n *yaml.Node) error {
+		if n.Kind != yaml.MappingNode {
+			return nil
+		}
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			key, val := n.Content[i].Value, n.Content[i+1]
+			if key == "ros__parameters" {
+				if section == "" || sectionMatches(section, names) {
+					if err := apply(val); err != nil {
+						return err
+					}
+				}
+				continue
+			}
+			if err := walk(strings.TrimSuffix(section, "/")+"/"+strings.TrimPrefix(key, "/"), val); err != nil {
+				return err
 			}
 		}
+		return nil
 	}
-	// Fallback to top-level ros__parameters
-	if paramsMap == nil {
-		if v, ok := root["ros__parameters"]; ok {
-			paramsMap, _ = v.(map[string]interface{})
+	if root != nil {
+		if err := walk("", root); err != nil {
+			return fmt.Errorf("%s: %w", filepath.Base(path), err)
 		}
 	}
-	if paramsMap == nil {
+	if !found {
 		return fmt.Errorf("no ros__parameters block found for node %q in %s", nodeName, filepath.Base(path))
 	}
 
-	flat := map[string]interface{}{}
-	flattenYAMLParams("", paramsMap, flat)
-	for name, raw := range flat {
-		val, ok := valueFromYAML(raw)
+	for _, name := range order {
+		val, ok := valueFromYAML(values[name])
 		if !ok {
 			return fmt.Errorf("unsupported YAML type for %s", name)
 		}
@@ -69,20 +105,38 @@ func LoadYAML(m *Manager, nodeName string, path string) error {
 	return nil
 }
 
-// flattenYAMLParams copies the parameters in m into out, turning nested maps
-// into dotted names ("ipc: {port: 1}" becomes "ipc.port"), as rclcpp does.
-func flattenYAMLParams(prefix string, m map[string]interface{}, out map[string]interface{}) {
-	for k, v := range m {
-		name := k
+// flattenYAMLNode calls set for every parameter under n in document order,
+// turning nested maps into dotted names. A ros__parameters value that isn't a
+// map yields no parameters.
+func flattenYAMLNode(prefix string, n *yaml.Node, set func(name string, v interface{})) error {
+	if n.Kind == yaml.AliasNode && n.Alias != nil {
+		n = n.Alias
+	}
+	if n.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		name := n.Content[i].Value
 		if prefix != "" {
-			name = prefix + "." + k
+			name = prefix + "." + name
 		}
-		if nested, ok := v.(map[string]interface{}); ok {
-			flattenYAMLParams(name, nested, out)
+		v := n.Content[i+1]
+		if v.Kind == yaml.AliasNode && v.Alias != nil {
+			v = v.Alias
+		}
+		if v.Kind == yaml.MappingNode {
+			if err := flattenYAMLNode(name, v, set); err != nil {
+				return err
+			}
 			continue
 		}
-		out[name] = v
+		var raw interface{}
+		if err := v.Decode(&raw); err != nil {
+			return fmt.Errorf("parameter %s: %w", name, err)
+		}
+		set(name, raw)
 	}
+	return nil
 }
 
 func valueFromYAML(v interface{}) (Value, bool) {
