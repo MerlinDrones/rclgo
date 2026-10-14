@@ -10,6 +10,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -61,8 +62,16 @@ func initConfig() {
 
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
+	// Read the config file. A missing default ~/.rclgo is fine; a config file
+	// given with --config-file that can't be read, or any malformed one, is
+	// an error rather than silently ignored.
+	err := viper.ReadInConfig()
+	var notFound viper.ConfigFileNotFoundError
+	switch {
+	case err == nil:
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	case viper.GetString("config-file") == "" && errors.As(err, &notFound):
+	default:
+		cobra.CheckErr(fmt.Errorf("config file: %w", err))
 	}
 }

@@ -183,6 +183,26 @@ func cReturnCodeNameToGo(n string) string {
 	return snakeToCamel(strings.ToLower(n))
 }
 
+// orderedSet holds strings in the order they were first added, without
+// duplicates. Compiler flags keep their order with it: an earlier include
+// directory (an overlay's) must come before a later one (the underlay's).
+type orderedSet struct {
+	seen map[string]bool
+	list []string
+}
+
+func (s *orderedSet) Add(strs ...string) {
+	if s.seen == nil {
+		s.seen = map[string]bool{}
+	}
+	for _, str := range strs {
+		if !s.seen[str] {
+			s.seen[str] = true
+			s.list = append(s.list, str)
+		}
+	}
+}
+
 type stringSet map[string]struct{}
 
 func (s stringSet) Add(strs ...string) {
