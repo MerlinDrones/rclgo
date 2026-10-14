@@ -388,6 +388,7 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 		return nil, err
 	}
 	s.clock.jumpMu.Lock()
+	n.entityMu.Lock()
 	rc := C.rcl_action_server_init(
 		&s.rclServer,
 		n.rcl_node_t,
@@ -396,6 +397,7 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 		cname,
 		&rclOpts,
 	)
+	n.entityMu.Unlock()
 	s.clock.jumpMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		s.holdsClock = false
@@ -436,7 +438,9 @@ func (s *ActionServer) fini() (err error) {
 	s.rclServerMu.Lock()
 	defer s.rclServerMu.Unlock()
 	s.clock.jumpMu.Lock()
+	s.node.entityMu.Lock()
 	rc := C.rcl_action_server_fini(&s.rclServer, s.node.rcl_node_t)
+	s.node.entityMu.Unlock()
 	s.clock.jumpMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errorsCastC(rc, "failed to finalize action server")
@@ -1130,6 +1134,7 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 	); err != nil {
 		return nil, err
 	}
+	n.entityMu.Lock()
 	rc := C.rcl_action_client_init(
 		&c.rclClient,
 		n.rcl_node_t,
@@ -1137,6 +1142,7 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 		cname,
 		&rclOpts,
 	)
+	n.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to create action client")
 	}
@@ -1163,7 +1169,9 @@ func (c *ActionClient) fini() error {
 	var err error
 	c.rclClientMu.Lock()
 	defer c.rclClientMu.Unlock()
+	c.node.entityMu.Lock()
 	rc := C.rcl_action_client_fini(&c.rclClient, c.node.rcl_node_t)
+	c.node.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCastC(rc, "failed to finalize action client"))
 	}

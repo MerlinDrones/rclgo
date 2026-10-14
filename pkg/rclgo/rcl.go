@@ -399,6 +399,10 @@ type Node struct {
 	rosoutInitialized bool
 	// done is closed when the node is closed; Node.Spin returns then.
 	done chan struct{}
+	// entityMu serializes creating and finalizing entities on the node:
+	// rcl's per-node state (its type description cache) is not thread-safe,
+	// and rcl documents these calls as not thread-safe for the same node.
+	entityMu sync.Mutex
 }
 
 func NewNode(nodeName, namespace string) (*Node, error) {
@@ -646,6 +650,7 @@ func (n *Node) NewPublisher(
 		return nil, err
 	}
 
+	n.entityMu.Lock()
 	var rc C.rcl_ret_t = C.rcl_publisher_init(
 		pub.rcl_publisher_t,
 		n.rcl_node_t,
@@ -653,6 +658,7 @@ func (n *Node) NewPublisher(
 		pub.topicName,
 		&rcl_publisher_options_t,
 	)
+	n.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCast(rc)
 	}
@@ -737,7 +743,9 @@ func (p *Publisher) fini() (err error) {
 	if p.rcl_publisher_t == nil {
 		return nil
 	}
+	p.node.entityMu.Lock()
 	rc := C.rcl_publisher_fini(p.rcl_publisher_t, p.node.rcl_node_t)
+	p.node.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
 	}
@@ -1097,6 +1105,7 @@ func (n *Node) NewSubscription(
 		return nil, err
 	}
 
+	n.entityMu.Lock()
 	rc := C.rcl_subscription_init(
 		sub.rcl_subscription_t,
 		n.rcl_node_t,
@@ -1104,6 +1113,7 @@ func (n *Node) NewSubscription(
 		sub.topicName,
 		&rclOpts,
 	)
+	n.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, fmt.Sprintf("Topic name '%s'", topicName))
 	}
@@ -1198,7 +1208,9 @@ func (s *Subscription) fini() (err error) {
 	if s.rcl_subscription_t == nil {
 		return nil
 	}
+	s.node.entityMu.Lock()
 	rc := C.rcl_subscription_fini(s.rcl_subscription_t, s.node.rcl_node_t)
+	s.node.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
 	}
@@ -1362,6 +1374,7 @@ func (n *Node) NewService(
 	if err := qosToC(options.Qos, &opts.qos); err != nil {
 		return nil, err
 	}
+	n.entityMu.Lock()
 	retCode := C.rcl_service_init(
 		s.rclService,
 		n.rcl_node_t,
@@ -1369,6 +1382,7 @@ func (n *Node) NewService(
 		s.name,
 		&opts,
 	)
+	n.entityMu.Unlock()
 	if retCode != C.RCL_RET_OK {
 		return nil, errorsCastC(retCode, "failed to create service")
 	}
@@ -1388,7 +1402,9 @@ func (s *Service) fini() (err error) {
 	if s.name == nil {
 		return nil
 	}
+	s.node.entityMu.Lock()
 	rc := C.rcl_service_fini(s.rclService, s.node.rcl_node_t)
+	s.node.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errorsCastC(rc, "failed to finalize service")
 	}
@@ -1500,6 +1516,7 @@ func (n *Node) NewClient(
 	}
 	cserviceName := C.CString(serviceName)
 	defer C.free(unsafe.Pointer(cserviceName))
+	n.entityMu.Lock()
 	rc := C.rcl_client_init(
 		c.rclClient,
 		n.rcl_node_t,
@@ -1507,6 +1524,7 @@ func (n *Node) NewClient(
 		cserviceName,
 		&opts,
 	)
+	n.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to create client")
 	}
@@ -1531,7 +1549,9 @@ func (c *Client) fini() error {
 		return nil
 	}
 	var err error
+	c.node.entityMu.Lock()
 	rc := C.rcl_client_fini(c.rclClient, c.node.rcl_node_t)
+	c.node.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCastC(rc, "failed to finalize client"))
 	}
