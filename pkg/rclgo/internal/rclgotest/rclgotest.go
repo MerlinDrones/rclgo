@@ -29,8 +29,13 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
-// Timeout bounds every wait in these helpers.
+// Timeout bounds every wait in these helpers, except the ros2 CLI's.
 const Timeout = 10 * time.Second
+
+// CLITimeout bounds the retries of a ros2 command. Every run is a new Python
+// process that discovers the graph from scratch, which takes seconds on a
+// loaded machine.
+const CLITimeout = 30 * time.Second
 
 // UseIsolatedDomain isolates the tests from other ROS traffic: it limits
 // discovery to this machine (ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST, unless
@@ -164,7 +169,7 @@ func Unavailable(t testing.TB, format string, args ...any) {
 // retries until Timeout.
 func ROS2(t testing.TB, args ...string) (string, error) {
 	t.Helper()
-	deadline := time.Now().Add(Timeout)
+	deadline := time.Now().Add(CLITimeout)
 	for {
 		out, err := ros2Once(t, args...)
 		notYet := strings.Contains(out, "Node not found") || strings.Contains(out, "Wait for service timed out")
@@ -219,19 +224,19 @@ func ros2Once(t testing.TB, args ...string) (string, error) {
 // contains want; ros2 needs to discover the node first.
 func EventuallyROS2(t testing.TB, want string, args ...string) string {
 	t.Helper()
-	var out string
-	Eventually(t, "ros2 "+strings.Join(args, " "), func() error {
-		var err error
-		out, err = ROS2(t, args...)
-		if err != nil {
-			return errors.New(err.Error() + ": " + out)
+	deadline := time.Now().Add(CLITimeout)
+	for {
+		out, err := ros2Once(t, args...)
+		switch {
+		case err == nil && strings.Contains(out, want):
+			return out
+		case time.Now().After(deadline) && err != nil:
+			t.Fatalf("ros2 %s: %v: %s", strings.Join(args, " "), err, out)
+		case time.Now().After(deadline):
+			t.Fatalf("ros2 %s: output does not contain %q: %s", strings.Join(args, " "), want, out)
 		}
-		if !strings.Contains(out, want) {
-			return errors.New("output does not contain " + strconv.Quote(want) + ": " + out)
-		}
-		return nil
-	})
-	return out
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 
 // Process is a program started by Start, typically a ROS node in another
