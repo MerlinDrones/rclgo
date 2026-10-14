@@ -16,7 +16,15 @@ import (
 func buildCLI(t *testing.T) string {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "rclgo-gen")
-	out, err := exec.Command("go", "build", "-o", bin, "..").CombinedOutput()
+	args := []string{"build", "-o", bin}
+	if os.Getenv("GOCOVERDIR") != "" {
+		// tools/coverage.sh: the binary writes its coverage there.
+		args = append(args, "-cover")
+		if pkgs := os.Getenv("RCLGO_COVERPKG"); pkgs != "" {
+			args = append(args, "-coverpkg="+pkgs)
+		}
+	}
+	out, err := exec.Command("go", append(args, "..")...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build rclgo-gen: %v\n%s", err, out)
 	}

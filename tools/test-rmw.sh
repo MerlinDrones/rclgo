@@ -33,6 +33,14 @@ stop_router() {
 }
 trap stop_router EXIT
 
+if [ -z "${RMWS// /}" ]; then
+	echo "no RMW implementation found; source a ROS 2 setup.bash or set RMWS" >&2
+	exit 1
+fi
+# A test that needs the ros2 tools, a ROS package or rclpy fails instead of
+# skipping when they are missing.
+export RCLGO_REQUIRE_ROS2="${RCLGO_REQUIRE_ROS2:-1}"
+
 status=0
 for rmw in $RMWS; do
 	echo "=== RMW_IMPLEMENTATION=$rmw"

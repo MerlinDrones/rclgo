@@ -13,6 +13,7 @@ go test -count=1 ./...          # what CI runs (make test)
 go test -race -count=1 ./...    # make test-race; what CI runs. Most defects found were concurrency defects
 make test-faults                # every rcl call made to fail in turn; what CI runs (about 5 minutes)
 make cover                      # coverage of rclgo's own code; CI fails below the minimum
+make test-repeat                # every test 3 times with GOMAXPROCS 1 and 4
 ```
 
 - With a Go workspace (`go.work`) that does not contain rclgo, set `GOWORK=off`.
@@ -85,7 +86,10 @@ middleware's liveliness lease expires.
 ## Coverage
 
 `make cover` (`tools/coverage.sh`) runs the suite with coverage of rclgo's own packages (generated message packages
-and internal test helpers excluded), writes `coverage.out`, and fails below `COVERAGE_MIN` percent. View it with
+and internal test helpers excluded), writes `coverage.out`, and fails below `COVERAGE_MIN` percent. The command tests
+run a built `rclgo-gen`; under `make cover` it is built with `-cover` (`GOCOVERDIR`) and its coverage is merged in.
+`make test`, `make test-race`, `make test-repeat`, `make test-rmw` and `make cover` set `RCLGO_REQUIRE_ROS2`, so a test
+whose ROS 2 tools, packages or rclpy are missing fails instead of skipping. View it with
 `go tool cover -html=coverage.out`.
 
 ## Go-specific checks
