@@ -156,7 +156,7 @@ func (t _PointFieldTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _PointFieldTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*PointField)
 	mem := (*C.sensor_msgs__msg__PointField)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
 	mem.offset = C.uint32_t(m.Offset)
 	mem.datatype = C.uint8_t(m.Datatype)
 	mem.count = C.uint32_t(m.Count)
@@ -189,7 +189,7 @@ func PointField__Sequence_to_Go(goSlice *[]PointField, cSlice CPointField__Seque
 		PointFieldTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PointField__Sequence_to_C(cSlice *CPointField__Sequence, goSlice []PointField) {
+func PointField__Sequence_into_C(cSlice *CPointField__Sequence, goSlice []PointField) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__PointField__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -212,7 +212,7 @@ func PointField__Array_to_Go(goSlice []PointField, cSlice []CPointField) {
 		PointFieldTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PointField__Array_to_C(cSlice []CPointField, goSlice []PointField) {
+func PointField__Array_into_C(cSlice []CPointField, goSlice []PointField) {
 	for i := 0; i < len(goSlice); i++ {
 		PointFieldTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

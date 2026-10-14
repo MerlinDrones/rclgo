@@ -167,7 +167,7 @@ func BoundingBox3D__Sequence_to_Go(goSlice *[]BoundingBox3D, cSlice CBoundingBox
 		BoundingBox3DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BoundingBox3D__Sequence_to_C(cSlice *CBoundingBox3D__Sequence, goSlice []BoundingBox3D) {
+func BoundingBox3D__Sequence_into_C(cSlice *CBoundingBox3D__Sequence, goSlice []BoundingBox3D) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -187,7 +187,7 @@ func BoundingBox3D__Array_to_Go(goSlice []BoundingBox3D, cSlice []CBoundingBox3D
 		BoundingBox3DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BoundingBox3D__Array_to_C(cSlice []CBoundingBox3D, goSlice []BoundingBox3D) {
+func BoundingBox3D__Array_into_C(cSlice []CBoundingBox3D, goSlice []BoundingBox3D) {
 	for i := 0; i < len(goSlice); i++ {
 		BoundingBox3DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

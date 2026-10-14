@@ -147,8 +147,8 @@ func (t _VelocityStampedTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mes
 	m := msg.(*VelocityStamped)
 	mem := (*C.geometry_msgs__msg__VelocityStamped)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.body_frame_id), m.BodyFrameId)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.reference_frame_id), m.ReferenceFrameId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.body_frame_id), m.BodyFrameId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.reference_frame_id), m.ReferenceFrameId)
 	TwistTypeSupport.AsCStruct(unsafe.Pointer(&mem.velocity), &m.Velocity)
 }
 
@@ -179,7 +179,7 @@ func VelocityStamped__Sequence_to_Go(goSlice *[]VelocityStamped, cSlice CVelocit
 		VelocityStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func VelocityStamped__Sequence_to_C(cSlice *CVelocityStamped__Sequence, goSlice []VelocityStamped) {
+func VelocityStamped__Sequence_into_C(cSlice *CVelocityStamped__Sequence, goSlice []VelocityStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__VelocityStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -202,7 +202,7 @@ func VelocityStamped__Array_to_Go(goSlice []VelocityStamped, cSlice []CVelocityS
 		VelocityStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func VelocityStamped__Array_to_C(cSlice []CVelocityStamped, goSlice []VelocityStamped) {
+func VelocityStamped__Array_into_C(cSlice []CVelocityStamped, goSlice []VelocityStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		VelocityStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

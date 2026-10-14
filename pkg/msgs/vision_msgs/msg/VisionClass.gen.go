@@ -140,7 +140,7 @@ func (t _VisionClassTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message
 	m := msg.(*VisionClass)
 	mem := (*C.vision_msgs__msg__VisionClass)(dst)
 	mem.class_id = C.uint16_t(m.ClassId)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.class_name), m.ClassName)
+	primitives.StringIntoC(unsafe.Pointer(&mem.class_name), m.ClassName)
 }
 
 func (t _VisionClassTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -167,7 +167,7 @@ func VisionClass__Sequence_to_Go(goSlice *[]VisionClass, cSlice CVisionClass__Se
 		VisionClassTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func VisionClass__Sequence_to_C(cSlice *CVisionClass__Sequence, goSlice []VisionClass) {
+func VisionClass__Sequence_into_C(cSlice *CVisionClass__Sequence, goSlice []VisionClass) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -187,7 +187,7 @@ func VisionClass__Array_to_Go(goSlice []VisionClass, cSlice []CVisionClass) {
 		VisionClassTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func VisionClass__Array_to_C(cSlice []CVisionClass, goSlice []VisionClass) {
+func VisionClass__Array_into_C(cSlice []CVisionClass, goSlice []VisionClass) {
 	for i := 0; i < len(goSlice); i++ {
 		VisionClassTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

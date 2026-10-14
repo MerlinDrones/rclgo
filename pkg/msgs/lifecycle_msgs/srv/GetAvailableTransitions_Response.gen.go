@@ -139,7 +139,7 @@ func (t _GetAvailableTransitions_ResponseTypeSupport) ReleaseMemory(pointer_to_f
 func (t _GetAvailableTransitions_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*GetAvailableTransitions_Response)
 	mem := (*C.lifecycle_msgs__srv__GetAvailableTransitions_Response)(dst)
-	lifecycle_msgs_msg.TransitionDescription__Sequence_to_C((*lifecycle_msgs_msg.CTransitionDescription__Sequence)(unsafe.Pointer(&mem.available_transitions)), m.AvailableTransitions)
+	lifecycle_msgs_msg.TransitionDescription__Sequence_into_C((*lifecycle_msgs_msg.CTransitionDescription__Sequence)(unsafe.Pointer(&mem.available_transitions)), m.AvailableTransitions)
 }
 
 func (t _GetAvailableTransitions_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,7 +166,7 @@ func GetAvailableTransitions_Response__Sequence_to_Go(goSlice *[]GetAvailableTra
 		GetAvailableTransitions_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetAvailableTransitions_Response__Sequence_to_C(cSlice *CGetAvailableTransitions_Response__Sequence, goSlice []GetAvailableTransitions_Response) {
+func GetAvailableTransitions_Response__Sequence_into_C(cSlice *CGetAvailableTransitions_Response__Sequence, goSlice []GetAvailableTransitions_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.lifecycle_msgs__srv__GetAvailableTransitions_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -189,7 +189,7 @@ func GetAvailableTransitions_Response__Array_to_Go(goSlice []GetAvailableTransit
 		GetAvailableTransitions_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetAvailableTransitions_Response__Array_to_C(cSlice []CGetAvailableTransitions_Response, goSlice []GetAvailableTransitions_Response) {
+func GetAvailableTransitions_Response__Array_into_C(cSlice []CGetAvailableTransitions_Response, goSlice []GetAvailableTransitions_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		GetAvailableTransitions_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -222,7 +222,7 @@ func BasicTypes__Sequence_to_Go(goSlice *[]BasicTypes, cSlice CBasicTypes__Seque
 		BasicTypesTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BasicTypes__Sequence_to_C(cSlice *CBasicTypes__Sequence, goSlice []BasicTypes) {
+func BasicTypes__Sequence_into_C(cSlice *CBasicTypes__Sequence, goSlice []BasicTypes) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__msg__BasicTypes__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -245,7 +245,7 @@ func BasicTypes__Array_to_Go(goSlice []BasicTypes, cSlice []CBasicTypes) {
 		BasicTypesTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BasicTypes__Array_to_C(cSlice []CBasicTypes, goSlice []BasicTypes) {
+func BasicTypes__Array_into_C(cSlice []CBasicTypes, goSlice []BasicTypes) {
 	for i := 0; i < len(goSlice); i++ {
 		BasicTypesTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -167,7 +167,7 @@ func Wrench__Sequence_to_Go(goSlice *[]Wrench, cSlice CWrench__Sequence) {
 		WrenchTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Wrench__Sequence_to_C(cSlice *CWrench__Sequence, goSlice []Wrench) {
+func Wrench__Sequence_into_C(cSlice *CWrench__Sequence, goSlice []Wrench) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__Wrench__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -190,7 +190,7 @@ func Wrench__Array_to_Go(goSlice []Wrench, cSlice []CWrench) {
 		WrenchTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Wrench__Array_to_C(cSlice []CWrench, goSlice []Wrench) {
+func Wrench__Array_into_C(cSlice []CWrench, goSlice []Wrench) {
 	for i := 0; i < len(goSlice); i++ {
 		WrenchTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

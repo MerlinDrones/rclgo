@@ -394,19 +394,19 @@ func translateROS2Type(f *ROS2Field, m *ROS2Message) (pkgName string, cType stri
 func (p *parser) cSerializationCode(f *ROS2Field, m *ROS2Message) string {
 	if f.TypeArray != "" && f.ArraySize > 0 && f.PkgName != "" && f.PkgIsLocal {
 		// Complex value Array local package reference
-		return ucFirst(f.RosType) + `__Array_to_C(mem.` + f.CName + `[:], m.` + f.GoName + `[:])`
+		return ucFirst(f.RosType) + `__Array_into_C(mem.` + f.CName + `[:], m.` + f.GoName + `[:])`
 
 	} else if f.TypeArray != "" && f.ArraySize > 0 && f.PkgName != "" && !f.PkgIsLocal {
 		// Complex value Array remote package reference
 		return `cSlice_` + f.RosName + ` := mem.` + f.CName + `[:]
-	` + f.GoPkgReference() + ucFirst(f.RosType) + `__Array_to_C(*(*[]` + f.GoPkgReference() + `C` + ucFirst(f.RosType) + `)(unsafe.Pointer(&cSlice_` + f.RosName + `)), m.` + f.GoName + `[:])`
+	` + f.GoPkgReference() + ucFirst(f.RosType) + `__Array_into_C(*(*[]` + f.GoPkgReference() + `C` + ucFirst(f.RosType) + `)(unsafe.Pointer(&cSlice_` + f.RosName + `)), m.` + f.GoName + `[:])`
 	} else if f.TypeArray != "" && f.ArraySize == 0 && f.PkgName != "" && f.PkgIsLocal {
 		// Complex value Slice local package reference
-		return ucFirst(f.RosType) + `__Sequence_to_C(&mem.` + f.CName + `, m.` + f.GoName + `)`
+		return ucFirst(f.RosType) + `__Sequence_into_C(&mem.` + f.CName + `, m.` + f.GoName + `)`
 
 	} else if f.TypeArray != "" && f.ArraySize == 0 && f.PkgName != "" && !f.PkgIsLocal {
 		// Complex value Slice remote package reference
-		return f.GoPkgReference() + ucFirst(f.RosType) + `__Sequence_to_C((*` + f.GoPkgReference() + `C` + ucFirst(f.RosType) + `__Sequence)(unsafe.Pointer(&mem.` + f.CName + `)), m.` + f.GoName + `)`
+		return f.GoPkgReference() + ucFirst(f.RosType) + `__Sequence_into_C((*` + f.GoPkgReference() + `C` + ucFirst(f.RosType) + `__Sequence)(unsafe.Pointer(&mem.` + f.CName + `)), m.` + f.GoName + `)`
 
 	} else if f.TypeArray == "" && f.PkgName != "" {
 		// Complex value single
@@ -416,12 +416,12 @@ func (p *parser) cSerializationCode(f *ROS2Field, m *ROS2Message) string {
 		// Primitive value Array
 		m.GoImports[p.config.RclgoImportPath+"/pkg/rclgo/primitives"] = "primitives"
 		return `cSlice_` + f.RosName + ` := mem.` + f.CName + `[:]
-	` + `primitives.` + ucFirst(f.RosType) + `__Array_to_C(*(*[]primitives.C` + ucFirst(f.RosType) + `)(unsafe.Pointer(&cSlice_` + f.RosName + `)), m.` + f.GoName + `[:])`
+	` + `primitives.` + ucFirst(f.RosType) + `__Array_into_C(*(*[]primitives.C` + ucFirst(f.RosType) + `)(unsafe.Pointer(&cSlice_` + f.RosName + `)), m.` + f.GoName + `[:])`
 
 	} else if f.TypeArray != "" && f.ArraySize == 0 && f.PkgName == "" {
 		// Primitive value Slice
 		m.GoImports[p.config.RclgoImportPath+"/pkg/rclgo/primitives"] = "primitives"
-		return `primitives.` + ucFirst(f.RosType) + `__Sequence_to_C((*primitives.C` + ucFirst(f.RosType) + `__Sequence)(unsafe.Pointer(&mem.` + f.CName + `)), m.` + f.GoName + `)`
+		return `primitives.` + ucFirst(f.RosType) + `__Sequence_into_C((*primitives.C` + ucFirst(f.RosType) + `__Sequence)(unsafe.Pointer(&mem.` + f.CName + `)), m.` + f.GoName + `)`
 
 	} else if f.TypeArray == "" && f.PkgName == "" {
 		// Primitive value single
@@ -431,10 +431,10 @@ func (p *parser) cSerializationCode(f *ROS2Field, m *ROS2Message) string {
 		// generated message fields.
 		if f.RosType == "string" {
 			m.GoImports[p.config.RclgoImportPath+"/pkg/rclgo/primitives"] = "primitives"
-			return "primitives.StringAsCStruct(unsafe.Pointer(&mem." + f.CName + "), m." + f.GoName + ")"
+			return "primitives.StringIntoC(unsafe.Pointer(&mem." + f.CName + "), m." + f.GoName + ")"
 		} else if f.RosType == "U16String" {
 			m.GoImports[p.config.RclgoImportPath+"/pkg/rclgo/primitives"] = "primitives"
-			return "primitives.U16StringAsCStruct(unsafe.Pointer(&mem." + f.CName + "), m." + f.GoName + ")"
+			return "primitives.U16StringIntoC(unsafe.Pointer(&mem." + f.CName + "), m." + f.GoName + ")"
 		}
 		return `mem.` + f.CName + ` = C.` + f.CType + `(m.` + f.GoName + `)`
 	}

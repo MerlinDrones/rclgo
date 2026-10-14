@@ -198,7 +198,7 @@ func Range__Sequence_to_Go(goSlice *[]Range, cSlice CRange__Sequence) {
 		RangeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Range__Sequence_to_C(cSlice *CRange__Sequence, goSlice []Range) {
+func Range__Sequence_into_C(cSlice *CRange__Sequence, goSlice []Range) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__Range__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -221,7 +221,7 @@ func Range__Array_to_Go(goSlice []Range, cSlice []CRange) {
 		RangeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Range__Array_to_C(cSlice []CRange, goSlice []Range) {
+func Range__Array_into_C(cSlice []CRange, goSlice []Range) {
 	for i := 0; i < len(goSlice); i++ {
 		RangeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

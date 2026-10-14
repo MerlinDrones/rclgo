@@ -156,7 +156,7 @@ func (t _ServiceEventInfoTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	mem.event_type = C.uint8_t(m.EventType)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.stamp), &m.Stamp)
 	cSlice_client_gid := mem.client_gid[:]
-	primitives.Char__Array_to_C(*(*[]primitives.CChar)(unsafe.Pointer(&cSlice_client_gid)), m.ClientGid[:])
+	primitives.Char__Array_into_C(*(*[]primitives.CChar)(unsafe.Pointer(&cSlice_client_gid)), m.ClientGid[:])
 	mem.sequence_number = C.int64_t(m.SequenceNumber)
 }
 
@@ -188,7 +188,7 @@ func ServiceEventInfo__Sequence_to_Go(goSlice *[]ServiceEventInfo, cSlice CServi
 		ServiceEventInfoTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ServiceEventInfo__Sequence_to_C(cSlice *CServiceEventInfo__Sequence, goSlice []ServiceEventInfo) {
+func ServiceEventInfo__Sequence_into_C(cSlice *CServiceEventInfo__Sequence, goSlice []ServiceEventInfo) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.service_msgs__msg__ServiceEventInfo__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -211,7 +211,7 @@ func ServiceEventInfo__Array_to_Go(goSlice []ServiceEventInfo, cSlice []CService
 		ServiceEventInfoTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ServiceEventInfo__Array_to_C(cSlice []CServiceEventInfo, goSlice []ServiceEventInfo) {
+func ServiceEventInfo__Array_into_C(cSlice []CServiceEventInfo, goSlice []ServiceEventInfo) {
 	for i := 0; i < len(goSlice); i++ {
 		ServiceEventInfoTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

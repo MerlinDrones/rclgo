@@ -168,7 +168,7 @@ func QuaternionStamped__Sequence_to_Go(goSlice *[]QuaternionStamped, cSlice CQua
 		QuaternionStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func QuaternionStamped__Sequence_to_C(cSlice *CQuaternionStamped__Sequence, goSlice []QuaternionStamped) {
+func QuaternionStamped__Sequence_into_C(cSlice *CQuaternionStamped__Sequence, goSlice []QuaternionStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__QuaternionStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func QuaternionStamped__Array_to_Go(goSlice []QuaternionStamped, cSlice []CQuate
 		QuaternionStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func QuaternionStamped__Array_to_C(cSlice []CQuaternionStamped, goSlice []QuaternionStamped) {
+func QuaternionStamped__Array_into_C(cSlice []CQuaternionStamped, goSlice []QuaternionStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		QuaternionStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

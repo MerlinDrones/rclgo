@@ -143,7 +143,7 @@ func (t _GoalStatusArrayTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointe
 func (t _GoalStatusArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*GoalStatusArray)
 	mem := (*C.action_msgs__msg__GoalStatusArray)(dst)
-	GoalStatus__Sequence_to_C(&mem.status_list, m.StatusList)
+	GoalStatus__Sequence_into_C(&mem.status_list, m.StatusList)
 }
 
 func (t _GoalStatusArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -170,7 +170,7 @@ func GoalStatusArray__Sequence_to_Go(goSlice *[]GoalStatusArray, cSlice CGoalSta
 		GoalStatusArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GoalStatusArray__Sequence_to_C(cSlice *CGoalStatusArray__Sequence, goSlice []GoalStatusArray) {
+func GoalStatusArray__Sequence_into_C(cSlice *CGoalStatusArray__Sequence, goSlice []GoalStatusArray) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.action_msgs__msg__GoalStatusArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -193,7 +193,7 @@ func GoalStatusArray__Array_to_Go(goSlice []GoalStatusArray, cSlice []CGoalStatu
 		GoalStatusArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GoalStatusArray__Array_to_C(cSlice []CGoalStatusArray, goSlice []GoalStatusArray) {
+func GoalStatusArray__Array_into_C(cSlice []CGoalStatusArray, goSlice []GoalStatusArray) {
 	for i := 0; i < len(goSlice); i++ {
 		GoalStatusArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

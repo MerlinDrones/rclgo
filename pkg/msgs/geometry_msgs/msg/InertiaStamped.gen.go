@@ -168,7 +168,7 @@ func InertiaStamped__Sequence_to_Go(goSlice *[]InertiaStamped, cSlice CInertiaSt
 		InertiaStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func InertiaStamped__Sequence_to_C(cSlice *CInertiaStamped__Sequence, goSlice []InertiaStamped) {
+func InertiaStamped__Sequence_into_C(cSlice *CInertiaStamped__Sequence, goSlice []InertiaStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__InertiaStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func InertiaStamped__Array_to_Go(goSlice []InertiaStamped, cSlice []CInertiaStam
 		InertiaStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func InertiaStamped__Array_to_C(cSlice []CInertiaStamped, goSlice []InertiaStamped) {
+func InertiaStamped__Array_into_C(cSlice []CInertiaStamped, goSlice []InertiaStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		InertiaStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

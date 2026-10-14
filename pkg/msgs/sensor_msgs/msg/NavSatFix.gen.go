@@ -168,7 +168,7 @@ func (t _NavSatFixTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) 
 	mem.longitude = C.double(m.Longitude)
 	mem.altitude = C.double(m.Altitude)
 	cSlice_position_covariance := mem.position_covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_position_covariance)), m.PositionCovariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_position_covariance)), m.PositionCovariance[:])
 	mem.position_covariance_type = C.uint8_t(m.PositionCovarianceType)
 }
 
@@ -203,7 +203,7 @@ func NavSatFix__Sequence_to_Go(goSlice *[]NavSatFix, cSlice CNavSatFix__Sequence
 		NavSatFixTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NavSatFix__Sequence_to_C(cSlice *CNavSatFix__Sequence, goSlice []NavSatFix) {
+func NavSatFix__Sequence_into_C(cSlice *CNavSatFix__Sequence, goSlice []NavSatFix) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__NavSatFix__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -226,7 +226,7 @@ func NavSatFix__Array_to_Go(goSlice []NavSatFix, cSlice []CNavSatFix) {
 		NavSatFixTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NavSatFix__Array_to_C(cSlice []CNavSatFix, goSlice []NavSatFix) {
+func NavSatFix__Array_into_C(cSlice []CNavSatFix, goSlice []NavSatFix) {
 	for i := 0; i < len(goSlice); i++ {
 		NavSatFixTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

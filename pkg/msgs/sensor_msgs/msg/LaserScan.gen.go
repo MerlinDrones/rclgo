@@ -178,8 +178,8 @@ func (t _LaserScanTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) 
 	mem.scan_time = C.float(m.ScanTime)
 	mem.range_min = C.float(m.RangeMin)
 	mem.range_max = C.float(m.RangeMax)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.ranges)), m.Ranges)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.intensities)), m.Intensities)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.ranges)), m.Ranges)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.intensities)), m.Intensities)
 }
 
 func (t _LaserScanTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -215,7 +215,7 @@ func LaserScan__Sequence_to_Go(goSlice *[]LaserScan, cSlice CLaserScan__Sequence
 		LaserScanTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func LaserScan__Sequence_to_C(cSlice *CLaserScan__Sequence, goSlice []LaserScan) {
+func LaserScan__Sequence_into_C(cSlice *CLaserScan__Sequence, goSlice []LaserScan) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__LaserScan__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -238,7 +238,7 @@ func LaserScan__Array_to_Go(goSlice []LaserScan, cSlice []CLaserScan) {
 		LaserScanTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func LaserScan__Array_to_C(cSlice []CLaserScan, goSlice []LaserScan) {
+func LaserScan__Array_into_C(cSlice []CLaserScan, goSlice []LaserScan) {
 	for i := 0; i < len(goSlice); i++ {
 		LaserScanTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

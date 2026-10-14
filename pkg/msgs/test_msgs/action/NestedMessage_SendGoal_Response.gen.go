@@ -171,7 +171,7 @@ func NestedMessage_SendGoal_Response__Sequence_to_Go(goSlice *[]NestedMessage_Se
 		NestedMessage_SendGoal_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NestedMessage_SendGoal_Response__Sequence_to_C(cSlice *CNestedMessage_SendGoal_Response__Sequence, goSlice []NestedMessage_SendGoal_Response) {
+func NestedMessage_SendGoal_Response__Sequence_into_C(cSlice *CNestedMessage_SendGoal_Response__Sequence, goSlice []NestedMessage_SendGoal_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__action__NestedMessage_SendGoal_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -194,7 +194,7 @@ func NestedMessage_SendGoal_Response__Array_to_Go(goSlice []NestedMessage_SendGo
 		NestedMessage_SendGoal_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NestedMessage_SendGoal_Response__Array_to_C(cSlice []CNestedMessage_SendGoal_Response, goSlice []NestedMessage_SendGoal_Response) {
+func NestedMessage_SendGoal_Response__Array_into_C(cSlice []CNestedMessage_SendGoal_Response, goSlice []NestedMessage_SendGoal_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedMessage_SendGoal_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

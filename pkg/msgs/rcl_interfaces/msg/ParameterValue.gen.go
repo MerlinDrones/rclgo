@@ -182,12 +182,12 @@ func (t _ParameterValueTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	mem.bool_value = C.bool(m.BoolValue)
 	mem.integer_value = C.int64_t(m.IntegerValue)
 	mem.double_value = C.double(m.DoubleValue)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value), m.StringValue)
-	primitives.Byte__Sequence_to_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.byte_array_value)), m.ByteArrayValue)
-	primitives.Bool__Sequence_to_C((*primitives.CBool__Sequence)(unsafe.Pointer(&mem.bool_array_value)), m.BoolArrayValue)
-	primitives.Int64__Sequence_to_C((*primitives.CInt64__Sequence)(unsafe.Pointer(&mem.integer_array_value)), m.IntegerArrayValue)
-	primitives.Float64__Sequence_to_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.double_array_value)), m.DoubleArrayValue)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.string_array_value)), m.StringArrayValue)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value), m.StringValue)
+	primitives.Byte__Sequence_into_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.byte_array_value)), m.ByteArrayValue)
+	primitives.Bool__Sequence_into_C((*primitives.CBool__Sequence)(unsafe.Pointer(&mem.bool_array_value)), m.BoolArrayValue)
+	primitives.Int64__Sequence_into_C((*primitives.CInt64__Sequence)(unsafe.Pointer(&mem.integer_array_value)), m.IntegerArrayValue)
+	primitives.Float64__Sequence_into_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.double_array_value)), m.DoubleArrayValue)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.string_array_value)), m.StringArrayValue)
 }
 
 func (t _ParameterValueTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -223,7 +223,7 @@ func ParameterValue__Sequence_to_Go(goSlice *[]ParameterValue, cSlice CParameter
 		ParameterValueTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ParameterValue__Sequence_to_C(cSlice *CParameterValue__Sequence, goSlice []ParameterValue) {
+func ParameterValue__Sequence_into_C(cSlice *CParameterValue__Sequence, goSlice []ParameterValue) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__msg__ParameterValue__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -246,7 +246,7 @@ func ParameterValue__Array_to_Go(goSlice []ParameterValue, cSlice []CParameterVa
 		ParameterValueTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ParameterValue__Array_to_C(cSlice []CParameterValue, goSlice []ParameterValue) {
+func ParameterValue__Array_into_C(cSlice []CParameterValue, goSlice []ParameterValue) {
 	for i := 0; i < len(goSlice); i++ {
 		ParameterValueTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

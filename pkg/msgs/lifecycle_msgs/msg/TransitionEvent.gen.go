@@ -177,7 +177,7 @@ func TransitionEvent__Sequence_to_Go(goSlice *[]TransitionEvent, cSlice CTransit
 		TransitionEventTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TransitionEvent__Sequence_to_C(cSlice *CTransitionEvent__Sequence, goSlice []TransitionEvent) {
+func TransitionEvent__Sequence_into_C(cSlice *CTransitionEvent__Sequence, goSlice []TransitionEvent) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.lifecycle_msgs__msg__TransitionEvent__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -200,7 +200,7 @@ func TransitionEvent__Array_to_Go(goSlice []TransitionEvent, cSlice []CTransitio
 		TransitionEventTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TransitionEvent__Array_to_C(cSlice []CTransitionEvent, goSlice []TransitionEvent) {
+func TransitionEvent__Array_into_C(cSlice []CTransitionEvent, goSlice []TransitionEvent) {
 	for i := 0; i < len(goSlice); i++ {
 		TransitionEventTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

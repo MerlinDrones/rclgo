@@ -147,8 +147,8 @@ func (t _VisionInfoTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message)
 	m := msg.(*VisionInfo)
 	mem := (*C.vision_msgs__msg__VisionInfo)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.method), m.Method)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.database_location), m.DatabaseLocation)
+	primitives.StringIntoC(unsafe.Pointer(&mem.method), m.Method)
+	primitives.StringIntoC(unsafe.Pointer(&mem.database_location), m.DatabaseLocation)
 	mem.database_version = C.int32_t(m.DatabaseVersion)
 }
 
@@ -178,7 +178,7 @@ func VisionInfo__Sequence_to_Go(goSlice *[]VisionInfo, cSlice CVisionInfo__Seque
 		VisionInfoTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func VisionInfo__Sequence_to_C(cSlice *CVisionInfo__Sequence, goSlice []VisionInfo) {
+func VisionInfo__Sequence_into_C(cSlice *CVisionInfo__Sequence, goSlice []VisionInfo) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -198,7 +198,7 @@ func VisionInfo__Array_to_Go(goSlice []VisionInfo, cSlice []CVisionInfo) {
 		VisionInfoTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func VisionInfo__Array_to_C(cSlice []CVisionInfo, goSlice []VisionInfo) {
+func VisionInfo__Array_into_C(cSlice []CVisionInfo, goSlice []VisionInfo) {
 	for i := 0; i < len(goSlice); i++ {
 		VisionInfoTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

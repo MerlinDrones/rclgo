@@ -168,7 +168,7 @@ func WrenchStamped__Sequence_to_Go(goSlice *[]WrenchStamped, cSlice CWrenchStamp
 		WrenchStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func WrenchStamped__Sequence_to_C(cSlice *CWrenchStamped__Sequence, goSlice []WrenchStamped) {
+func WrenchStamped__Sequence_into_C(cSlice *CWrenchStamped__Sequence, goSlice []WrenchStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__WrenchStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func WrenchStamped__Array_to_Go(goSlice []WrenchStamped, cSlice []CWrenchStamped
 		WrenchStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func WrenchStamped__Array_to_C(cSlice []CWrenchStamped, goSlice []WrenchStamped) {
+func WrenchStamped__Array_into_C(cSlice []CWrenchStamped, goSlice []WrenchStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		WrenchStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

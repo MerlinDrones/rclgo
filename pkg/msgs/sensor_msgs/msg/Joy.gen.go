@@ -150,8 +150,8 @@ func (t _JoyTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Joy)
 	mem := (*C.sensor_msgs__msg__Joy)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.axes)), m.Axes)
-	primitives.Int32__Sequence_to_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.buttons)), m.Buttons)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.axes)), m.Axes)
+	primitives.Int32__Sequence_into_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.buttons)), m.Buttons)
 }
 
 func (t _JoyTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -180,7 +180,7 @@ func Joy__Sequence_to_Go(goSlice *[]Joy, cSlice CJoy__Sequence) {
 		JoyTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Joy__Sequence_to_C(cSlice *CJoy__Sequence, goSlice []Joy) {
+func Joy__Sequence_into_C(cSlice *CJoy__Sequence, goSlice []Joy) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__Joy__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -203,7 +203,7 @@ func Joy__Array_to_Go(goSlice []Joy, cSlice []CJoy) {
 		JoyTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Joy__Array_to_C(cSlice []CJoy, goSlice []Joy) {
+func Joy__Array_into_C(cSlice []CJoy, goSlice []Joy) {
 	for i := 0; i < len(goSlice); i++ {
 		JoyTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

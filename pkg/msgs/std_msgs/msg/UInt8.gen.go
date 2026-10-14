@@ -162,7 +162,7 @@ func UInt8__Sequence_to_Go(goSlice *[]UInt8, cSlice CUInt8__Sequence) {
 		UInt8TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func UInt8__Sequence_to_C(cSlice *CUInt8__Sequence, goSlice []UInt8) {
+func UInt8__Sequence_into_C(cSlice *CUInt8__Sequence, goSlice []UInt8) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__UInt8__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -185,7 +185,7 @@ func UInt8__Array_to_Go(goSlice []UInt8, cSlice []CUInt8) {
 		UInt8TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func UInt8__Array_to_C(cSlice []CUInt8, goSlice []UInt8) {
+func UInt8__Array_into_C(cSlice []CUInt8, goSlice []UInt8) {
 	for i := 0; i < len(goSlice); i++ {
 		UInt8TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

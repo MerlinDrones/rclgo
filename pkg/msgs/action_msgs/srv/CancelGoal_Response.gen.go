@@ -155,7 +155,7 @@ func (t _CancelGoal_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types
 	m := msg.(*CancelGoal_Response)
 	mem := (*C.action_msgs__srv__CancelGoal_Response)(dst)
 	mem.return_code = C.int8_t(m.ReturnCode)
-	action_msgs_msg.GoalInfo__Sequence_to_C((*action_msgs_msg.CGoalInfo__Sequence)(unsafe.Pointer(&mem.goals_canceling)), m.GoalsCanceling)
+	action_msgs_msg.GoalInfo__Sequence_into_C((*action_msgs_msg.CGoalInfo__Sequence)(unsafe.Pointer(&mem.goals_canceling)), m.GoalsCanceling)
 }
 
 func (t _CancelGoal_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -183,7 +183,7 @@ func CancelGoal_Response__Sequence_to_Go(goSlice *[]CancelGoal_Response, cSlice 
 		CancelGoal_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func CancelGoal_Response__Sequence_to_C(cSlice *CCancelGoal_Response__Sequence, goSlice []CancelGoal_Response) {
+func CancelGoal_Response__Sequence_into_C(cSlice *CCancelGoal_Response__Sequence, goSlice []CancelGoal_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.action_msgs__srv__CancelGoal_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -206,7 +206,7 @@ func CancelGoal_Response__Array_to_Go(goSlice []CancelGoal_Response, cSlice []CC
 		CancelGoal_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func CancelGoal_Response__Array_to_C(cSlice []CCancelGoal_Response, goSlice []CancelGoal_Response) {
+func CancelGoal_Response__Array_into_C(cSlice []CCancelGoal_Response, goSlice []CancelGoal_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		CancelGoal_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

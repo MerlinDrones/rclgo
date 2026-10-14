@@ -138,7 +138,7 @@ func (t _JoyFeedbackArrayTypeSupport) ReleaseMemory(pointer_to_free unsafe.Point
 func (t _JoyFeedbackArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*JoyFeedbackArray)
 	mem := (*C.sensor_msgs__msg__JoyFeedbackArray)(dst)
-	JoyFeedback__Sequence_to_C(&mem.array, m.Array)
+	JoyFeedback__Sequence_into_C(&mem.array, m.Array)
 }
 
 func (t _JoyFeedbackArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -165,7 +165,7 @@ func JoyFeedbackArray__Sequence_to_Go(goSlice *[]JoyFeedbackArray, cSlice CJoyFe
 		JoyFeedbackArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func JoyFeedbackArray__Sequence_to_C(cSlice *CJoyFeedbackArray__Sequence, goSlice []JoyFeedbackArray) {
+func JoyFeedbackArray__Sequence_into_C(cSlice *CJoyFeedbackArray__Sequence, goSlice []JoyFeedbackArray) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__JoyFeedbackArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -188,7 +188,7 @@ func JoyFeedbackArray__Array_to_Go(goSlice []JoyFeedbackArray, cSlice []CJoyFeed
 		JoyFeedbackArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func JoyFeedbackArray__Array_to_C(cSlice []CJoyFeedbackArray, goSlice []JoyFeedbackArray) {
+func JoyFeedbackArray__Array_into_C(cSlice []CJoyFeedbackArray, goSlice []JoyFeedbackArray) {
 	for i := 0; i < len(goSlice); i++ {
 		JoyFeedbackArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

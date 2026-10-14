@@ -159,10 +159,10 @@ func (t _ParameterEventTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	m := msg.(*ParameterEvent)
 	mem := (*C.rcl_interfaces__msg__ParameterEvent)(dst)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.stamp), &m.Stamp)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.node), m.Node)
-	Parameter__Sequence_to_C(&mem.new_parameters, m.NewParameters)
-	Parameter__Sequence_to_C(&mem.changed_parameters, m.ChangedParameters)
-	Parameter__Sequence_to_C(&mem.deleted_parameters, m.DeletedParameters)
+	primitives.StringIntoC(unsafe.Pointer(&mem.node), m.Node)
+	Parameter__Sequence_into_C(&mem.new_parameters, m.NewParameters)
+	Parameter__Sequence_into_C(&mem.changed_parameters, m.ChangedParameters)
+	Parameter__Sequence_into_C(&mem.deleted_parameters, m.DeletedParameters)
 }
 
 func (t _ParameterEventTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -193,7 +193,7 @@ func ParameterEvent__Sequence_to_Go(goSlice *[]ParameterEvent, cSlice CParameter
 		ParameterEventTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ParameterEvent__Sequence_to_C(cSlice *CParameterEvent__Sequence, goSlice []ParameterEvent) {
+func ParameterEvent__Sequence_into_C(cSlice *CParameterEvent__Sequence, goSlice []ParameterEvent) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__msg__ParameterEvent__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -216,7 +216,7 @@ func ParameterEvent__Array_to_Go(goSlice []ParameterEvent, cSlice []CParameterEv
 		ParameterEventTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ParameterEvent__Array_to_C(cSlice []CParameterEvent, goSlice []ParameterEvent) {
+func ParameterEvent__Array_into_C(cSlice []CParameterEvent, goSlice []ParameterEvent) {
 	for i := 0; i < len(goSlice); i++ {
 		ParameterEventTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

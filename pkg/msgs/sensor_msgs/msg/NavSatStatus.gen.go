@@ -180,7 +180,7 @@ func NavSatStatus__Sequence_to_Go(goSlice *[]NavSatStatus, cSlice CNavSatStatus_
 		NavSatStatusTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NavSatStatus__Sequence_to_C(cSlice *CNavSatStatus__Sequence, goSlice []NavSatStatus) {
+func NavSatStatus__Sequence_into_C(cSlice *CNavSatStatus__Sequence, goSlice []NavSatStatus) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__NavSatStatus__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -203,7 +203,7 @@ func NavSatStatus__Array_to_Go(goSlice []NavSatStatus, cSlice []CNavSatStatus) {
 		NavSatStatusTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NavSatStatus__Array_to_C(cSlice []CNavSatStatus, goSlice []NavSatStatus) {
+func NavSatStatus__Array_into_C(cSlice []CNavSatStatus, goSlice []NavSatStatus) {
 	for i := 0; i < len(goSlice); i++ {
 		NavSatStatusTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

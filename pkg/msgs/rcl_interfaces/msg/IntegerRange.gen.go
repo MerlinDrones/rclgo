@@ -172,7 +172,7 @@ func IntegerRange__Sequence_to_Go(goSlice *[]IntegerRange, cSlice CIntegerRange_
 		IntegerRangeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func IntegerRange__Sequence_to_C(cSlice *CIntegerRange__Sequence, goSlice []IntegerRange) {
+func IntegerRange__Sequence_into_C(cSlice *CIntegerRange__Sequence, goSlice []IntegerRange) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__msg__IntegerRange__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -195,7 +195,7 @@ func IntegerRange__Array_to_Go(goSlice []IntegerRange, cSlice []CIntegerRange) {
 		IntegerRangeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func IntegerRange__Array_to_C(cSlice []CIntegerRange, goSlice []IntegerRange) {
+func IntegerRange__Array_into_C(cSlice []CIntegerRange, goSlice []IntegerRange) {
 	for i := 0; i < len(goSlice); i++ {
 		IntegerRangeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

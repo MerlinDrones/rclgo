@@ -144,7 +144,7 @@ func (t _TransformStampedTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*TransformStamped)
 	mem := (*C.geometry_msgs__msg__TransformStamped)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.child_frame_id), m.ChildFrameId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.child_frame_id), m.ChildFrameId)
 	TransformTypeSupport.AsCStruct(unsafe.Pointer(&mem.transform), &m.Transform)
 }
 
@@ -174,7 +174,7 @@ func TransformStamped__Sequence_to_Go(goSlice *[]TransformStamped, cSlice CTrans
 		TransformStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TransformStamped__Sequence_to_C(cSlice *CTransformStamped__Sequence, goSlice []TransformStamped) {
+func TransformStamped__Sequence_into_C(cSlice *CTransformStamped__Sequence, goSlice []TransformStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__TransformStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -197,7 +197,7 @@ func TransformStamped__Array_to_Go(goSlice []TransformStamped, cSlice []CTransfo
 		TransformStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TransformStamped__Array_to_C(cSlice []CTransformStamped, goSlice []TransformStamped) {
+func TransformStamped__Array_into_C(cSlice []CTransformStamped, goSlice []TransformStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		TransformStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

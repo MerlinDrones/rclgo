@@ -167,7 +167,7 @@ func Time__Sequence_to_Go(goSlice *[]Time, cSlice CTime__Sequence) {
 		TimeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Time__Sequence_to_C(cSlice *CTime__Sequence, goSlice []Time) {
+func Time__Sequence_into_C(cSlice *CTime__Sequence, goSlice []Time) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.builtin_interfaces__msg__Time__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -190,7 +190,7 @@ func Time__Array_to_Go(goSlice []Time, cSlice []CTime) {
 		TimeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Time__Array_to_C(cSlice []CTime, goSlice []Time) {
+func Time__Array_into_C(cSlice []CTime, goSlice []Time) {
 	for i := 0; i < len(goSlice); i++ {
 		TimeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

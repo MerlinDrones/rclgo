@@ -155,7 +155,7 @@ func Empty_Response__Sequence_to_Go(goSlice *[]Empty_Response, cSlice CEmpty_Res
 		Empty_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Empty_Response__Sequence_to_C(cSlice *CEmpty_Response__Sequence, goSlice []Empty_Response) {
+func Empty_Response__Sequence_into_C(cSlice *CEmpty_Response__Sequence, goSlice []Empty_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_srvs__srv__Empty_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -178,7 +178,7 @@ func Empty_Response__Array_to_Go(goSlice []Empty_Response, cSlice []CEmpty_Respo
 		Empty_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Empty_Response__Array_to_C(cSlice []CEmpty_Response, goSlice []Empty_Response) {
+func Empty_Response__Array_into_C(cSlice []CEmpty_Response, goSlice []Empty_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		Empty_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

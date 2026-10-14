@@ -139,7 +139,7 @@ func (t _ParameterTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _ParameterTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Parameter)
 	mem := (*C.rcl_interfaces__msg__Parameter)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
 	ParameterValueTypeSupport.AsCStruct(unsafe.Pointer(&mem.value), &m.Value)
 }
 
@@ -168,7 +168,7 @@ func Parameter__Sequence_to_Go(goSlice *[]Parameter, cSlice CParameter__Sequence
 		ParameterTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Parameter__Sequence_to_C(cSlice *CParameter__Sequence, goSlice []Parameter) {
+func Parameter__Sequence_into_C(cSlice *CParameter__Sequence, goSlice []Parameter) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__msg__Parameter__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func Parameter__Array_to_Go(goSlice []Parameter, cSlice []CParameter) {
 		ParameterTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Parameter__Array_to_C(cSlice []CParameter, goSlice []Parameter) {
+func Parameter__Array_into_C(cSlice []CParameter, goSlice []Parameter) {
 	for i := 0; i < len(goSlice); i++ {
 		ParameterTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

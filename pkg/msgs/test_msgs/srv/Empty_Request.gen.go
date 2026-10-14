@@ -155,7 +155,7 @@ func Empty_Request__Sequence_to_Go(goSlice *[]Empty_Request, cSlice CEmpty_Reque
 		Empty_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Empty_Request__Sequence_to_C(cSlice *CEmpty_Request__Sequence, goSlice []Empty_Request) {
+func Empty_Request__Sequence_into_C(cSlice *CEmpty_Request__Sequence, goSlice []Empty_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__srv__Empty_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -178,7 +178,7 @@ func Empty_Request__Array_to_Go(goSlice []Empty_Request, cSlice []CEmpty_Request
 		Empty_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Empty_Request__Array_to_C(cSlice []CEmpty_Request, goSlice []Empty_Request) {
+func Empty_Request__Array_into_C(cSlice []CEmpty_Request, goSlice []Empty_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		Empty_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

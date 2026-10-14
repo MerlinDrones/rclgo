@@ -163,7 +163,7 @@ func GetState_Response__Sequence_to_Go(goSlice *[]GetState_Response, cSlice CGet
 		GetState_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetState_Response__Sequence_to_C(cSlice *CGetState_Response__Sequence, goSlice []GetState_Response) {
+func GetState_Response__Sequence_into_C(cSlice *CGetState_Response__Sequence, goSlice []GetState_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.lifecycle_msgs__srv__GetState_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -186,7 +186,7 @@ func GetState_Response__Array_to_Go(goSlice []GetState_Response, cSlice []CGetSt
 		GetState_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetState_Response__Array_to_C(cSlice []CGetState_Response, goSlice []GetState_Response) {
+func GetState_Response__Array_into_C(cSlice []CGetState_Response, goSlice []GetState_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		GetState_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

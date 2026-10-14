@@ -139,7 +139,7 @@ func (t _SetParameters_ResponseTypeSupport) ReleaseMemory(pointer_to_free unsafe
 func (t _SetParameters_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*SetParameters_Response)
 	mem := (*C.rcl_interfaces__srv__SetParameters_Response)(dst)
-	rcl_interfaces_msg.SetParametersResult__Sequence_to_C((*rcl_interfaces_msg.CSetParametersResult__Sequence)(unsafe.Pointer(&mem.results)), m.Results)
+	rcl_interfaces_msg.SetParametersResult__Sequence_into_C((*rcl_interfaces_msg.CSetParametersResult__Sequence)(unsafe.Pointer(&mem.results)), m.Results)
 }
 
 func (t _SetParameters_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,7 +166,7 @@ func SetParameters_Response__Sequence_to_Go(goSlice *[]SetParameters_Response, c
 		SetParameters_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetParameters_Response__Sequence_to_C(cSlice *CSetParameters_Response__Sequence, goSlice []SetParameters_Response) {
+func SetParameters_Response__Sequence_into_C(cSlice *CSetParameters_Response__Sequence, goSlice []SetParameters_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__srv__SetParameters_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -189,7 +189,7 @@ func SetParameters_Response__Array_to_Go(goSlice []SetParameters_Response, cSlic
 		SetParameters_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetParameters_Response__Array_to_C(cSlice []CSetParameters_Response, goSlice []SetParameters_Response) {
+func SetParameters_Response__Array_into_C(cSlice []CSetParameters_Response, goSlice []SetParameters_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		SetParameters_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

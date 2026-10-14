@@ -168,7 +168,7 @@ func TwistStamped__Sequence_to_Go(goSlice *[]TwistStamped, cSlice CTwistStamped_
 		TwistStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TwistStamped__Sequence_to_C(cSlice *CTwistStamped__Sequence, goSlice []TwistStamped) {
+func TwistStamped__Sequence_into_C(cSlice *CTwistStamped__Sequence, goSlice []TwistStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__TwistStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func TwistStamped__Array_to_Go(goSlice []TwistStamped, cSlice []CTwistStamped) {
 		TwistStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TwistStamped__Array_to_C(cSlice []CTwistStamped, goSlice []TwistStamped) {
+func TwistStamped__Array_into_C(cSlice []CTwistStamped, goSlice []TwistStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		TwistStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -139,7 +139,7 @@ func (t _SetLoggerLevels_RequestTypeSupport) ReleaseMemory(pointer_to_free unsaf
 func (t _SetLoggerLevels_RequestTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*SetLoggerLevels_Request)
 	mem := (*C.rcl_interfaces__srv__SetLoggerLevels_Request)(dst)
-	rcl_interfaces_msg.LoggerLevel__Sequence_to_C((*rcl_interfaces_msg.CLoggerLevel__Sequence)(unsafe.Pointer(&mem.levels)), m.Levels)
+	rcl_interfaces_msg.LoggerLevel__Sequence_into_C((*rcl_interfaces_msg.CLoggerLevel__Sequence)(unsafe.Pointer(&mem.levels)), m.Levels)
 }
 
 func (t _SetLoggerLevels_RequestTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,7 +166,7 @@ func SetLoggerLevels_Request__Sequence_to_Go(goSlice *[]SetLoggerLevels_Request,
 		SetLoggerLevels_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetLoggerLevels_Request__Sequence_to_C(cSlice *CSetLoggerLevels_Request__Sequence, goSlice []SetLoggerLevels_Request) {
+func SetLoggerLevels_Request__Sequence_into_C(cSlice *CSetLoggerLevels_Request__Sequence, goSlice []SetLoggerLevels_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__srv__SetLoggerLevels_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -189,7 +189,7 @@ func SetLoggerLevels_Request__Array_to_Go(goSlice []SetLoggerLevels_Request, cSl
 		SetLoggerLevels_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetLoggerLevels_Request__Array_to_C(cSlice []CSetLoggerLevels_Request, goSlice []SetLoggerLevels_Request) {
+func SetLoggerLevels_Request__Array_into_C(cSlice []CSetLoggerLevels_Request, goSlice []SetLoggerLevels_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		SetLoggerLevels_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -183,15 +183,15 @@ func (t _MultiNestedTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _MultiNestedTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*MultiNested)
 	mem := (*C.test_msgs__msg__MultiNested)(dst)
-	Arrays__Array_to_C(mem.array_of_arrays[:], m.ArrayOfArrays[:])
-	BoundedSequences__Array_to_C(mem.array_of_bounded_sequences[:], m.ArrayOfBoundedSequences[:])
-	UnboundedSequences__Array_to_C(mem.array_of_unbounded_sequences[:], m.ArrayOfUnboundedSequences[:])
-	Arrays__Sequence_to_C(&mem.bounded_sequence_of_arrays, m.BoundedSequenceOfArrays)
-	BoundedSequences__Sequence_to_C(&mem.bounded_sequence_of_bounded_sequences, m.BoundedSequenceOfBoundedSequences)
-	UnboundedSequences__Sequence_to_C(&mem.bounded_sequence_of_unbounded_sequences, m.BoundedSequenceOfUnboundedSequences)
-	Arrays__Sequence_to_C(&mem.unbounded_sequence_of_arrays, m.UnboundedSequenceOfArrays)
-	BoundedSequences__Sequence_to_C(&mem.unbounded_sequence_of_bounded_sequences, m.UnboundedSequenceOfBoundedSequences)
-	UnboundedSequences__Sequence_to_C(&mem.unbounded_sequence_of_unbounded_sequences, m.UnboundedSequenceOfUnboundedSequences)
+	Arrays__Array_into_C(mem.array_of_arrays[:], m.ArrayOfArrays[:])
+	BoundedSequences__Array_into_C(mem.array_of_bounded_sequences[:], m.ArrayOfBoundedSequences[:])
+	UnboundedSequences__Array_into_C(mem.array_of_unbounded_sequences[:], m.ArrayOfUnboundedSequences[:])
+	Arrays__Sequence_into_C(&mem.bounded_sequence_of_arrays, m.BoundedSequenceOfArrays)
+	BoundedSequences__Sequence_into_C(&mem.bounded_sequence_of_bounded_sequences, m.BoundedSequenceOfBoundedSequences)
+	UnboundedSequences__Sequence_into_C(&mem.bounded_sequence_of_unbounded_sequences, m.BoundedSequenceOfUnboundedSequences)
+	Arrays__Sequence_into_C(&mem.unbounded_sequence_of_arrays, m.UnboundedSequenceOfArrays)
+	BoundedSequences__Sequence_into_C(&mem.unbounded_sequence_of_bounded_sequences, m.UnboundedSequenceOfBoundedSequences)
+	UnboundedSequences__Sequence_into_C(&mem.unbounded_sequence_of_unbounded_sequences, m.UnboundedSequenceOfUnboundedSequences)
 }
 
 func (t _MultiNestedTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -226,7 +226,7 @@ func MultiNested__Sequence_to_Go(goSlice *[]MultiNested, cSlice CMultiNested__Se
 		MultiNestedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func MultiNested__Sequence_to_C(cSlice *CMultiNested__Sequence, goSlice []MultiNested) {
+func MultiNested__Sequence_into_C(cSlice *CMultiNested__Sequence, goSlice []MultiNested) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__msg__MultiNested__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -249,7 +249,7 @@ func MultiNested__Array_to_Go(goSlice []MultiNested, cSlice []CMultiNested) {
 		MultiNestedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func MultiNested__Array_to_C(cSlice []CMultiNested, goSlice []MultiNested) {
+func MultiNested__Array_into_C(cSlice []CMultiNested, goSlice []MultiNested) {
 	for i := 0; i < len(goSlice); i++ {
 		MultiNestedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

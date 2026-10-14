@@ -162,7 +162,7 @@ func Byte__Sequence_to_Go(goSlice *[]Byte, cSlice CByte__Sequence) {
 		ByteTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Byte__Sequence_to_C(cSlice *CByte__Sequence, goSlice []Byte) {
+func Byte__Sequence_into_C(cSlice *CByte__Sequence, goSlice []Byte) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.example_interfaces__msg__Byte__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -185,7 +185,7 @@ func Byte__Array_to_Go(goSlice []Byte, cSlice []CByte) {
 		ByteTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Byte__Array_to_C(cSlice []CByte, goSlice []Byte) {
+func Byte__Array_into_C(cSlice []CByte, goSlice []Byte) {
 	for i := 0; i < len(goSlice); i++ {
 		ByteTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

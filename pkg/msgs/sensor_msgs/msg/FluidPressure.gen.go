@@ -173,7 +173,7 @@ func FluidPressure__Sequence_to_Go(goSlice *[]FluidPressure, cSlice CFluidPressu
 		FluidPressureTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func FluidPressure__Sequence_to_C(cSlice *CFluidPressure__Sequence, goSlice []FluidPressure) {
+func FluidPressure__Sequence_into_C(cSlice *CFluidPressure__Sequence, goSlice []FluidPressure) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__FluidPressure__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -196,7 +196,7 @@ func FluidPressure__Array_to_Go(goSlice []FluidPressure, cSlice []CFluidPressure
 		FluidPressureTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func FluidPressure__Array_to_C(cSlice []CFluidPressure, goSlice []FluidPressure) {
+func FluidPressure__Array_into_C(cSlice []CFluidPressure, goSlice []FluidPressure) {
 	for i := 0; i < len(goSlice); i++ {
 		FluidPressureTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

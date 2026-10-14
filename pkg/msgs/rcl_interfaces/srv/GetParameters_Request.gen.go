@@ -139,7 +139,7 @@ func (t _GetParameters_RequestTypeSupport) ReleaseMemory(pointer_to_free unsafe.
 func (t _GetParameters_RequestTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*GetParameters_Request)
 	mem := (*C.rcl_interfaces__srv__GetParameters_Request)(dst)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.names)), m.Names)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.names)), m.Names)
 }
 
 func (t _GetParameters_RequestTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,7 +166,7 @@ func GetParameters_Request__Sequence_to_Go(goSlice *[]GetParameters_Request, cSl
 		GetParameters_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetParameters_Request__Sequence_to_C(cSlice *CGetParameters_Request__Sequence, goSlice []GetParameters_Request) {
+func GetParameters_Request__Sequence_into_C(cSlice *CGetParameters_Request__Sequence, goSlice []GetParameters_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__srv__GetParameters_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -189,7 +189,7 @@ func GetParameters_Request__Array_to_Go(goSlice []GetParameters_Request, cSlice 
 		GetParameters_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetParameters_Request__Array_to_C(cSlice []CGetParameters_Request, goSlice []GetParameters_Request) {
+func GetParameters_Request__Array_into_C(cSlice []CGetParameters_Request, goSlice []GetParameters_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		GetParameters_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

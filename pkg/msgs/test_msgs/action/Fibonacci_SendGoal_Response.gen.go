@@ -171,7 +171,7 @@ func Fibonacci_SendGoal_Response__Sequence_to_Go(goSlice *[]Fibonacci_SendGoal_R
 		Fibonacci_SendGoal_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Fibonacci_SendGoal_Response__Sequence_to_C(cSlice *CFibonacci_SendGoal_Response__Sequence, goSlice []Fibonacci_SendGoal_Response) {
+func Fibonacci_SendGoal_Response__Sequence_into_C(cSlice *CFibonacci_SendGoal_Response__Sequence, goSlice []Fibonacci_SendGoal_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__action__Fibonacci_SendGoal_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -194,7 +194,7 @@ func Fibonacci_SendGoal_Response__Array_to_Go(goSlice []Fibonacci_SendGoal_Respo
 		Fibonacci_SendGoal_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Fibonacci_SendGoal_Response__Array_to_C(cSlice []CFibonacci_SendGoal_Response, goSlice []Fibonacci_SendGoal_Response) {
+func Fibonacci_SendGoal_Response__Array_into_C(cSlice []CFibonacci_SendGoal_Response, goSlice []Fibonacci_SendGoal_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		Fibonacci_SendGoal_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

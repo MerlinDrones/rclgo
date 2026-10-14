@@ -171,7 +171,7 @@ func Constants__Sequence_to_Go(goSlice *[]Constants, cSlice CConstants__Sequence
 		ConstantsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Constants__Sequence_to_C(cSlice *CConstants__Sequence, goSlice []Constants) {
+func Constants__Sequence_into_C(cSlice *CConstants__Sequence, goSlice []Constants) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__msg__Constants__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -194,7 +194,7 @@ func Constants__Array_to_Go(goSlice []Constants, cSlice []CConstants) {
 		ConstantsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Constants__Array_to_C(cSlice []CConstants, goSlice []Constants) {
+func Constants__Array_into_C(cSlice []CConstants, goSlice []Constants) {
 	for i := 0; i < len(goSlice); i++ {
 		ConstantsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

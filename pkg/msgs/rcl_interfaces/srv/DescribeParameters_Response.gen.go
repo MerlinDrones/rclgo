@@ -139,7 +139,7 @@ func (t _DescribeParameters_ResponseTypeSupport) ReleaseMemory(pointer_to_free u
 func (t _DescribeParameters_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*DescribeParameters_Response)
 	mem := (*C.rcl_interfaces__srv__DescribeParameters_Response)(dst)
-	rcl_interfaces_msg.ParameterDescriptor__Sequence_to_C((*rcl_interfaces_msg.CParameterDescriptor__Sequence)(unsafe.Pointer(&mem.descriptors)), m.Descriptors)
+	rcl_interfaces_msg.ParameterDescriptor__Sequence_into_C((*rcl_interfaces_msg.CParameterDescriptor__Sequence)(unsafe.Pointer(&mem.descriptors)), m.Descriptors)
 }
 
 func (t _DescribeParameters_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,7 +166,7 @@ func DescribeParameters_Response__Sequence_to_Go(goSlice *[]DescribeParameters_R
 		DescribeParameters_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func DescribeParameters_Response__Sequence_to_C(cSlice *CDescribeParameters_Response__Sequence, goSlice []DescribeParameters_Response) {
+func DescribeParameters_Response__Sequence_into_C(cSlice *CDescribeParameters_Response__Sequence, goSlice []DescribeParameters_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__srv__DescribeParameters_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -189,7 +189,7 @@ func DescribeParameters_Response__Array_to_Go(goSlice []DescribeParameters_Respo
 		DescribeParameters_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func DescribeParameters_Response__Array_to_C(cSlice []CDescribeParameters_Response, goSlice []DescribeParameters_Response) {
+func DescribeParameters_Response__Array_into_C(cSlice []CDescribeParameters_Response, goSlice []DescribeParameters_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		DescribeParameters_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

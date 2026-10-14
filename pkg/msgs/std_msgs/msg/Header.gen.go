@@ -141,7 +141,7 @@ func (t _HeaderTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Header)
 	mem := (*C.std_msgs__msg__Header)(dst)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.stamp), &m.Stamp)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.frame_id), m.FrameId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.frame_id), m.FrameId)
 }
 
 func (t _HeaderTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -169,7 +169,7 @@ func Header__Sequence_to_Go(goSlice *[]Header, cSlice CHeader__Sequence) {
 		HeaderTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Header__Sequence_to_C(cSlice *CHeader__Sequence, goSlice []Header) {
+func Header__Sequence_into_C(cSlice *CHeader__Sequence, goSlice []Header) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__Header__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -192,7 +192,7 @@ func Header__Array_to_Go(goSlice []Header, cSlice []CHeader) {
 		HeaderTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Header__Array_to_C(cSlice []CHeader, goSlice []Header) {
+func Header__Array_into_C(cSlice []CHeader, goSlice []Header) {
 	for i := 0; i < len(goSlice); i++ {
 		HeaderTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -139,7 +139,7 @@ func (t _Fibonacci_FeedbackTypeSupport) ReleaseMemory(pointer_to_free unsafe.Poi
 func (t _Fibonacci_FeedbackTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Fibonacci_Feedback)
 	mem := (*C.example_interfaces__action__Fibonacci_Feedback)(dst)
-	primitives.Int32__Sequence_to_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.sequence)), m.Sequence)
+	primitives.Int32__Sequence_into_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.sequence)), m.Sequence)
 }
 
 func (t _Fibonacci_FeedbackTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,7 +166,7 @@ func Fibonacci_Feedback__Sequence_to_Go(goSlice *[]Fibonacci_Feedback, cSlice CF
 		Fibonacci_FeedbackTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Fibonacci_Feedback__Sequence_to_C(cSlice *CFibonacci_Feedback__Sequence, goSlice []Fibonacci_Feedback) {
+func Fibonacci_Feedback__Sequence_into_C(cSlice *CFibonacci_Feedback__Sequence, goSlice []Fibonacci_Feedback) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.example_interfaces__action__Fibonacci_Feedback__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -189,7 +189,7 @@ func Fibonacci_Feedback__Array_to_Go(goSlice []Fibonacci_Feedback, cSlice []CFib
 		Fibonacci_FeedbackTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Fibonacci_Feedback__Array_to_C(cSlice []CFibonacci_Feedback, goSlice []Fibonacci_Feedback) {
+func Fibonacci_Feedback__Array_into_C(cSlice []CFibonacci_Feedback, goSlice []Fibonacci_Feedback) {
 	for i := 0; i < len(goSlice); i++ {
 		Fibonacci_FeedbackTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

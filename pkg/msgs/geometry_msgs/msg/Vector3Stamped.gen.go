@@ -168,7 +168,7 @@ func Vector3Stamped__Sequence_to_Go(goSlice *[]Vector3Stamped, cSlice CVector3St
 		Vector3StampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Vector3Stamped__Sequence_to_C(cSlice *CVector3Stamped__Sequence, goSlice []Vector3Stamped) {
+func Vector3Stamped__Sequence_into_C(cSlice *CVector3Stamped__Sequence, goSlice []Vector3Stamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__Vector3Stamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func Vector3Stamped__Array_to_Go(goSlice []Vector3Stamped, cSlice []CVector3Stam
 		Vector3StampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Vector3Stamped__Array_to_C(cSlice []CVector3Stamped, goSlice []Vector3Stamped) {
+func Vector3Stamped__Array_into_C(cSlice []CVector3Stamped, goSlice []Vector3Stamped) {
 	for i := 0; i < len(goSlice); i++ {
 		Vector3StampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

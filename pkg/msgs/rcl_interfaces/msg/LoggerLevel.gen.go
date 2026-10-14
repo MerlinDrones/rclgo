@@ -148,7 +148,7 @@ func (t _LoggerLevelTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _LoggerLevelTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*LoggerLevel)
 	mem := (*C.rcl_interfaces__msg__LoggerLevel)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
 	mem.level = C.uint32_t(m.Level)
 }
 
@@ -177,7 +177,7 @@ func LoggerLevel__Sequence_to_Go(goSlice *[]LoggerLevel, cSlice CLoggerLevel__Se
 		LoggerLevelTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func LoggerLevel__Sequence_to_C(cSlice *CLoggerLevel__Sequence, goSlice []LoggerLevel) {
+func LoggerLevel__Sequence_into_C(cSlice *CLoggerLevel__Sequence, goSlice []LoggerLevel) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__msg__LoggerLevel__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -200,7 +200,7 @@ func LoggerLevel__Array_to_Go(goSlice []LoggerLevel, cSlice []CLoggerLevel) {
 		LoggerLevelTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func LoggerLevel__Array_to_C(cSlice []CLoggerLevel, goSlice []LoggerLevel) {
+func LoggerLevel__Array_into_C(cSlice []CLoggerLevel, goSlice []LoggerLevel) {
 	for i := 0; i < len(goSlice); i++ {
 		LoggerLevelTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

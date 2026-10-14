@@ -150,8 +150,8 @@ func (t _PointCloudTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message)
 	m := msg.(*PointCloud)
 	mem := (*C.sensor_msgs__msg__PointCloud)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	geometry_msgs_msg.Point32__Sequence_to_C((*geometry_msgs_msg.CPoint32__Sequence)(unsafe.Pointer(&mem.points)), m.Points)
-	ChannelFloat32__Sequence_to_C(&mem.channels, m.Channels)
+	geometry_msgs_msg.Point32__Sequence_into_C((*geometry_msgs_msg.CPoint32__Sequence)(unsafe.Pointer(&mem.points)), m.Points)
+	ChannelFloat32__Sequence_into_C(&mem.channels, m.Channels)
 }
 
 func (t _PointCloudTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -180,7 +180,7 @@ func PointCloud__Sequence_to_Go(goSlice *[]PointCloud, cSlice CPointCloud__Seque
 		PointCloudTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PointCloud__Sequence_to_C(cSlice *CPointCloud__Sequence, goSlice []PointCloud) {
+func PointCloud__Sequence_into_C(cSlice *CPointCloud__Sequence, goSlice []PointCloud) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__PointCloud__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -203,7 +203,7 @@ func PointCloud__Array_to_Go(goSlice []PointCloud, cSlice []CPointCloud) {
 		PointCloudTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PointCloud__Array_to_C(cSlice []CPointCloud, goSlice []PointCloud) {
+func PointCloud__Array_into_C(cSlice []CPointCloud, goSlice []PointCloud) {
 	for i := 0; i < len(goSlice); i++ {
 		PointCloudTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

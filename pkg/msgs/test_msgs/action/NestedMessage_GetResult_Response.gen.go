@@ -167,7 +167,7 @@ func NestedMessage_GetResult_Response__Sequence_to_Go(goSlice *[]NestedMessage_G
 		NestedMessage_GetResult_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NestedMessage_GetResult_Response__Sequence_to_C(cSlice *CNestedMessage_GetResult_Response__Sequence, goSlice []NestedMessage_GetResult_Response) {
+func NestedMessage_GetResult_Response__Sequence_into_C(cSlice *CNestedMessage_GetResult_Response__Sequence, goSlice []NestedMessage_GetResult_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__action__NestedMessage_GetResult_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -190,7 +190,7 @@ func NestedMessage_GetResult_Response__Array_to_Go(goSlice []NestedMessage_GetRe
 		NestedMessage_GetResult_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NestedMessage_GetResult_Response__Array_to_C(cSlice []CNestedMessage_GetResult_Response, goSlice []NestedMessage_GetResult_Response) {
+func NestedMessage_GetResult_Response__Array_into_C(cSlice []CNestedMessage_GetResult_Response, goSlice []NestedMessage_GetResult_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedMessage_GetResult_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

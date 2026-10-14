@@ -173,7 +173,7 @@ func Illuminance__Sequence_to_Go(goSlice *[]Illuminance, cSlice CIlluminance__Se
 		IlluminanceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Illuminance__Sequence_to_C(cSlice *CIlluminance__Sequence, goSlice []Illuminance) {
+func Illuminance__Sequence_into_C(cSlice *CIlluminance__Sequence, goSlice []Illuminance) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__Illuminance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -196,7 +196,7 @@ func Illuminance__Array_to_Go(goSlice []Illuminance, cSlice []CIlluminance) {
 		IlluminanceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Illuminance__Array_to_C(cSlice []CIlluminance, goSlice []Illuminance) {
+func Illuminance__Array_into_C(cSlice []CIlluminance, goSlice []Illuminance) {
 	for i := 0; i < len(goSlice); i++ {
 		IlluminanceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

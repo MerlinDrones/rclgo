@@ -163,10 +163,10 @@ func (t _MultiDOFJointStateTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.
 	m := msg.(*MultiDOFJointState)
 	mem := (*C.sensor_msgs__msg__MultiDOFJointState)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.joint_names)), m.JointNames)
-	geometry_msgs_msg.Transform__Sequence_to_C((*geometry_msgs_msg.CTransform__Sequence)(unsafe.Pointer(&mem.transforms)), m.Transforms)
-	geometry_msgs_msg.Twist__Sequence_to_C((*geometry_msgs_msg.CTwist__Sequence)(unsafe.Pointer(&mem.twist)), m.Twist)
-	geometry_msgs_msg.Wrench__Sequence_to_C((*geometry_msgs_msg.CWrench__Sequence)(unsafe.Pointer(&mem.wrench)), m.Wrench)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.joint_names)), m.JointNames)
+	geometry_msgs_msg.Transform__Sequence_into_C((*geometry_msgs_msg.CTransform__Sequence)(unsafe.Pointer(&mem.transforms)), m.Transforms)
+	geometry_msgs_msg.Twist__Sequence_into_C((*geometry_msgs_msg.CTwist__Sequence)(unsafe.Pointer(&mem.twist)), m.Twist)
+	geometry_msgs_msg.Wrench__Sequence_into_C((*geometry_msgs_msg.CWrench__Sequence)(unsafe.Pointer(&mem.wrench)), m.Wrench)
 }
 
 func (t _MultiDOFJointStateTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -197,7 +197,7 @@ func MultiDOFJointState__Sequence_to_Go(goSlice *[]MultiDOFJointState, cSlice CM
 		MultiDOFJointStateTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func MultiDOFJointState__Sequence_to_C(cSlice *CMultiDOFJointState__Sequence, goSlice []MultiDOFJointState) {
+func MultiDOFJointState__Sequence_into_C(cSlice *CMultiDOFJointState__Sequence, goSlice []MultiDOFJointState) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__MultiDOFJointState__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -220,7 +220,7 @@ func MultiDOFJointState__Array_to_Go(goSlice []MultiDOFJointState, cSlice []CMul
 		MultiDOFJointStateTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func MultiDOFJointState__Array_to_C(cSlice []CMultiDOFJointState, goSlice []MultiDOFJointState) {
+func MultiDOFJointState__Array_into_C(cSlice []CMultiDOFJointState, goSlice []MultiDOFJointState) {
 	for i := 0; i < len(goSlice); i++ {
 		MultiDOFJointStateTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

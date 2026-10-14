@@ -143,7 +143,7 @@ func (t _PoseArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) 
 	m := msg.(*PoseArray)
 	mem := (*C.geometry_msgs__msg__PoseArray)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	Pose__Sequence_to_C(&mem.poses, m.Poses)
+	Pose__Sequence_into_C(&mem.poses, m.Poses)
 }
 
 func (t _PoseArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -171,7 +171,7 @@ func PoseArray__Sequence_to_Go(goSlice *[]PoseArray, cSlice CPoseArray__Sequence
 		PoseArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PoseArray__Sequence_to_C(cSlice *CPoseArray__Sequence, goSlice []PoseArray) {
+func PoseArray__Sequence_into_C(cSlice *CPoseArray__Sequence, goSlice []PoseArray) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__PoseArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -194,7 +194,7 @@ func PoseArray__Array_to_Go(goSlice []PoseArray, cSlice []CPoseArray) {
 		PoseArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PoseArray__Array_to_C(cSlice []CPoseArray, goSlice []PoseArray) {
+func PoseArray__Array_into_C(cSlice []CPoseArray, goSlice []PoseArray) {
 	for i := 0; i < len(goSlice); i++ {
 		PoseArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

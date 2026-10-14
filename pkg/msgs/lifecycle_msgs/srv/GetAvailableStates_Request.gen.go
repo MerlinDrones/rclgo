@@ -155,7 +155,7 @@ func GetAvailableStates_Request__Sequence_to_Go(goSlice *[]GetAvailableStates_Re
 		GetAvailableStates_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetAvailableStates_Request__Sequence_to_C(cSlice *CGetAvailableStates_Request__Sequence, goSlice []GetAvailableStates_Request) {
+func GetAvailableStates_Request__Sequence_into_C(cSlice *CGetAvailableStates_Request__Sequence, goSlice []GetAvailableStates_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.lifecycle_msgs__srv__GetAvailableStates_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -178,7 +178,7 @@ func GetAvailableStates_Request__Array_to_Go(goSlice []GetAvailableStates_Reques
 		GetAvailableStates_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetAvailableStates_Request__Array_to_C(cSlice []CGetAvailableStates_Request, goSlice []GetAvailableStates_Request) {
+func GetAvailableStates_Request__Array_into_C(cSlice []CGetAvailableStates_Request, goSlice []GetAvailableStates_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		GetAvailableStates_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}
