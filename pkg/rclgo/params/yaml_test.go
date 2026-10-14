@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/merlindrones/rclgo/pkg/rclgo"
 )
 
 // writeTemp creates a temp file with the given contents and returns its path.
@@ -226,5 +228,51 @@ node:
 	}
 	if p, _ := m.Get("d"); p.Value.Kind != KindBoolArray || len(p.Value.Bools) != 3 || !p.Value.Bools[0] || p.Value.Bools[1] || !p.Value.Bools[2] {
 		t.Errorf("d = %+v", p.Value)
+	}
+}
+
+// A section names a node by its fully qualified name, as in rcl: "/mavlink",
+// "mavlink" and "/*" apply to a root-namespace node only, not to
+// /drone1/mavlink, also when the node name is passed to LoadYAML.
+func TestLoadYAML_SectionsRespectNamespace(t *testing.T) {
+	if err := rclgo.Init(nil); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	t.Cleanup(func() { rclgo.Uninit() }) //nolint:errcheck
+	n, err := rclgo.NewNode("mavlink", "/drone1")
+	if err != nil {
+		t.Fatalf("NewNode: %v", err)
+	}
+	t.Cleanup(func() { n.Close() }) //nolint:errcheck
+	path := writeTemp(t, t.TempDir(), "params.yaml", `
+/mavlink:
+  ros__parameters:
+    root_only: 1
+mavlink:
+  ros__parameters:
+    root_only_too: 1
+/*:
+  ros__parameters:
+    one_token: 1
+/drone1/mavlink:
+  ros__parameters:
+    mine: 1
+/drone1/*:
+  ros__parameters:
+    mine_too: 1
+`)
+	m := newBareManagerFor(n)
+	if err := LoadYAML(m, "mavlink", path); err != nil {
+		t.Fatalf("LoadYAML: %v", err)
+	}
+	for _, name := range []string{"mine", "mine_too"} {
+		if _, ok := m.Get(name); !ok {
+			t.Errorf("%s: the node's own section was not applied", name)
+		}
+	}
+	for _, name := range []string{"root_only", "root_only_too", "one_token"} {
+		if _, ok := m.Get(name); ok {
+			t.Errorf("%s: a root-namespace section was applied to /drone1/mavlink", name)
+		}
 	}
 }
