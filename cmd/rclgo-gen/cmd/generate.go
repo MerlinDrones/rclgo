@@ -172,7 +172,23 @@ func getGogenConfig(cmd *cobra.Command) (*gogen.Config, error) {
 	if modulePrefix == gogen.DefaultConfig.MessageModulePrefix {
 		pkgs, err := packages.Load(&packages.Config{})
 		if err == nil && len(pkgs) > 0 {
-			modulePrefix = path.Join(pkgs[0].PkgPath, destPath)
+			// The prefix is the import path of the destination directory,
+			// which is relative to the package in the working directory.
+			rel := destPath
+			if filepath.IsAbs(destPath) {
+				cwd, err := os.Getwd()
+				if err != nil {
+					return nil, err
+				}
+				if rel, err = filepath.Rel(cwd, destPath); err != nil {
+					return nil, err
+				}
+			}
+			rel = filepath.ToSlash(filepath.Clean(rel))
+			if rel == ".." || strings.HasPrefix(rel, "../") {
+				return nil, fmt.Errorf("--dest-path %s is outside the working directory's package; set --message-module-prefix", destPath)
+			}
+			modulePrefix = path.Join(pkgs[0].PkgPath, rel)
 		}
 	}
 	rules, err := getPackageRules(cmd)

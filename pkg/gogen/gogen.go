@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -161,10 +162,6 @@ var rclgoROSIncludes = []string{
 	"unique_identifier_msgs",
 }
 
-func includeDirFlag(rootPath, rosPkg string) string {
-	return fmt.Sprintf("-I%s", filepath.Join(rootPath, "include", rosPkg))
-}
-
 func libDirFlag(rootPath string) string {
 	return fmt.Sprintf("-L%[1]s -Wl,-rpath=%[1]s", filepath.Join(rootPath, "lib"))
 }
@@ -173,8 +170,8 @@ func prependFlagEnv(envVar string, flags []string) string {
 	return strings.Join(flags, " ") + " " + os.Getenv(envVar)
 }
 
-func writeFlagEnv(w io.Writer, envVar string, flags stringSet) error {
-	_, err := fmt.Fprintf(w, "export CGO_%s=%s\n", envVar, shellescape.Quote(prependFlagEnv(envVar, flags.ToSortedSlice())))
+func writeFlagEnv(w io.Writer, envVar string, flags orderedSet) error {
+	_, err := fmt.Fprintf(w, "export CGO_%s=%s\n", envVar, shellescape.Quote(prependFlagEnv(envVar, flags.list)))
 	return err
 }
 
@@ -183,8 +180,14 @@ func (g *Generator) GenerateCGOFlags() error {
 		return nil
 	}
 	PrintErrln("Generating CGO flags:", g.config.CGOFlagsPath)
-	libDirs := stringSet{}
-	includes := stringSet{}
+	// Flags keep the order of the root paths, so that an overlay's headers
+	// and libraries come before an underlay's.
+	var libDirs, includes orderedSet
+	pkgs := make([]string, 0, len(g.cImportsByPkgAndType))
+	for pkgAndType := range g.cImportsByPkgAndType {
+		pkgs = append(pkgs, pkgAndType)
+	}
+	sort.Strings(pkgs)
 
 	for _, rootPath := range g.config.RootPaths {
 		// Add standard ROS include paths
@@ -193,7 +196,7 @@ func (g *Generator) GenerateCGOFlags() error {
 		}
 
 		// Add custom package paths
-		for pkgAndType := range g.cImportsByPkgAndType {
+		for _, pkgAndType := range pkgs {
 			pkg, _, err := parsePkgAndType(pkgAndType)
 			if err != nil {
 				PrintErrf("Failed to parse package and type from %s: %v\n", pkgAndType, err)
@@ -220,7 +223,7 @@ func (g *Generator) GenerateCGOFlags() error {
 
 // addIncludeAndLibPaths adds include and lib paths for a package,
 // handling both merged install (install/include/pkg) and isolated install (install/pkg/include/pkg) layouts.
-func (g *Generator) addIncludeAndLibPaths(rootPath, pkg string, includes, libDirs *stringSet) {
+func (g *Generator) addIncludeAndLibPaths(rootPath, pkg string, includes, libDirs *orderedSet) {
 	// Try merged install layout: install/include/pkg
 	mergedInclude := filepath.Join(rootPath, "include", pkg)
 	if _, err := os.Stat(mergedInclude); err == nil {
@@ -249,7 +252,9 @@ type rosPkgRef struct {
 }
 
 func (g *Generator) GenerateGolangMessageTypes() error {
-	g.findPackages()
+	if err := g.findPackages(); err != nil {
+		return err
+	}
 	var errs []error
 	if len(g.config.RegexIncludes) == 0 && len(g.config.ROSPkgIncludes) == 0 && len(g.config.GoPkgIncludes) == 0 {
 		for pkg := range g.allPkgs {
@@ -392,31 +397,61 @@ func (g *Generator) checkFieldTypesExist(ifacePath string, msgs []*ROS2Message) 
 	return errors.Join(errs...)
 }
 
-func (g *Generator) findPackages() {
+// findPackages finds the interface files under the root paths. As with
+// colcon/ament overlays, a package comes from the first root path that has it:
+// an underlay's copy of the same package is ignored entirely (not merged
+// file by file). A root path that can't be read is an error.
+func (g *Generator) findPackages() error {
 	g.allPkgs = map[string]*rosPkgRef{}
-	for i := len(g.config.RootPaths) - 1; i >= 0; i-- {
-		filepath.Walk(g.config.RootPaths[i], func(path string, info fs.FileInfo, err error) error { //nolint:errcheck
+	for _, root := range g.config.RootPaths {
+		found := map[string]*rosPkgRef{}
+		idlOnly := map[string]bool{} // packages seen with .idl interface files
+		err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				if path == root {
+					return fmt.Errorf("root path %s: %w", root, err)
+				}
+				PrintErrf("Skipping %s: %v\n", path, err)
+				return nil
+			}
 			skip, blacklistEntry := blacklisted(path)
 			if skip {
 				PrintErrf("Blacklisted: %s, matched regex '%s'\n", path, blacklistEntry)
 				return nil
+			}
+			if re.M(filepath.ToSlash(path), `m!/(msg|srv|action)/[^/]+\.idl$!`) {
+				idlOnly[filepath.Base(filepath.Dir(filepath.Dir(path)))] = true
 			}
 			if re.M(filepath.ToSlash(path), `m!/(msg/.+\.msg)|(srv/.+\.srv)|(action/.+\.action)$!`) {
 				meta, err := parseMetadataFromPath(path)
 				if err != nil {
 					PrintErrf("Failed to parse metadata from path %s: %v\n", path, err)
 				} else {
-					ref := g.allPkgs[meta.Package]
+					ref := found[meta.Package]
 					if ref == nil {
 						ref = &rosPkgRef{Interfaces: map[Metadata]string{}}
-						g.allPkgs[meta.Package] = ref
+						found[meta.Package] = ref
 					}
 					ref.Interfaces[*meta] = path
 				}
 			}
 			return nil
 		})
+		if err != nil {
+			return err
+		}
+		for pkg := range idlOnly {
+			if found[pkg] == nil && g.allPkgs[pkg] == nil {
+				PrintErrf("Package %s under %s has only .idl interface files, which rclgo-gen does not read; skipped\n", pkg, root)
+			}
+		}
+		for pkg, ref := range found {
+			if _, ok := g.allPkgs[pkg]; !ok {
+				g.allPkgs[pkg] = ref
+			}
+		}
 	}
+	return nil
 }
 
 // FindPackagesForCgoFlags scans include directories to find all ROS packages
