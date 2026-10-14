@@ -51,6 +51,7 @@ type Clock struct {
 	// overriding and the /clock subscription change only under it.
 	switchMu   sync.Mutex
 	overriding bool // whether the context's rcl clock is in ROS-time override
+	shutdown   bool // set by Shutdown; later use_sim_time changes are ignored
 }
 
 // NewClock creates a node's clock. It follows the use_sim_time parameter of
@@ -84,6 +85,10 @@ func NewClock(_ context.Context, node *rclgo.Node, pm *params.Manager) (*Clock, 
 func (c *Clock) syncUseSim() {
 	c.switchMu.Lock()
 	defer c.switchMu.Unlock()
+	if c.shutdown {
+		// A post-set callback that started before Shutdown removed it.
+		return
+	}
 	p, ok := c.pm.Get("use_sim_time")
 	c.setUseSimLocked(ok && p.Value.Kind == params.KindBool && p.Value.Bool)
 }
@@ -214,6 +219,7 @@ func (c *Clock) Shutdown() {
 	}
 	c.switchMu.Lock()
 	defer c.switchMu.Unlock()
+	c.shutdown = true
 	c.setUseSimLocked(false)
 }
 

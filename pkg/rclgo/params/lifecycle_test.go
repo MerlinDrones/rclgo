@@ -10,6 +10,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 package params
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -135,5 +136,37 @@ func TestPostSetCallbacksInChangeOrder(t *testing.T) {
 		if last != p.Value.Bool {
 			t.Fatalf("round %d: last post-set notification %v, final value %v", round, last, p.Value.Bool)
 		}
+	}
+}
+
+// Post-set callbacks run in the order they were registered, and removing one
+// keeps the order of the others (rclcpp keeps a list).
+func TestPostSetCallbacksInRegistrationOrder(t *testing.T) {
+	m := newBareManager()
+	if _, err := m.Declare("x", Value{Kind: KindInt64}, Descriptor{}); err != nil {
+		t.Fatal(err)
+	}
+	var calls []int
+	var removes []func()
+	for i := 0; i < 20; i++ {
+		removes = append(removes, m.AddPostSetCallback(func([]Parameter) { calls = append(calls, i) }))
+	}
+	if _, err := m.SetValue("x", Value{Kind: KindInt64, Int64: 1}); err != nil {
+		t.Fatal(err)
+	}
+	for i, c := range calls {
+		if c != i {
+			t.Fatalf("callbacks ran in order %v", calls)
+		}
+	}
+	removes[3]()
+	removes[10]()
+	calls = nil
+	if _, err := m.SetValue("x", Value{Kind: KindInt64, Int64: 2}); err != nil {
+		t.Fatal(err)
+	}
+	want := []int{0, 1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19}
+	if fmt.Sprint(calls) != fmt.Sprint(want) {
+		t.Fatalf("after removals callbacks ran in order %v, want %v", calls, want)
 	}
 }
