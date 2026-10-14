@@ -1704,7 +1704,7 @@ func (s *requestSender) Send(ctx context.Context, req types.Message) (types.Mess
 		return nil, nil, ctx.Err()
 	case result := <-resultChan:
 		if result == nil {
-			return nil, nil, errors.New("sender was closed before a response was received")
+			return nil, nil, fmt.Errorf("sender was closed before a response was received: %w", ErrClosed)
 		}
 		return result.resp, result.otherData, nil
 	}

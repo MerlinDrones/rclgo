@@ -1135,6 +1135,9 @@ type ActionClient struct {
 	// delivered to a status watcher when it subscribes. Guarded by
 	// rclClientMu.
 	lastStatus map[types.GoalID]types.Message
+
+	// closed is closed by Close; watches end with ErrClosed then.
+	closed chan struct{}
 }
 
 func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *ActionClientOptions) (*ActionClient, error) {
@@ -1153,6 +1156,7 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 		feedbackSubs: newActionClientHandlers(),
 		statusSubs:   newActionClientHandlers(),
 		lastStatus:   make(map[types.GoalID]types.Message),
+		closed:       make(chan struct{}),
 	}
 	c.goalSender = newRequestSender(requestSenderTransport{
 		SendRequest:  c.sendGoalRequest,
@@ -1208,6 +1212,7 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 func (c *ActionClient) Close() error {
 	return closeEntity(&c.life, "action client", func() {
 		c.node.removeResource(c)
+		close(c.closed)
 		// Wake callers waiting for a response right away.
 		c.cancelSender.Close() //nolint:errcheck
 		c.goalSender.Close()   //nolint:errcheck
@@ -1409,12 +1414,29 @@ func (c *ActionClient) takeCancelResponse(resp unsafe.Pointer) (C.int64_t, inter
 }
 
 func (c *ActionClient) WatchFeedback(ctx context.Context, goalID *types.GoalID, handler FeedbackHandler) <-chan error {
-	unsub := c.subscribe(ctx, &c.feedbackSubs, goalID, handler)
+	return c.watch(ctx, &c.feedbackSubs, goalID, handler)
+}
+
+// watch calls handler for the messages subs receives (for goalID, or for every
+// goal if it is nil) until ctx ends or the client is closed; the returned
+// channel then receives ctx.Err() or an error matching ErrClosed. On a closed
+// client it receives ErrClosed at once.
+func (c *ActionClient) watch(ctx context.Context, subs *actionClientSubs, goalID *types.GoalID, handler actionClientHandler) <-chan error {
 	errc := make(chan error, 1)
+	if !c.life.acquire() {
+		errc <- closedErr("action client")
+		return errc
+	}
+	unsub := c.subscribe(ctx, subs, goalID, handler)
+	c.life.release()
 	go func() {
 		defer unsub()
-		<-ctx.Done()
-		errc <- ctx.Err()
+		select {
+		case <-ctx.Done():
+			errc <- ctx.Err()
+		case <-c.closed:
+			errc <- closedErr("action client")
+		}
 	}()
 	return errc
 }
@@ -1486,14 +1508,7 @@ func (c *ActionClient) handleFeedback() {
 }
 
 func (c *ActionClient) WatchStatus(ctx context.Context, goalID *types.GoalID, handler StatusHandler) <-chan error {
-	unsub := c.subscribe(ctx, &c.statusSubs, goalID, handler)
-	errc := make(chan error, 1)
-	go func() {
-		defer unsub()
-		<-ctx.Done()
-		errc <- ctx.Err()
-	}()
-	return errc
+	return c.watch(ctx, &c.statusSubs, goalID, handler)
 }
 
 func (c *ActionClient) handleStatus() {
