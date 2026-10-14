@@ -614,6 +614,7 @@ type Publisher struct {
 	life            lifetime
 	TopicName       string
 	typeSupport     types.MessageTypeSupport
+	msgType         reflect.Type // nil for a serialized-only type support
 	node            *Node
 	rcl_publisher_t *C.rcl_publisher_t
 	topicName       *C.char
@@ -641,6 +642,7 @@ func (n *Node) NewPublisher(
 	pub = &Publisher{
 		TopicName:       topicName,
 		typeSupport:     ros2msg,
+		msgType:         messageType(ros2msg),
 		node:            n,
 		rcl_publisher_t: (*C.rcl_publisher_t)(C.malloc(C.sizeof_rcl_publisher_t)),
 		topicName:       C.CString(topicName),
@@ -684,6 +686,9 @@ func (p *Publisher) Publish(ros2msg types.Message) error {
 		return closedErr("publisher")
 	}
 	defer p.life.release()
+	if err := checkMessage("publish", p.msgType, ros2msg); err != nil {
+		return err
+	}
 	if err := types.CheckBounds(ros2msg); err != nil {
 		return err
 	}
@@ -1069,6 +1074,7 @@ type Subscription struct {
 	life               lifetime
 	TopicName          string
 	Ros2MsgType        types.MessageTypeSupport
+	msgType            reflect.Type // nil for a serialized-only type support
 	Callback           SubscriptionCallback
 	node               *Node
 	rcl_subscription_t *C.rcl_subscription_t
@@ -1098,6 +1104,7 @@ func (n *Node) NewSubscription(
 	sub = &Subscription{
 		TopicName:          topicName,
 		Ros2MsgType:        ros2msg,
+		msgType:            messageType(ros2msg),
 		Callback:           subscriptionCallback,
 		node:               n,
 		rcl_subscription_t: (*C.rcl_subscription_t)(C.malloc(C.sizeof_rcl_subscription_t)),
@@ -1142,6 +1149,9 @@ func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
 		return nil, closedErr("subscription")
 	}
 	defer s.life.release()
+	if err := checkMessage("take", s.msgType, out); err != nil {
+		return nil, err
+	}
 	rmw_message_info := C.rmw_get_zero_initialized_message_info()
 
 	ros2_msg_receive_buffer := s.Ros2MsgType.PrepareMemory()
@@ -1452,6 +1462,9 @@ func (s *Service) handleRequest() {
 					return closedErr("service")
 				}
 				defer s.life.release()
+				if err := checkMessage("send response", messageType(s.responseTypeSupport), resp); err != nil {
+					return err
+				}
 				if err := types.CheckBounds(resp); err != nil {
 					return err
 				}
@@ -1580,6 +1593,9 @@ func (c *Client) Send(ctx context.Context, req types.Message) (types.Message, *S
 		return nil, nil, closedErr("client")
 	}
 	defer c.life.release()
+	if err := checkMessage("send request", messageType(c.sender.transport.TypeSupport.Request()), req); err != nil {
+		return nil, nil, err
+	}
 	resp, info, err := c.sender.Send(ctx, req)
 	if rmwInfo, ok := info.(*ServiceInfo); ok {
 		return resp, rmwInfo, err
