@@ -13,7 +13,6 @@ package rclgo_test
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"strconv"
 	"sync"
@@ -36,16 +35,16 @@ func getUnusedDomainID() int {
 	usedDomainIDsMutex.Lock()
 	defer usedDomainIDsMutex.Unlock()
 	oldID, _ := strconv.Atoi(os.Getenv("ROS_DOMAIN_ID"))
-	if len(usedDomainIDs) >= 101 {
+	if len(usedDomainIDs) >= 100 {
 		// Every domain was used (repeated runs, -count=N): start over,
 		// keeping only the current one out.
 		clear(usedDomainIDs)
 	}
 	usedDomainIDs[oldID] = true
-	newID := rand.Intn(102)
-	for usedDomainIDs[newID] {
-		newID = rand.Intn(102)
-	}
+	// The new domain is reserved before the old one is released, so the
+	// process always holds the domain it is on.
+	newID := rclgotest.ReserveDomain(usedDomainIDs)
+	rclgotest.ReleaseDomain(oldID)
 	usedDomainIDs[newID] = true
 	return newID
 }
