@@ -30,7 +30,7 @@ type Manager struct {
 	eventSink func(*rcl_interfaces_msg2.ParameterEvent)
 
 	postSetMu   sync.Mutex
-	postSet     map[uint64]func([]Parameter)
+	postSet     []postSetCallback // in registration order
 	postSetNext uint64
 }
 
@@ -39,34 +39,34 @@ type Manager struct {
 // set_parameters and set_parameters_atomically services, or by an override.
 // Unlike OnSet, which validates and can refuse a change, f only observes it,
 // and any number of post-set callbacks can be registered (as rclcpp's
-// add_post_set_parameters_callback). Callbacks run in the order of the changes,
+// add_post_set_parameters_callback), in the order they were registered.
+// Callbacks run in the order of the changes,
 // while further changes wait; a change attempted from f fails, as in rclcpp.
 // It returns a function that removes f.
 func (m *Manager) AddPostSetCallback(f func([]Parameter)) (remove func()) {
 	m.postSetMu.Lock()
 	defer m.postSetMu.Unlock()
-	if m.postSet == nil {
-		m.postSet = make(map[uint64]func([]Parameter))
-	}
 	id := m.postSetNext
 	m.postSetNext++
-	m.postSet[id] = f
+	m.postSet = append(m.postSet, postSetCallback{id, f})
 	return func() {
 		m.postSetMu.Lock()
 		defer m.postSetMu.Unlock()
-		delete(m.postSet, id)
+		m.postSet = slices.DeleteFunc(m.postSet, func(c postSetCallback) bool { return c.id == id })
 	}
+}
+
+type postSetCallback struct {
+	id uint64
+	f  func([]Parameter)
 }
 
 func (m *Manager) runPostSet(changed []Parameter) {
 	m.postSetMu.Lock()
-	callbacks := make([]func([]Parameter), 0, len(m.postSet))
-	for _, f := range m.postSet {
-		callbacks = append(callbacks, f)
-	}
+	callbacks := slices.Clone(m.postSet)
 	m.postSetMu.Unlock()
-	for _, f := range callbacks {
-		f(changed)
+	for _, c := range callbacks {
+		c.f(changed)
 	}
 }
 
