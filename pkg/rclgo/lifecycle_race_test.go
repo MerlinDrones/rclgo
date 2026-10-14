@@ -21,7 +21,7 @@ import (
 // outlives the context (rclcpp keeps a node alive while entities are created
 // on it in the same way).
 func TestEntityCreationRacingClose(t *testing.T) {
-	for round := 0; round < 20; round++ {
+	for round := 0; round < 100; round++ {
 		rclctx, err := newDefaultRCLContext()
 		require.NoError(t, err)
 		node, err := rclctx.NewNode(fmt.Sprintf("racing_close_%d", round), "/race_test")
