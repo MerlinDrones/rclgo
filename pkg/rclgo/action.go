@@ -583,6 +583,11 @@ func (s *ActionServer) executeGoal(ctx context.Context, goal *GoalHandle) {
 		}()
 		result, err = s.action.ExecuteGoal(ctx, goal)
 	}()
+	if isNilMessage(result) {
+		// A typed nil pointer, e.g. a nil *X_Result returned as a
+		// types.Message by a hand-written Action, means no result.
+		result = nil
+	}
 	if err == nil && result != nil {
 		// A result that can't be sent aborts the goal, so that the client
 		// gets an answer.
@@ -1533,4 +1538,13 @@ func wrapErr(format string, err *error, a ...interface{}) {
 		args = append(args, a...)
 		*err = fmt.Errorf(format, args...)
 	}
+}
+
+// isNilMessage reports whether m is nil or a nil pointer in an interface.
+func isNilMessage(m types.Message) bool {
+	if m == nil {
+		return true
+	}
+	v := reflect.ValueOf(m)
+	return v.Kind() == reflect.Pointer && v.IsNil()
 }

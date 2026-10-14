@@ -139,10 +139,15 @@ type _NestedMessageAction struct {
 }
 
 func (a _NestedMessageAction) ExecuteGoal(ctx context.Context, handle *rclgo.GoalHandle) (types.Message, error) {
-	return a.action.ExecuteGoal(ctx, &NestedMessageGoalHandle{
+	result, err := a.action.ExecuteGoal(ctx, &NestedMessageGoalHandle{
 		GoalHandle:  handle,
 		Description: handle.Description.(*NestedMessage_Goal),
 	})
+	if result == nil {
+		// A nil *NestedMessage_Result must not become a non-nil types.Message.
+		return nil, err
+	}
+	return result, err
 }
 
 func (a _NestedMessageAction) TypeSupport() types.ActionTypeSupport {
