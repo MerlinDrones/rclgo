@@ -54,6 +54,16 @@ func TestDeclareRejectsOverrideOutsideConstraints(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "rate") || !strings.Contains(err.Error(), "above max") {
 		t.Errorf("error does not name the parameter and the violated constraint: %v", err)
+	}	// As in rclcpp, the parameter stays undeclared: not readable, and not
+	// settable to an arbitrary value with no descriptor.
+	if p, ok := m.Get("rate"); ok {
+		t.Errorf("the rejected parameter is still present: %+v", p)
+	}
+	if _, err := m.SetValue("rate", Value{Kind: KindString, Str: "anything"}); err == nil {
+		t.Error("the rejected parameter can still be set")
+	}
+	if _, err := m.Declare("rate", Value{Kind: KindInt64, Int64: 10}, Descriptor{MaxInt: i64(100)}); err != nil {
+		t.Errorf("a later declaration failed: %v", err)
 	}
 }
 
