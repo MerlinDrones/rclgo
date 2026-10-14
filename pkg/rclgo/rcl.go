@@ -861,12 +861,27 @@ func (c *Clock) Context() *Context {
 // SetROSTimeOverride (simulated time) instead of the system time. Timers and
 // action servers using the clock follow it. It fails for other clock types.
 func (c *Clock) EnableROSTimeOverride() error {
-	return c.override("enable", func() C.rcl_ret_t { return C.rcl_enable_ros_time_override(c.rcl_clock_t) })
+	err := c.override("enable", func() C.rcl_ret_t { return C.rcl_enable_ros_time_override(c.rcl_clock_t) })
+	c.clockSourceChanged(err)
+	return err
 }
 
 // DisableROSTimeOverride returns a ROS-time clock to the system time.
 func (c *Clock) DisableROSTimeOverride() error {
-	return c.override("disable", func() C.rcl_ret_t { return C.rcl_disable_ros_time_override(c.rcl_clock_t) })
+	err := c.override("disable", func() C.rcl_ret_t { return C.rcl_disable_ros_time_override(c.rcl_clock_t) })
+	c.clockSourceChanged(err)
+	return err
+}
+
+// clockSourceChanged wakes the context's spinning wait sets after the clock
+// switched between system and simulated time, so that they recompute how long
+// to wait for timers. rcl wakes them only for timers already overdue at the
+// switch: one due later would otherwise not fire until something else woke
+// the wait set.
+func (c *Clock) clockSourceChanged(err error) {
+	if err == nil && c.context != nil {
+		c.context.resourcesChanged()
+	}
 }
 
 // SetROSTimeOverride sets the simulated time, as a duration since the epoch,
