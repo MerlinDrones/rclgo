@@ -314,3 +314,51 @@ func TestDefaultContextConcurrentAccess(t *testing.T) {
 	close(done)
 	wg.Wait()
 }
+
+// Entities of every kind created and closed concurrently on one node, without
+// closing the node: rcl's per-node state must stay consistent (7471734). Run
+// per RMW by make test-rmw; Cyclone DDS failed it reliably before the fix.
+func TestEntityCreateCloseStress(t *testing.T) {
+	rclctx := newSpinTestContext(t)
+	node, err := rclctx.NewNode("create_close_stress", "/race_test")
+	require.NoError(t, err)
+	makers := []func(i int) (interface{ Close() error }, error){
+		func(i int) (interface{ Close() error }, error) {
+			return node.NewPublisher(fmt.Sprintf("stress_pub%d", i), std_msgs_msg.StringTypeSupport, nil)
+		},
+		func(i int) (interface{ Close() error }, error) {
+			return node.NewSubscription(fmt.Sprintf("stress_sub%d", i), std_msgs_msg.StringTypeSupport, nil, func(*rclgo.Subscription) {})
+		},
+		func(i int) (interface{ Close() error }, error) {
+			return node.NewClient(fmt.Sprintf("stress_cli%d", i), example_interfaces_srv.AddTwoIntsTypeSupport, nil)
+		},
+		func(i int) (interface{ Close() error }, error) {
+			return node.NewService(fmt.Sprintf("stress_srv%d", i), example_interfaces_srv.AddTwoIntsTypeSupport, nil,
+				func(*rclgo.ServiceInfo, types.Message, rclgo.ServiceResponseSender) {})
+		},
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	var wg sync.WaitGroup
+	errs := make(chan error, 64)
+	for g := 0; g < 8; g++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; time.Now().Before(deadline); i++ {
+				e, err := makers[(g+i)%len(makers)](g*100000 + i)
+				if err == nil {
+					err = e.Close()
+				}
+				if err != nil {
+					errs <- err
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+}

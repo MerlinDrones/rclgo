@@ -478,7 +478,9 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 	// enables rosout by default (enable_rosout = true), so the only remaining
 	// gate is whether rosout logging is enabled globally.
 	if bool(C.rcl_logging_rosout_enabled()) && bool(rcl_node_options.enable_rosout) {
+		node.entityMu.Lock() // the rosout publisher is an entity of the node
 		rc = C.rclgo_rosout_init_publisher_for_node(node.rcl_node_t)
+		node.entityMu.Unlock()
 		if rc != C.RCL_RET_OK {
 			return nil, errorsCastC(rc, "failed to initialize rosout publisher")
 		}
@@ -522,7 +524,10 @@ func (n *Node) fini() (err error) {
 	// Finalize the /rosout log publisher before finalizing the node, mirroring
 	// the initialization done in NewNode.
 	if n.rosoutInitialized {
-		if rc := C.rclgo_rosout_fini_publisher_for_node(n.rcl_node_t); rc != C.RCL_RET_OK {
+		n.entityMu.Lock()
+		rc := C.rclgo_rosout_fini_publisher_for_node(n.rcl_node_t)
+		n.entityMu.Unlock()
+		if rc != C.RCL_RET_OK {
 			return leak(errorsCastC(rc, "failed to finalize rosout publisher"))
 		}
 		n.rosoutInitialized = false
