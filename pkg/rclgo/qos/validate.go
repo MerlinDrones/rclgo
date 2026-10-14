@@ -25,21 +25,24 @@ func (q *Profile) Normalize() {
 		q.Depth = 0
 	}
 
+	// Negative durations mean infinite, as rmw_time_from_nsec has it.
 	if q.Lifespan < 0 {
-		q.Lifespan = 0
+		q.Lifespan = DurationInfinite
 	}
 	if q.Deadline < 0 {
-		q.Deadline = 0
+		q.Deadline = DurationInfinite
 	}
 	if q.LivelinessLeaseDuration < 0 {
-		q.LivelinessLeaseDuration = 0
+		q.LivelinessLeaseDuration = DurationInfinite
 	}
 }
 
-// Validate checks internal consistency; call after Normalize.
+// Validate checks internal consistency; call after Normalize. The *Unknown
+// policies are only reported (by graph queries about a peer); they are not
+// valid for creating an entity.
 func (q Profile) Validate() error {
 	switch q.History {
-	case HistoryKeepLast, HistoryKeepAll, HistorySystemDefault, HistoryUnknown:
+	case HistoryKeepLast, HistoryKeepAll, HistorySystemDefault:
 	default:
 		return fmt.Errorf("invalid History=%v", q.History)
 	}
@@ -51,17 +54,17 @@ func (q Profile) Validate() error {
 	}
 
 	switch q.Reliability {
-	case ReliabilityBestEffort, ReliabilityReliable, ReliabilitySystemDefault, ReliabilityUnknown, ReliabilityBestAvailable:
+	case ReliabilityBestEffort, ReliabilityReliable, ReliabilitySystemDefault, ReliabilityBestAvailable:
 	default:
 		return fmt.Errorf("invalid Reliability=%v", q.Reliability)
 	}
 	switch q.Durability {
-	case DurabilityVolatile, DurabilityTransientLocal, DurabilitySystemDefault, DurabilityUnknown, DurabilityBestAvailable:
+	case DurabilityVolatile, DurabilityTransientLocal, DurabilitySystemDefault, DurabilityBestAvailable:
 	default:
 		return fmt.Errorf("invalid Durability=%v", q.Durability)
 	}
 	switch q.Liveliness {
-	case LivelinessAutomatic, LivelinessManualByTopic, LivelinessSystemDefault, LivelinessUnknown, LivelinessBestAvailable:
+	case LivelinessAutomatic, LivelinessManualByTopic, LivelinessSystemDefault, LivelinessBestAvailable:
 	default:
 		return fmt.Errorf("invalid Liveliness=%v", q.Liveliness)
 	}
@@ -77,25 +80,18 @@ func (q Profile) WithNormalized() (Profile, error) {
 	return cp, cp.Validate()
 }
 
-// Compatibility helpers (subscriber perspective).
+// IsReliabilityCompatible reports whether a subscription requesting
+// reliability requested can receive from a publisher offering offered. It is
+// false only where rmw reports an error (reliable requested, best effort
+// offered); policies resolved later (system default, unknown, best
+// available) may match, so they are not ruled out. CheckCompatible gives
+// rmw's full verdict, including deadline and liveliness.
 func IsReliabilityCompatible(requested, offered ReliabilityPolicy) bool {
-	switch requested {
-	case ReliabilityReliable:
-		return offered == ReliabilityReliable
-	case ReliabilityBestEffort:
-		return offered == ReliabilityBestEffort || offered == ReliabilityReliable
-	default:
-		return false
-	}
+	return !(requested == ReliabilityReliable && offered == ReliabilityBestEffort)
 }
 
+// IsDurabilityCompatible is IsReliabilityCompatible for durability: false only
+// for transient local requested and volatile offered.
 func IsDurabilityCompatible(requested, offered DurabilityPolicy) bool {
-	switch requested {
-	case DurabilityTransientLocal:
-		return offered == DurabilityTransientLocal
-	case DurabilityVolatile:
-		return offered == DurabilityVolatile || offered == DurabilityTransientLocal
-	default:
-		return false
-	}
+	return !(requested == DurabilityTransientLocal && offered == DurabilityVolatile)
 }
