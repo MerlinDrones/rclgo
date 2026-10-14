@@ -35,10 +35,12 @@ var (
 func getUnusedDomainID() int {
 	usedDomainIDsMutex.Lock()
 	defer usedDomainIDsMutex.Unlock()
-	if len(usedDomainIDs) == 102 {
-		panic("ran out of unused domain IDs")
-	}
 	oldID, _ := strconv.Atoi(os.Getenv("ROS_DOMAIN_ID"))
+	if len(usedDomainIDs) >= 101 {
+		// Every domain was used (repeated runs, -count=N): start over,
+		// keeping only the current one out.
+		clear(usedDomainIDs)
+	}
 	usedDomainIDs[oldID] = true
 	newID := rand.Intn(102)
 	for usedDomainIDs[newID] {
