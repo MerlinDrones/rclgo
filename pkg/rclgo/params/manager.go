@@ -16,13 +16,13 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
 	rcl_interfaces_msg2 "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/msg"
 	rcl_interfaces_srv2 "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/srv"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
+	"github.com/merlindrones/rclgo/pkg/rclgo/utils"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
@@ -373,11 +373,7 @@ func (m *Manager) stampNow() builtin_interfaces_msg.Time {
 		}
 	}
 	// Fallback to wall clock
-	now := time.Now()
-	return builtin_interfaces_msg.Time{
-		Sec:     int32(now.Unix()),
-		Nanosec: uint32(now.Nanosecond()),
-	}
+	return utils.ROSTimeNow()
 }
 
 // logErr logs err, if not nil, with the node's logger.

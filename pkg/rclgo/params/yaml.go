@@ -10,6 +10,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 package params
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +18,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+// ErrNoMatchingSection is returned, wrapped, by LoadYAML when the file has no
+// parameter section for the node. (rcl ignores such a file; LoadYAML reports
+// it because the caller named the file for this node.)
+var ErrNoMatchingSection = errors.New("no ros__parameters block found")
 
 // LoadYAML loads parameters for a node from a ROS 2 parameter file, as rcl
 // reads --params-file for rclcpp and rclpy, and applies them as overrides: a
@@ -98,7 +104,7 @@ func LoadYAML(m *Manager, nodeName string, path string) error {
 		}
 	}
 	if !found {
-		return fmt.Errorf("no ros__parameters block found for node %q in %s", nodeName, filepath.Base(path))
+		return fmt.Errorf("%w for node %q in %s", ErrNoMatchingSection, nodeName, filepath.Base(path))
 	}
 
 	for _, name := range order {
@@ -216,20 +222,23 @@ func valueFromYAML(v interface{}) (Value, bool) {
 				out = append(out, b)
 			}
 			return Value{Kind: KindBoolArray, Bools: out}, true
-		case int, int64:
-			out := make([]int64, 0, len(x))
-			for _, e := range x {
-				switch vv := e.(type) {
-				case int:
-					out = append(out, int64(vv))
-				case int64:
-					out = append(out, vv)
-				default:
-					return Value{}, false
+		case int, int64, float32, float64:
+			// A list of integers is an integer array; a list with a float
+			// anywhere is a double array (whatever the order of its elements).
+			if !hasFloat(x) {
+				out := make([]int64, 0, len(x))
+				for _, e := range x {
+					switch vv := e.(type) {
+					case int:
+						out = append(out, int64(vv))
+					case int64:
+						out = append(out, vv)
+					default:
+						return Value{}, false
+					}
 				}
+				return Value{Kind: KindInt64Array, Int64s: out}, true
 			}
-			return Value{Kind: KindInt64Array, Int64s: out}, true
-		case float32, float64:
 			out := make([]float64, 0, len(x))
 			for _, e := range x {
 				switch vv := e.(type) {
@@ -262,4 +271,14 @@ func valueFromYAML(v interface{}) (Value, bool) {
 	default:
 		return Value{}, false
 	}
+}
+
+func hasFloat(xs []interface{}) bool {
+	for _, x := range xs {
+		switch x.(type) {
+		case float32, float64:
+			return true
+		}
+	}
+	return false
 }

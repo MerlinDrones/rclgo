@@ -164,25 +164,18 @@ func valueFromVariant(v *C.rcl_variant_t) (Value, bool) {
 }
 
 // matchNames returns the fully qualified names a parameter section is matched
-// against: the manager's node, and nodeName in the node's namespace (a
-// nodeName starting with "/" is taken as fully qualified). As in rcl, a
-// section names a node by its fully qualified name, so "/name" or "name"
-// applies only to a node in the root namespace.
+// against. With a node, that is only the node's fully qualified name after
+// remapping (__node:=, __ns:=), as in rcl: nodeName is ignored. Without one
+// (a manager not attached to a node), nodeName is used, taken as fully
+// qualified when it starts with "/" and in the root namespace otherwise.
 func matchNames(m *Manager, nodeName string) []string {
-	var names []string
-	ns := "/"
 	if m.n != nil {
-		names = append(names, m.n.FullyQualifiedName())
-		ns = m.n.Namespace()
+		return []string{m.n.FullyQualifiedName()}
 	}
-	switch {
-	case nodeName == "":
-	case strings.HasPrefix(nodeName, "/"):
-		names = append(names, nodeName)
-	default:
-		names = append(names, strings.TrimSuffix(ns, "/")+"/"+nodeName)
+	if nodeName == "" {
+		return nil
 	}
-	return names
+	return []string{"/" + strings.TrimPrefix(nodeName, "/")}
 }
 
 // sectionMatches reports whether a parameter section applies to one of names,
