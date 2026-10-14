@@ -19,17 +19,19 @@ install:
 .PHONY: test
 test:
 	export LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH
-	go test -count=1 -shuffle=on -timeout 30m ./...
+	RCLGO_REQUIRE_ROS2=1 go test -count=1 -shuffle=on -timeout 30m ./...
 
 # Tests run in a random order (-shuffle=on prints the seed; rerun a failure
-# with -shuffle=<seed>) so that they cannot depend on each other's state.
+# with -shuffle=<seed>) so that they cannot depend on each other's state. A
+# test fails instead of skipping when the ROS 2 tools, a ROS package or rclpy
+# it needs is missing (RCLGO_REQUIRE_ROS2).
 #
 # The race detector is the main defence against the concurrency defects this
 # library has had; CI runs this target.
 .PHONY: test-race
 test-race:
 	LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH \
-		go test -race -count=1 -shuffle=on -timeout 45m ./...
+		RCLGO_REQUIRE_ROS2=1 go test -race -count=1 -shuffle=on -timeout 45m ./...
 
 # Runs the suite once per installed RMW (Fast DDS, Cyclone DDS, Zenoh, ...).
 .PHONY: test-rmw

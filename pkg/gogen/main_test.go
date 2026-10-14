@@ -24,3 +24,15 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(m.Run())
 }
+
+// unavailable skips a test that needs something missing from the
+// environment (a sourced ROS 2, colcon), or fails it if RCLGO_REQUIRE_ROS2 is
+// set (pkg/rclgo/internal/rclgotest.Unavailable, which this package can't
+// import).
+func unavailable(t *testing.T, msg string) {
+	t.Helper()
+	if os.Getenv("RCLGO_REQUIRE_ROS2") != "" {
+		t.Fatal("RCLGO_REQUIRE_ROS2 is set: " + msg)
+	}
+	t.Skip(msg)
+}

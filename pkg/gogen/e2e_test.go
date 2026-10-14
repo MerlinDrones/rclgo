@@ -21,10 +21,10 @@ func TestGeneratedBindingsForCustomPackage(t *testing.T) {
 	}
 	distro := os.Getenv("ROS_DISTRO")
 	if distro == "" {
-		t.Skip("needs a sourced ROS 2 installation")
+		unavailable(t, "needs a sourced ROS 2 installation")
 	}
 	if _, err := exec.LookPath("colcon"); err != nil {
-		t.Skip("colcon not found")
+		unavailable(t, "colcon not found")
 	}
 	ws := t.TempDir()
 	run := func(dir, script string) string {
