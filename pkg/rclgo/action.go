@@ -206,9 +206,11 @@ func (g *GoalHandle) waitResult() (GoalStatus, types.Message) {
 	defer g.resultCond.L.Unlock()
 	for {
 		status, err := g.status()
-		if err != nil && !g.finished {
+		if err != nil {
 			g.server.logGoalError(&g.ID, err)
-			return GoalUnknown, nil
+			if !g.finished {
+				return GoalUnknown, nil
+			}
 		}
 		switch {
 		case err == nil && (status == GoalSucceeded || status == GoalAborted || status == GoalCanceled):
