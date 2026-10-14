@@ -143,8 +143,19 @@ func RequireROS2(t testing.TB) {
 		t.Skip("ros2 CLI tests are skipped with -short")
 	}
 	if _, err := exec.LookPath("ros2"); err != nil {
-		t.Skip("ros2 command-line tools not found; source a ROS 2 setup.bash")
+		Unavailable(t, "ros2 command-line tools not found; source a ROS 2 setup.bash")
 	}
+}
+
+// Unavailable skips the test because something it needs (the ros2 tools, a
+// ROS package, rclpy) is missing, or fails it if RCLGO_REQUIRE_ROS2 is set,
+// so that a run meant to cover interoperability can't pass by skipping it.
+func Unavailable(t testing.TB, format string, args ...any) {
+	t.Helper()
+	if os.Getenv("RCLGO_REQUIRE_ROS2") != "" {
+		t.Fatalf("RCLGO_REQUIRE_ROS2 is set: "+format, args...)
+	}
+	t.Skipf(format, args...)
 }
 
 // ROS2 runs the ros2 command-line tool with args and returns its combined
@@ -304,11 +315,11 @@ func RunROS2Node(t testing.TB, pkg, executable string, args ...string) *Process 
 	RequireROS2(t)
 	out, err := exec.Command("ros2", "pkg", "prefix", pkg).CombinedOutput()
 	if err != nil {
-		t.Skipf("ROS package %s not installed: %s", pkg, out)
+		Unavailable(t, "ROS package %s not installed: %s", pkg, out)
 	}
 	path := strings.TrimSpace(string(out)) + "/lib/" + pkg + "/" + executable
 	if _, err := os.Stat(path); err != nil {
-		t.Skipf("executable %s not found: %v", path, err)
+		Unavailable(t, "executable %s not found: %v", path, err)
 	}
 	return Start(t, path, args...)
 }
@@ -319,7 +330,7 @@ func Python(t testing.TB, script string, args ...string) *Process {
 	t.Helper()
 	RequireROS2(t)
 	if out, err := exec.Command("python3", "-P", "-c", "import rclpy").CombinedOutput(); err != nil {
-		t.Skipf("rclpy not importable: %s", out)
+		Unavailable(t, "rclpy not importable: %s", out)
 	}
 	return Start(t, "python3", append([]string{"-P", script}, args...)...)
 }

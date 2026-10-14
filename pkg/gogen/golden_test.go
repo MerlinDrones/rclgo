@@ -28,7 +28,7 @@ func generateInto(t *testing.T, dest string) {
 	t.Helper()
 	root := "/opt/ros/" + os.Getenv("ROS_DISTRO")
 	if _, err := os.Stat(filepath.Join(root, "share", "test_msgs")); os.Getenv("ROS_DISTRO") == "" || err != nil {
-		t.Skip("needs a sourced ROS 2 installation with test_msgs")
+		unavailable(t, "needs a sourced ROS 2 installation with test_msgs")
 	}
 	config := DefaultConfig
 	config.RootPaths = []string{root}

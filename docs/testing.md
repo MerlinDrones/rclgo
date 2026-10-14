@@ -23,7 +23,8 @@ make cover                      # coverage of rclgo's own code; CI fails below t
 - `examples/` builds and runs the example programs (`go generate`, `colcon build`), so it needs `colcon`.
 - The interop and `ros2` CLI tests start rclcpp/rclpy programs (`demo_nodes_cpp`, `demo_nodes_py`,
   `action_tutorials_cpp`, rclpy scripts in `pkg/rclgo/testdata/interop/`) as separate processes. They skip when the
-  `ros2` tools, a package or rclpy is missing, and with `-short`.
+  `ros2` tools, a package or rclpy is missing, and with `-short`; with `RCLGO_REQUIRE_ROS2` set (as `make test` and
+  `make test-race` do) a missing dependency fails them instead.
 - Memory errors in cgo code often go unnoticed because freed memory still holds the old bytes. To make use-after-free
   visible, run a compiled test binary under glibc's checks:
 
