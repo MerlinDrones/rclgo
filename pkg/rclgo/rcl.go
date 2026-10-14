@@ -259,8 +259,13 @@ func (m *serializedMessage) c() *C.rmw_serialized_message_t {
 	return (*C.rmw_serialized_message_t)(m)
 }
 
+// Close releases the buffer. A failure is logged, as rclcpp's
+// SerializedMessage does, and the rcl error state reset. Callers pin their OS
+// thread (see errorString).
 func (m *serializedMessage) Close() {
-	C.rcutils_uint8_array_fini(m.c())
+	if rc := C.rcutils_uint8_array_fini(m.c()); rc != C.RCUTILS_RET_OK {
+		GetLogger("rclgo").Error("failed to finalize a serialized message: " + errorString()) //nolint:errcheck
+	}
 }
 
 func (m *serializedMessage) AsSlice() []byte {
