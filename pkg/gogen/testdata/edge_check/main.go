@@ -1,5 +1,7 @@
 // Command check verifies generated bindings for rclgo_test_interfaces: constants,
-// defaults, and an in-process publish/subscribe round trip of a filled message.
+// defaults, an in-process publish/subscribe round trip of a filled message, and
+// that requests, responses, goals and feedback with a bounded sequence over its
+// bound are refused.
 // It prints "HEX:<serialized Edge>" and "SPELLINGS:<serialized default
 // Spellings>" for cross-checking with rclpy.
 package main
@@ -7,6 +9,7 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -102,14 +105,90 @@ func main() {
 	check(err == nil, "subscription: %v", err)
 	pub, err := edge.NewEdgePublisher(node, "edge", nil)
 	check(err == nil, "publisher: %v", err)
-	_, err = node.NewService("op", edge_srv.OpTypeSupport, nil, func(*rclgo.ServiceInfo, types.Message, rclgo.ServiceResponseSender) {})
+	// The service answers with an over-bound response, which must fail in
+	// its handler; the action server sends over-bound feedback, which must
+	// fail in the sender.
+	responseErr := make(chan error, 1)
+	_, err = edge_srv.NewOpService(node, "op", nil, func(_ *rclgo.ServiceInfo, _ *edge_srv.Op_Request, send edge_srv.OpServiceResponseSender) {
+		resp := edge_srv.NewOp_Response()
+		resp.Values = []int32{1, 2, 3} // int32[<=2]
+		select {
+		case responseErr <- send.SendResponse(resp):
+		default:
+		}
+	})
 	check(err == nil, "service: %v", err)
-	_, err = node.NewActionClient("run", edge_action.RunTypeSupport, nil)
+	feedbackErr := make(chan error, 1)
+	_, err = edge_action.NewRunServer(node, "run", edge_action.NewRunAction(
+		func(_ context.Context, h *edge_action.RunGoalHandle) (*edge_action.Run_Result, error) {
+			fb, err := h.Accept()
+			if err != nil {
+				return nil, err
+			}
+			over := edge_action.NewRun_Feedback()
+			over.Partial = []int32{1, 2, 3} // int32[<=2]
+			select {
+			case feedbackErr <- fb.Send(over):
+			default:
+			}
+			return edge_action.NewRun_Result(), nil
+		}), nil)
+	check(err == nil, "action server: %v", err)
+	opClient, err := edge_srv.NewOpClient(node, "op", nil)
+	check(err == nil, "client: %v", err)
+	runClient, err := edge_action.NewRunClient(node, "run", nil)
 	check(err == nil, "action client: %v", err)
 	spin, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go ctx.Spin(spin) //nolint:errcheck
+
+	// Over-bound requests and goals are refused before they are sent.
+	overReq := edge_srv.NewOp_Request()
+	overReq.Args = []int32{1, 2, 3}
+	_, _, err = opClient.Send(context.Background(), overReq)
+	check(errors.Is(err, types.ErrBoundExceeded), "over-bound request: %v", err)
+	overGoal := edge_action.NewRun_Goal()
+	overGoal.Limits = []int32{1, 2, 3}
+	_, _, err = runClient.SendGoal(context.Background(), overGoal)
+	check(errors.Is(err, types.ErrBoundExceeded), "over-bound goal: %v", err)
+	// A request at the bound reaches the service (retried until discovery),
+	// whose over-bound response fails in the handler; the client gets no
+	// response, as with rclcpp, whose handler would throw.
+	atBound := edge_srv.NewOp_Request()
+	atBound.Args = []int32{1, 2}
 	deadline := time.After(10 * time.Second)
+	for done := false; !done; {
+		c, stop := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		_, _, err = opClient.Send(c, atBound)
+		stop()
+		check(err != nil, "a response with an over-bound sequence was delivered")
+		select {
+		case err := <-responseErr:
+			check(errors.Is(err, types.ErrBoundExceeded), "over-bound response: %v", err)
+			done = true
+		case <-deadline:
+			check(false, "the request never reached the service")
+		default:
+		}
+	}
+	// A goal at the bound runs; its over-bound feedback fails in the sender.
+	goal := edge_action.NewRun_Goal()
+	goal.Limits = []int32{1, 2}
+	for done := false; !done; {
+		c, stop := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		_, _, err = runClient.SendGoal(c, goal)
+		stop()
+		select {
+		case err := <-feedbackErr:
+			check(errors.Is(err, types.ErrBoundExceeded), "over-bound feedback: %v", err)
+			done = true
+		case <-deadline:
+			check(false, "the goal never reached the action server")
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+
+	deadline = time.After(10 * time.Second)
 	for done := false; !done; {
 		check(pub.Publish(in) == nil, "publish")
 		select {
