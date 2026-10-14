@@ -18,6 +18,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -150,8 +151,37 @@ func ROS2(t testing.TB, args ...string) (string, error) {
 	}
 }
 
+// daemonStops records the tests that will stop the ros2 daemon when they end.
+var daemonStops sync.Map
+
+// stopDaemon stops the ros2 daemon of this process's domain and RMW. ros2
+// starts the daemon in the background without waiting for it, so it may not
+// be up yet: retry for a few seconds until one is stopped.
+func stopDaemon() {
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		out, err := exec.Command("ros2", "daemon", "stop").CombinedOutput()
+		if err != nil || strings.Contains(string(out), "has been stopped") || time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+}
+
 func ros2Once(t testing.TB, args ...string) (string, error) {
 	t.Helper()
+	// Without --no-daemon (some verbs, e.g. service call, have no such
+	// option), ros2 starts a daemon on the test's domain that outlives the
+	// test process, and later test runs that get the same domain see its
+	// node and topics. Stop it when the test ends.
+	if !slices.Contains(args, "--no-daemon") {
+		if _, loaded := daemonStops.LoadOrStore(t, true); !loaded {
+			t.Cleanup(func() {
+				daemonStops.Delete(t)
+				stopDaemon()
+			})
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "ros2", args...).CombinedOutput()
