@@ -35,7 +35,8 @@ test-rmw:
 
 # Makes every rcl call that test scenarios reach fail in turn
 # (pkg/rclgo/internal/faultinject); RCLGO_FAULT_CALLS sets how many calls of
-# each function (default 2).
+# each function (default 2) and RCLGO_FAULT_RETS the codes they fail with
+# (error, timeout, bad_alloc; default error).
 .PHONY: test-faults
 test-faults:
 	RCLGO_FAULT_SWEEP=1 go test -count=1 -timeout 90m -run TestFaultSweep -v ./pkg/rclgo/internal/faultinject/
