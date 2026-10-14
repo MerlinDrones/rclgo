@@ -9,8 +9,8 @@ Licensed under the Apache License, Version 2.0 (the "License");
 
 // Command check verifies generated bindings for rclgo_test_interfaces: constants,
 // defaults, an in-process publish/subscribe round trip of a filled message, and
-// that requests, responses, goals and feedback with a bounded sequence over its
-// bound are refused.
+// that requests, responses, goals, feedback and results with a bounded sequence
+// over its bound are refused.
 // It prints "HEX:<serialized Edge>" and "SPELLINGS:<serialized default
 // Spellings>" for cross-checking with rclpy.
 package main
@@ -134,13 +134,18 @@ func main() {
 			if err != nil {
 				return nil, err
 			}
+			result := edge_action.NewRun_Result()
+			if h.Description.Order == 99 { // asked for an over-bound result
+				result.Last = []int32{1, 2, 3} // int32[<=2]
+				return result, nil
+			}
 			over := edge_action.NewRun_Feedback()
 			over.Partial = []int32{1, 2, 3} // int32[<=2]
 			select {
 			case feedbackErr <- fb.Send(over):
 			default:
 			}
-			return edge_action.NewRun_Result(), nil
+			return result, nil
 		}), nil)
 	check(err == nil, "action server: %v", err)
 	opClient, err := edge_srv.NewOpClient(node, "op", nil)
@@ -196,6 +201,15 @@ func main() {
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
+	// A result that can't be sent aborts the goal, so the client still gets
+	// an answer.
+	overResult := edge_action.NewRun_Goal()
+	overResult.Order = 99
+	c, stop := context.WithTimeout(context.Background(), 10*time.Second)
+	_, _, err = runClient.WatchGoal(c, overResult, nil)
+	stop()
+	var failed *rclgo.GoalFailedError
+	check(errors.As(err, &failed) && failed.Status == rclgo.GoalAborted, "over-bound result: want an aborted goal, got %v", err)
 
 	deadline = time.After(10 * time.Second)
 	for done := false; !done; {

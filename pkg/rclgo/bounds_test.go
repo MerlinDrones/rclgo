@@ -10,7 +10,6 @@ Licensed under the Apache License, Version 2.0 (the "License");
 package rclgo_test
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -64,19 +63,4 @@ func TestBoundsCheckedBeforeSending(t *testing.T) {
 		m.BoundedStringValue = strings.Repeat("x", 30) // string<=22
 		require.NoError(t, m.CheckBounds())
 	})
-}
-
-// A result that can't be sent aborts the goal, so the client gets an answer
-// instead of waiting for one. (No action in the bundled packages has a
-// bounded sequence, so the Fibonacci server returns a BoundedSequences
-// result; the bound check runs before the result's type is used.)
-func TestOverBoundResultAbortsGoal(t *testing.T) {
-	f := newActionFixture(t, "over_bound_result", nil, func(_ context.Context, goal *rclgo.GoalHandle) (types.Message, error) {
-		if _, err := goal.Accept(); err != nil {
-			return nil, err
-		}
-		return overBound(), nil
-	})
-	_, id := f.sendGoal(1)
-	require.EqualValues(t, rclgo.GoalAborted, f.getResult(id).Status)
 }

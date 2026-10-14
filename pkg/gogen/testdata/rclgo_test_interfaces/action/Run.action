@@ -2,6 +2,7 @@ int32 order
 int32[<=2] limits
 ---
 int32[] sequence
+int32[<=2] last
 ---
 int32 progress
 int32[<=2] partial

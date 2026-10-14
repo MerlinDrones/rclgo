@@ -96,6 +96,9 @@ func resultStatus(resp types.Message) (GoalStatus, bool) {
 type FeedbackSender struct{ goal *GoalHandle }
 
 func (s *FeedbackSender) Send(msg types.Message) error {
+	if err := checkMessage("send feedback", messageType(s.goal.server.typeSupport.Feedback()), msg); err != nil {
+		return err
+	}
 	return s.goal.server.sendFeedback(s.goal, msg)
 }
 
@@ -600,7 +603,10 @@ func (s *ActionServer) executeGoal(ctx context.Context, goal *GoalHandle) {
 	if err == nil && result != nil {
 		// A result that can't be sent aborts the goal, so that the client
 		// gets an answer.
-		if berr := types.CheckBounds(result); berr != nil {
+		if terr := checkMessage("goal result", messageType(s.typeSupport.Result()), result); terr != nil {
+			s.logGoalError(&goal.ID, "aborting, the result can't be sent: ", terr)
+			result, err = nil, terr
+		} else if berr := types.CheckBounds(result); berr != nil {
 			s.logGoalError(&goal.ID, "aborting, the result can't be sent: ", berr)
 			result, err = nil, berr
 		}
@@ -761,6 +767,13 @@ func (s *ActionServer) handleResultRequest() {
 	}
 	go func() {
 		id := req.GetGoalID()
+		defer func() {
+			// Results are checked when ExecuteGoal returns; this keeps a bug
+			// in a type support from taking the process down.
+			if r := recover(); r != nil {
+				s.logGoalError(id, fmt.Sprintf("rclgo: panic when sending a result: %v", r))
+			}
+		}()
 		status, result := GoalUnknown, types.Message(nil)
 		if goal := s.getGoal(id); goal != nil {
 			status, result = goal.waitResult()
@@ -1279,6 +1292,9 @@ func (c *ActionClient) SendGoal(ctx context.Context, goal types.Message) (types.
 }
 
 func (c *ActionClient) newSendGoalRequest(goal types.Message) (goalRequestMessage, error) {
+	if err := checkMessage("send goal", messageType(c.typeSupport.Goal()), goal); err != nil {
+		return nil, err
+	}
 	msg := c.typeSupport.SendGoal().Request().New().(goalRequestMessage)
 	goalID := msg.GetGoalID()
 	if _, err := rand.Read(goalID[:]); err != nil {
