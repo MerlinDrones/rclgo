@@ -163,15 +163,24 @@ func valueFromVariant(v *C.rcl_variant_t) (Value, bool) {
 	return Value{}, false
 }
 
-// matchNames returns the fully qualified names an override section is matched
-// against: the manager's node, and nodeName as given (with a leading slash).
+// matchNames returns the fully qualified names a parameter section is matched
+// against: the manager's node, and nodeName in the node's namespace (a
+// nodeName starting with "/" is taken as fully qualified). As in rcl, a
+// section names a node by its fully qualified name, so "/name" or "name"
+// applies only to a node in the root namespace.
 func matchNames(m *Manager, nodeName string) []string {
 	var names []string
+	ns := "/"
 	if m.n != nil {
 		names = append(names, m.n.FullyQualifiedName())
+		ns = m.n.Namespace()
 	}
-	if nodeName != "" {
-		names = append(names, "/"+strings.TrimPrefix(nodeName, "/"))
+	switch {
+	case nodeName == "":
+	case strings.HasPrefix(nodeName, "/"):
+		names = append(names, nodeName)
+	default:
+		names = append(names, strings.TrimSuffix(ns, "/")+"/"+nodeName)
 	}
 	return names
 }
