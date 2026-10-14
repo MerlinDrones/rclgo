@@ -22,8 +22,8 @@ import (
 	rcl_interfaces_srv2 "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/srv"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
-	"github.com/merlindrones/rclgo/pkg/rclgo/utils"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo/utils"
 )
 
 type Manager struct {
