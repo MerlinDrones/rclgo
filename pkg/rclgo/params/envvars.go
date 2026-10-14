@@ -114,8 +114,9 @@ func getParamEnvVars() map[string]string {
 func parseEnvVarValue(valStr string, existingParam *Parameter) (Value, error) {
 	valStr = strings.TrimSpace(valStr)
 
-	// If we have an existing parameter, use its type
-	if existingParam != nil {
+	// If we have an existing parameter with a type, use its type; a
+	// parameter that is not set (KindNotSet) takes the inferred type.
+	if existingParam != nil && existingParam.Value.Kind != KindNotSet {
 		return parseValueWithType(valStr, existingParam.Value.Kind)
 	}
 

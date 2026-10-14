@@ -312,8 +312,24 @@ func coerce(v Value, kind uint8) (Value, bool) {
 			ds[i] = float64(x)
 		}
 		return Value{Kind: KindDoubleArray, Doubles: ds}, true
+	case isArrayKind(kind) && isArrayKind(v.Kind) && arrayLen(v) == 0:
+		// An empty list (e.g. `[]` in a YAML file, which has no element
+		// type) fits any array type.
+		return Value{Kind: kind}, true
 	}
 	return v, false
+}
+
+func isArrayKind(kind uint8) bool {
+	switch kind {
+	case KindBytes, KindBoolArray, KindInt64Array, KindDoubleArray, KindStringArray:
+		return true
+	}
+	return false
+}
+
+func arrayLen(v Value) int {
+	return len(v.Bytes) + len(v.Bools) + len(v.Int64s) + len(v.Doubles) + len(v.Strs)
 }
 
 func kindName(kind uint8) string {
