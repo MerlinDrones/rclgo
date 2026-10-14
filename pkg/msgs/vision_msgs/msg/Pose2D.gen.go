@@ -166,7 +166,7 @@ func Pose2D__Sequence_to_Go(goSlice *[]Pose2D, cSlice CPose2D__Sequence) {
 		Pose2DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Pose2D__Sequence_to_C(cSlice *CPose2D__Sequence, goSlice []Pose2D) {
+func Pose2D__Sequence_into_C(cSlice *CPose2D__Sequence, goSlice []Pose2D) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -186,7 +186,7 @@ func Pose2D__Array_to_Go(goSlice []Pose2D, cSlice []CPose2D) {
 		Pose2DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Pose2D__Array_to_C(cSlice []CPose2D, goSlice []Pose2D) {
+func Pose2D__Array_into_C(cSlice []CPose2D, goSlice []Pose2D) {
 	for i := 0; i < len(goSlice); i++ {
 		Pose2DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

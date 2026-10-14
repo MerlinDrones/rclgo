@@ -165,10 +165,10 @@ func (t _LogTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	mem := (*C.rcl_interfaces__msg__Log)(dst)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.stamp), &m.Stamp)
 	mem.level = C.uint8_t(m.Level)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.msg), m.Msg)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.file), m.File)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.function), m.Function)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
+	primitives.StringIntoC(unsafe.Pointer(&mem.msg), m.Msg)
+	primitives.StringIntoC(unsafe.Pointer(&mem.file), m.File)
+	primitives.StringIntoC(unsafe.Pointer(&mem.function), m.Function)
 	mem.line = C.uint32_t(m.Line)
 }
 
@@ -202,7 +202,7 @@ func Log__Sequence_to_Go(goSlice *[]Log, cSlice CLog__Sequence) {
 		LogTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Log__Sequence_to_C(cSlice *CLog__Sequence, goSlice []Log) {
+func Log__Sequence_into_C(cSlice *CLog__Sequence, goSlice []Log) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__msg__Log__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -225,7 +225,7 @@ func Log__Array_to_Go(goSlice []Log, cSlice []CLog) {
 		LogTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Log__Array_to_C(cSlice []CLog, goSlice []Log) {
+func Log__Array_into_C(cSlice []CLog, goSlice []Log) {
 	for i := 0; i < len(goSlice); i++ {
 		LogTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

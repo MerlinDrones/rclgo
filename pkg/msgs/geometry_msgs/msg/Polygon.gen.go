@@ -138,7 +138,7 @@ func (t _PolygonTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _PolygonTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Polygon)
 	mem := (*C.geometry_msgs__msg__Polygon)(dst)
-	Point32__Sequence_to_C(&mem.points, m.Points)
+	Point32__Sequence_into_C(&mem.points, m.Points)
 }
 
 func (t _PolygonTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -165,7 +165,7 @@ func Polygon__Sequence_to_Go(goSlice *[]Polygon, cSlice CPolygon__Sequence) {
 		PolygonTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Polygon__Sequence_to_C(cSlice *CPolygon__Sequence, goSlice []Polygon) {
+func Polygon__Sequence_into_C(cSlice *CPolygon__Sequence, goSlice []Polygon) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__Polygon__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -188,7 +188,7 @@ func Polygon__Array_to_Go(goSlice []Polygon, cSlice []CPolygon) {
 		PolygonTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Polygon__Array_to_C(cSlice []CPolygon, goSlice []Polygon) {
+func Polygon__Array_into_C(cSlice []CPolygon, goSlice []Polygon) {
 	for i := 0; i < len(goSlice); i++ {
 		PolygonTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

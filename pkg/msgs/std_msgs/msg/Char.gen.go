@@ -162,7 +162,7 @@ func Char__Sequence_to_Go(goSlice *[]Char, cSlice CChar__Sequence) {
 		CharTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Char__Sequence_to_C(cSlice *CChar__Sequence, goSlice []Char) {
+func Char__Sequence_into_C(cSlice *CChar__Sequence, goSlice []Char) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__Char__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -185,7 +185,7 @@ func Char__Array_to_Go(goSlice []Char, cSlice []CChar) {
 		CharTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Char__Array_to_C(cSlice []CChar, goSlice []Char) {
+func Char__Array_into_C(cSlice []CChar, goSlice []Char) {
 	for i := 0; i < len(goSlice); i++ {
 		CharTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

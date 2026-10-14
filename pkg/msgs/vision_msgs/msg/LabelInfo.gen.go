@@ -146,7 +146,7 @@ func (t _LabelInfoTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) 
 	m := msg.(*LabelInfo)
 	mem := (*C.vision_msgs__msg__LabelInfo)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	VisionClass__Sequence_to_C(&mem.class_map, m.ClassMap)
+	VisionClass__Sequence_into_C(&mem.class_map, m.ClassMap)
 	mem.threshold = C.float(m.Threshold)
 }
 
@@ -175,7 +175,7 @@ func LabelInfo__Sequence_to_Go(goSlice *[]LabelInfo, cSlice CLabelInfo__Sequence
 		LabelInfoTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func LabelInfo__Sequence_to_C(cSlice *CLabelInfo__Sequence, goSlice []LabelInfo) {
+func LabelInfo__Sequence_into_C(cSlice *CLabelInfo__Sequence, goSlice []LabelInfo) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -195,7 +195,7 @@ func LabelInfo__Array_to_Go(goSlice []LabelInfo, cSlice []CLabelInfo) {
 		LabelInfoTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func LabelInfo__Array_to_C(cSlice []CLabelInfo, goSlice []LabelInfo) {
+func LabelInfo__Array_into_C(cSlice []CLabelInfo, goSlice []LabelInfo) {
 	for i := 0; i < len(goSlice); i++ {
 		LabelInfoTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

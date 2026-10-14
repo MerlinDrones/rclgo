@@ -177,7 +177,7 @@ func ColorRGBA__Sequence_to_Go(goSlice *[]ColorRGBA, cSlice CColorRGBA__Sequence
 		ColorRGBATypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ColorRGBA__Sequence_to_C(cSlice *CColorRGBA__Sequence, goSlice []ColorRGBA) {
+func ColorRGBA__Sequence_into_C(cSlice *CColorRGBA__Sequence, goSlice []ColorRGBA) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__ColorRGBA__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -200,7 +200,7 @@ func ColorRGBA__Array_to_Go(goSlice []ColorRGBA, cSlice []CColorRGBA) {
 		ColorRGBATypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ColorRGBA__Array_to_C(cSlice []CColorRGBA, goSlice []ColorRGBA) {
+func ColorRGBA__Array_into_C(cSlice []CColorRGBA, goSlice []ColorRGBA) {
 	for i := 0; i < len(goSlice); i++ {
 		ColorRGBATypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

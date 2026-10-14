@@ -162,7 +162,7 @@ func Int64__Sequence_to_Go(goSlice *[]Int64, cSlice CInt64__Sequence) {
 		Int64TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Int64__Sequence_to_C(cSlice *CInt64__Sequence, goSlice []Int64) {
+func Int64__Sequence_into_C(cSlice *CInt64__Sequence, goSlice []Int64) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.example_interfaces__msg__Int64__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -185,7 +185,7 @@ func Int64__Array_to_Go(goSlice []Int64, cSlice []CInt64) {
 		Int64TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Int64__Array_to_C(cSlice []CInt64, goSlice []Int64) {
+func Int64__Array_into_C(cSlice []CInt64, goSlice []Int64) {
 	for i := 0; i < len(goSlice); i++ {
 		Int64TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -167,7 +167,7 @@ func Transform__Sequence_to_Go(goSlice *[]Transform, cSlice CTransform__Sequence
 		TransformTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Transform__Sequence_to_C(cSlice *CTransform__Sequence, goSlice []Transform) {
+func Transform__Sequence_into_C(cSlice *CTransform__Sequence, goSlice []Transform) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__Transform__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -190,7 +190,7 @@ func Transform__Array_to_Go(goSlice []Transform, cSlice []CTransform) {
 		TransformTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Transform__Array_to_C(cSlice []CTransform, goSlice []Transform) {
+func Transform__Array_into_C(cSlice []CTransform, goSlice []Transform) {
 	for i := 0; i < len(goSlice); i++ {
 		TransformTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

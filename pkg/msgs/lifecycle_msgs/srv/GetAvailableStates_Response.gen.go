@@ -139,7 +139,7 @@ func (t _GetAvailableStates_ResponseTypeSupport) ReleaseMemory(pointer_to_free u
 func (t _GetAvailableStates_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*GetAvailableStates_Response)
 	mem := (*C.lifecycle_msgs__srv__GetAvailableStates_Response)(dst)
-	lifecycle_msgs_msg.State__Sequence_to_C((*lifecycle_msgs_msg.CState__Sequence)(unsafe.Pointer(&mem.available_states)), m.AvailableStates)
+	lifecycle_msgs_msg.State__Sequence_into_C((*lifecycle_msgs_msg.CState__Sequence)(unsafe.Pointer(&mem.available_states)), m.AvailableStates)
 }
 
 func (t _GetAvailableStates_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,7 +166,7 @@ func GetAvailableStates_Response__Sequence_to_Go(goSlice *[]GetAvailableStates_R
 		GetAvailableStates_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetAvailableStates_Response__Sequence_to_C(cSlice *CGetAvailableStates_Response__Sequence, goSlice []GetAvailableStates_Response) {
+func GetAvailableStates_Response__Sequence_into_C(cSlice *CGetAvailableStates_Response__Sequence, goSlice []GetAvailableStates_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.lifecycle_msgs__srv__GetAvailableStates_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -189,7 +189,7 @@ func GetAvailableStates_Response__Array_to_Go(goSlice []GetAvailableStates_Respo
 		GetAvailableStates_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetAvailableStates_Response__Array_to_C(cSlice []CGetAvailableStates_Response, goSlice []GetAvailableStates_Response) {
+func GetAvailableStates_Response__Array_into_C(cSlice []CGetAvailableStates_Response, goSlice []GetAvailableStates_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		GetAvailableStates_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

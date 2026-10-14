@@ -155,7 +155,7 @@ func GetAvailableTransitions_Request__Sequence_to_Go(goSlice *[]GetAvailableTran
 		GetAvailableTransitions_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetAvailableTransitions_Request__Sequence_to_C(cSlice *CGetAvailableTransitions_Request__Sequence, goSlice []GetAvailableTransitions_Request) {
+func GetAvailableTransitions_Request__Sequence_into_C(cSlice *CGetAvailableTransitions_Request__Sequence, goSlice []GetAvailableTransitions_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.lifecycle_msgs__srv__GetAvailableTransitions_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -178,7 +178,7 @@ func GetAvailableTransitions_Request__Array_to_Go(goSlice []GetAvailableTransiti
 		GetAvailableTransitions_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetAvailableTransitions_Request__Array_to_C(cSlice []CGetAvailableTransitions_Request, goSlice []GetAvailableTransitions_Request) {
+func GetAvailableTransitions_Request__Array_into_C(cSlice []CGetAvailableTransitions_Request, goSlice []GetAvailableTransitions_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		GetAvailableTransitions_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -162,7 +162,7 @@ func Bool__Sequence_to_Go(goSlice *[]Bool, cSlice CBool__Sequence) {
 		BoolTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Bool__Sequence_to_C(cSlice *CBool__Sequence, goSlice []Bool) {
+func Bool__Sequence_into_C(cSlice *CBool__Sequence, goSlice []Bool) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__Bool__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -185,7 +185,7 @@ func Bool__Array_to_Go(goSlice []Bool, cSlice []CBool) {
 		BoolTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Bool__Array_to_C(cSlice []CBool, goSlice []Bool) {
+func Bool__Array_into_C(cSlice []CBool, goSlice []Bool) {
 	for i := 0; i < len(goSlice); i++ {
 		BoolTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

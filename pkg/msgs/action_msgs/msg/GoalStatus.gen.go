@@ -184,7 +184,7 @@ func GoalStatus__Sequence_to_Go(goSlice *[]GoalStatus, cSlice CGoalStatus__Seque
 		GoalStatusTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GoalStatus__Sequence_to_C(cSlice *CGoalStatus__Sequence, goSlice []GoalStatus) {
+func GoalStatus__Sequence_into_C(cSlice *CGoalStatus__Sequence, goSlice []GoalStatus) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.action_msgs__msg__GoalStatus__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -207,7 +207,7 @@ func GoalStatus__Array_to_Go(goSlice []GoalStatus, cSlice []CGoalStatus) {
 		GoalStatusTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GoalStatus__Array_to_C(cSlice []CGoalStatus, goSlice []GoalStatus) {
+func GoalStatus__Array_into_C(cSlice []CGoalStatus, goSlice []GoalStatus) {
 	for i := 0; i < len(goSlice); i++ {
 		GoalStatusTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

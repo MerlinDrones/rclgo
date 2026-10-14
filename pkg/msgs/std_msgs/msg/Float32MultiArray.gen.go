@@ -143,7 +143,7 @@ func (t _Float32MultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.M
 	m := msg.(*Float32MultiArray)
 	mem := (*C.std_msgs__msg__Float32MultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _Float32MultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -171,7 +171,7 @@ func Float32MultiArray__Sequence_to_Go(goSlice *[]Float32MultiArray, cSlice CFlo
 		Float32MultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Float32MultiArray__Sequence_to_C(cSlice *CFloat32MultiArray__Sequence, goSlice []Float32MultiArray) {
+func Float32MultiArray__Sequence_into_C(cSlice *CFloat32MultiArray__Sequence, goSlice []Float32MultiArray) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__Float32MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -194,7 +194,7 @@ func Float32MultiArray__Array_to_Go(goSlice []Float32MultiArray, cSlice []CFloat
 		Float32MultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Float32MultiArray__Array_to_C(cSlice []CFloat32MultiArray, goSlice []Float32MultiArray) {
+func Float32MultiArray__Array_into_C(cSlice []CFloat32MultiArray, goSlice []Float32MultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		Float32MultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

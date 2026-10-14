@@ -34,7 +34,7 @@ func Char__Sequence_to_Go(goSlice *[]byte, cSlice CChar__Sequence) {
 	src := unsafe.Slice((*byte)(unsafe.Pointer(cSlice.data)), cSlice.size)
 	copy(*goSlice, src)
 }
-func Char__Sequence_to_C(cSlice *CChar__Sequence, goSlice []byte) {
+func Char__Sequence_into_C(cSlice *CChar__Sequence, goSlice []byte) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rosidl_runtime_c__char__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -54,7 +54,7 @@ func Char__Array_to_Go(goSlice []byte, cSlice []CChar) {
 		goSlice[i] = byte(cSlice[i])
 	}
 }
-func Char__Array_to_C(cSlice []CChar, goSlice []byte) {
+func Char__Array_into_C(cSlice []CChar, goSlice []byte) {
 	for i := 0; i < len(goSlice); i++ {
 		cSlice[i] = C.schar(goSlice[i])
 	}

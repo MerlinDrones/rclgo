@@ -136,7 +136,7 @@ func (t _StringTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _StringTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*String)
 	mem := (*C.std_msgs__msg__String)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.data), m.Data)
+	primitives.StringIntoC(unsafe.Pointer(&mem.data), m.Data)
 }
 
 func (t _StringTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -163,7 +163,7 @@ func String__Sequence_to_Go(goSlice *[]String, cSlice CString__Sequence) {
 		StringTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func String__Sequence_to_C(cSlice *CString__Sequence, goSlice []String) {
+func String__Sequence_into_C(cSlice *CString__Sequence, goSlice []String) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__String__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -186,7 +186,7 @@ func String__Array_to_Go(goSlice []String, cSlice []CString) {
 		StringTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func String__Array_to_C(cSlice []CString, goSlice []String) {
+func String__Array_into_C(cSlice []CString, goSlice []String) {
 	for i := 0; i < len(goSlice); i++ {
 		StringTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

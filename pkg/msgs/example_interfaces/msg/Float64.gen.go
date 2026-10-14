@@ -162,7 +162,7 @@ func Float64__Sequence_to_Go(goSlice *[]Float64, cSlice CFloat64__Sequence) {
 		Float64TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Float64__Sequence_to_C(cSlice *CFloat64__Sequence, goSlice []Float64) {
+func Float64__Sequence_into_C(cSlice *CFloat64__Sequence, goSlice []Float64) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.example_interfaces__msg__Float64__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -185,7 +185,7 @@ func Float64__Array_to_Go(goSlice []Float64, cSlice []CFloat64) {
 		Float64TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Float64__Array_to_C(cSlice []CFloat64, goSlice []Float64) {
+func Float64__Array_into_C(cSlice []CFloat64, goSlice []Float64) {
 	for i := 0; i < len(goSlice); i++ {
 		Float64TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

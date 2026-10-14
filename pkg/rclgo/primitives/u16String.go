@@ -18,7 +18,7 @@ import (
 	"unsafe"
 )
 
-func U16StringAsCStruct(dst unsafe.Pointer, m string) {
+func U16StringIntoC(dst unsafe.Pointer, m string) {
 	mem := (*C.rosidl_runtime_c__U16String)(dst)
 	runescape := utf16.Encode([]rune(m))
 
@@ -53,7 +53,7 @@ func U16String__Sequence_to_Go(goSlice *[]string, cSlice CU16String__Sequence) {
 	}
 }
 
-func U16String__Sequence_to_C(cSlice *CU16String__Sequence, goSlice []string) {
+func U16String__Sequence_into_C(cSlice *CU16String__Sequence, goSlice []string) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rosidl_runtime_c__U16String__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -62,13 +62,13 @@ func U16String__Sequence_to_C(cSlice *CU16String__Sequence, goSlice []string) {
 		cSlice.size = 0
 		return
 	}
-	// Zeroed, so that U16StringAsCStruct frees nothing.
+	// Zeroed, so that U16StringIntoC frees nothing.
 	cSlice.data = (*C.rosidl_runtime_c__U16String)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rosidl_runtime_c__U16String))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
 	for i := range goSlice {
-		U16StringAsCStruct(unsafe.Pointer(&dst[i]), goSlice[i])
+		U16StringIntoC(unsafe.Pointer(&dst[i]), goSlice[i])
 	}
 }
 
@@ -78,8 +78,8 @@ func U16String__Array_to_Go(goSlice []string, cSlice []CU16String) {
 	}
 }
 
-func U16String__Array_to_C(cSlice []CU16String, goSlice []string) {
+func U16String__Array_into_C(cSlice []CU16String, goSlice []string) {
 	for i := 0; i < len(goSlice); i++ {
-		U16StringAsCStruct(unsafe.Pointer(&cSlice[i]), goSlice[i])
+		U16StringIntoC(unsafe.Pointer(&cSlice[i]), goSlice[i])
 	}
 }

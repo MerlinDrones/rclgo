@@ -168,7 +168,7 @@ func PointStamped__Sequence_to_Go(goSlice *[]PointStamped, cSlice CPointStamped_
 		PointStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PointStamped__Sequence_to_C(cSlice *CPointStamped__Sequence, goSlice []PointStamped) {
+func PointStamped__Sequence_into_C(cSlice *CPointStamped__Sequence, goSlice []PointStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__PointStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func PointStamped__Array_to_Go(goSlice []PointStamped, cSlice []CPointStamped) {
 		PointStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PointStamped__Array_to_C(cSlice []CPointStamped, goSlice []PointStamped) {
+func PointStamped__Array_into_C(cSlice []CPointStamped, goSlice []PointStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		PointStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

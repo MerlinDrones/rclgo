@@ -136,7 +136,7 @@ func (t _WStringTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _WStringTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*WString)
 	mem := (*C.example_interfaces__msg__WString)(dst)
-	primitives.U16StringAsCStruct(unsafe.Pointer(&mem.data), m.Data)
+	primitives.U16StringIntoC(unsafe.Pointer(&mem.data), m.Data)
 }
 
 func (t _WStringTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -163,7 +163,7 @@ func WString__Sequence_to_Go(goSlice *[]WString, cSlice CWString__Sequence) {
 		WStringTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func WString__Sequence_to_C(cSlice *CWString__Sequence, goSlice []WString) {
+func WString__Sequence_into_C(cSlice *CWString__Sequence, goSlice []WString) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.example_interfaces__msg__WString__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -186,7 +186,7 @@ func WString__Array_to_Go(goSlice []WString, cSlice []CWString) {
 		WStringTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func WString__Array_to_C(cSlice []CWString, goSlice []WString) {
+func WString__Array_into_C(cSlice []CWString, goSlice []WString) {
 	for i := 0; i < len(goSlice); i++ {
 		WStringTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -167,7 +167,7 @@ func Duration__Sequence_to_Go(goSlice *[]Duration, cSlice CDuration__Sequence) {
 		DurationTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Duration__Sequence_to_C(cSlice *CDuration__Sequence, goSlice []Duration) {
+func Duration__Sequence_into_C(cSlice *CDuration__Sequence, goSlice []Duration) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.builtin_interfaces__msg__Duration__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -190,7 +190,7 @@ func Duration__Array_to_Go(goSlice []Duration, cSlice []CDuration) {
 		DurationTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Duration__Array_to_C(cSlice []CDuration, goSlice []Duration) {
+func Duration__Array_into_C(cSlice []CDuration, goSlice []Duration) {
 	for i := 0; i < len(goSlice); i++ {
 		DurationTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

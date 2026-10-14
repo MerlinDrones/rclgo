@@ -146,7 +146,7 @@ func (t _ListParameters_RequestTypeSupport) ReleaseMemory(pointer_to_free unsafe
 func (t _ListParameters_RequestTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ListParameters_Request)
 	mem := (*C.rcl_interfaces__srv__ListParameters_Request)(dst)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.prefixes)), m.Prefixes)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.prefixes)), m.Prefixes)
 	mem.depth = C.uint64_t(m.Depth)
 }
 
@@ -175,7 +175,7 @@ func ListParameters_Request__Sequence_to_Go(goSlice *[]ListParameters_Request, c
 		ListParameters_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ListParameters_Request__Sequence_to_C(cSlice *CListParameters_Request__Sequence, goSlice []ListParameters_Request) {
+func ListParameters_Request__Sequence_into_C(cSlice *CListParameters_Request__Sequence, goSlice []ListParameters_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__srv__ListParameters_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -198,7 +198,7 @@ func ListParameters_Request__Array_to_Go(goSlice []ListParameters_Request, cSlic
 		ListParameters_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ListParameters_Request__Array_to_C(cSlice []CListParameters_Request, goSlice []ListParameters_Request) {
+func ListParameters_Request__Array_into_C(cSlice []CListParameters_Request, goSlice []ListParameters_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		ListParameters_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

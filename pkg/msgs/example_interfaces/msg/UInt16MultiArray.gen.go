@@ -143,7 +143,7 @@ func (t _UInt16MultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*UInt16MultiArray)
 	mem := (*C.example_interfaces__msg__UInt16MultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Uint16__Sequence_to_C((*primitives.CUint16__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Uint16__Sequence_into_C((*primitives.CUint16__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _UInt16MultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -171,7 +171,7 @@ func UInt16MultiArray__Sequence_to_Go(goSlice *[]UInt16MultiArray, cSlice CUInt1
 		UInt16MultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func UInt16MultiArray__Sequence_to_C(cSlice *CUInt16MultiArray__Sequence, goSlice []UInt16MultiArray) {
+func UInt16MultiArray__Sequence_into_C(cSlice *CUInt16MultiArray__Sequence, goSlice []UInt16MultiArray) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.example_interfaces__msg__UInt16MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -194,7 +194,7 @@ func UInt16MultiArray__Array_to_Go(goSlice []UInt16MultiArray, cSlice []CUInt16M
 		UInt16MultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func UInt16MultiArray__Array_to_C(cSlice []CUInt16MultiArray, goSlice []UInt16MultiArray) {
+func UInt16MultiArray__Array_into_C(cSlice []CUInt16MultiArray, goSlice []UInt16MultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		UInt16MultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

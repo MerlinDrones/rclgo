@@ -143,7 +143,7 @@ func (t _Int8MultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	m := msg.(*Int8MultiArray)
 	mem := (*C.std_msgs__msg__Int8MultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Int8__Sequence_to_C((*primitives.CInt8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Int8__Sequence_into_C((*primitives.CInt8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _Int8MultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -171,7 +171,7 @@ func Int8MultiArray__Sequence_to_Go(goSlice *[]Int8MultiArray, cSlice CInt8Multi
 		Int8MultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Int8MultiArray__Sequence_to_C(cSlice *CInt8MultiArray__Sequence, goSlice []Int8MultiArray) {
+func Int8MultiArray__Sequence_into_C(cSlice *CInt8MultiArray__Sequence, goSlice []Int8MultiArray) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__Int8MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -194,7 +194,7 @@ func Int8MultiArray__Array_to_Go(goSlice []Int8MultiArray, cSlice []CInt8MultiAr
 		Int8MultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Int8MultiArray__Array_to_C(cSlice []CInt8MultiArray, goSlice []Int8MultiArray) {
+func Int8MultiArray__Array_into_C(cSlice []CInt8MultiArray, goSlice []Int8MultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		Int8MultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

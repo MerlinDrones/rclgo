@@ -197,7 +197,7 @@ func Inertia__Sequence_to_Go(goSlice *[]Inertia, cSlice CInertia__Sequence) {
 		InertiaTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Inertia__Sequence_to_C(cSlice *CInertia__Sequence, goSlice []Inertia) {
+func Inertia__Sequence_into_C(cSlice *CInertia__Sequence, goSlice []Inertia) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__Inertia__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -220,7 +220,7 @@ func Inertia__Array_to_Go(goSlice []Inertia, cSlice []CInertia) {
 		InertiaTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Inertia__Array_to_C(cSlice []CInertia, goSlice []Inertia) {
+func Inertia__Array_into_C(cSlice []CInertia, goSlice []Inertia) {
 	for i := 0; i < len(goSlice); i++ {
 		InertiaTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

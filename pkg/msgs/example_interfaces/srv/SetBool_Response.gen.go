@@ -140,7 +140,7 @@ func (t _SetBool_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*SetBool_Response)
 	mem := (*C.example_interfaces__srv__SetBool_Response)(dst)
 	mem.success = C.bool(m.Success)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.message), m.Message)
+	primitives.StringIntoC(unsafe.Pointer(&mem.message), m.Message)
 }
 
 func (t _SetBool_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -168,7 +168,7 @@ func SetBool_Response__Sequence_to_Go(goSlice *[]SetBool_Response, cSlice CSetBo
 		SetBool_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetBool_Response__Sequence_to_C(cSlice *CSetBool_Response__Sequence, goSlice []SetBool_Response) {
+func SetBool_Response__Sequence_into_C(cSlice *CSetBool_Response__Sequence, goSlice []SetBool_Response) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.example_interfaces__srv__SetBool_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func SetBool_Response__Array_to_Go(goSlice []SetBool_Response, cSlice []CSetBool
 		SetBool_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetBool_Response__Array_to_C(cSlice []CSetBool_Response, goSlice []SetBool_Response) {
+func SetBool_Response__Array_into_C(cSlice []CSetBool_Response, goSlice []SetBool_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		SetBool_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

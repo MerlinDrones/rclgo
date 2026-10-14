@@ -168,7 +168,7 @@ func PoseStamped__Sequence_to_Go(goSlice *[]PoseStamped, cSlice CPoseStamped__Se
 		PoseStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PoseStamped__Sequence_to_C(cSlice *CPoseStamped__Sequence, goSlice []PoseStamped) {
+func PoseStamped__Sequence_into_C(cSlice *CPoseStamped__Sequence, goSlice []PoseStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__PoseStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func PoseStamped__Array_to_Go(goSlice []PoseStamped, cSlice []CPoseStamped) {
 		PoseStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PoseStamped__Array_to_C(cSlice []CPoseStamped, goSlice []PoseStamped) {
+func PoseStamped__Array_into_C(cSlice []CPoseStamped, goSlice []PoseStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		PoseStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

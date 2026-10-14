@@ -172,7 +172,7 @@ func Vector3__Sequence_to_Go(goSlice *[]Vector3, cSlice CVector3__Sequence) {
 		Vector3TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Vector3__Sequence_to_C(cSlice *CVector3__Sequence, goSlice []Vector3) {
+func Vector3__Sequence_into_C(cSlice *CVector3__Sequence, goSlice []Vector3) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__Vector3__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -195,7 +195,7 @@ func Vector3__Array_to_Go(goSlice []Vector3, cSlice []CVector3) {
 		Vector3TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Vector3__Array_to_C(cSlice []CVector3, goSlice []Vector3) {
+func Vector3__Array_into_C(cSlice []CVector3, goSlice []Vector3) {
 	for i := 0; i < len(goSlice); i++ {
 		Vector3TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

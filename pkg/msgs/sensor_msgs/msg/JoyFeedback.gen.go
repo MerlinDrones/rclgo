@@ -178,7 +178,7 @@ func JoyFeedback__Sequence_to_Go(goSlice *[]JoyFeedback, cSlice CJoyFeedback__Se
 		JoyFeedbackTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func JoyFeedback__Sequence_to_C(cSlice *CJoyFeedback__Sequence, goSlice []JoyFeedback) {
+func JoyFeedback__Sequence_into_C(cSlice *CJoyFeedback__Sequence, goSlice []JoyFeedback) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__JoyFeedback__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -201,7 +201,7 @@ func JoyFeedback__Array_to_Go(goSlice []JoyFeedback, cSlice []CJoyFeedback) {
 		JoyFeedbackTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func JoyFeedback__Array_to_C(cSlice []CJoyFeedback, goSlice []JoyFeedback) {
+func JoyFeedback__Array_into_C(cSlice []CJoyFeedback, goSlice []JoyFeedback) {
 	for i := 0; i < len(goSlice); i++ {
 		JoyFeedbackTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

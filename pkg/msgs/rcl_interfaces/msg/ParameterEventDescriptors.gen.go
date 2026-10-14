@@ -150,9 +150,9 @@ func (t _ParameterEventDescriptorsTypeSupport) ReleaseMemory(pointer_to_free uns
 func (t _ParameterEventDescriptorsTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ParameterEventDescriptors)
 	mem := (*C.rcl_interfaces__msg__ParameterEventDescriptors)(dst)
-	ParameterDescriptor__Sequence_to_C(&mem.new_parameters, m.NewParameters)
-	ParameterDescriptor__Sequence_to_C(&mem.changed_parameters, m.ChangedParameters)
-	ParameterDescriptor__Sequence_to_C(&mem.deleted_parameters, m.DeletedParameters)
+	ParameterDescriptor__Sequence_into_C(&mem.new_parameters, m.NewParameters)
+	ParameterDescriptor__Sequence_into_C(&mem.changed_parameters, m.ChangedParameters)
+	ParameterDescriptor__Sequence_into_C(&mem.deleted_parameters, m.DeletedParameters)
 }
 
 func (t _ParameterEventDescriptorsTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -181,7 +181,7 @@ func ParameterEventDescriptors__Sequence_to_Go(goSlice *[]ParameterEventDescript
 		ParameterEventDescriptorsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ParameterEventDescriptors__Sequence_to_C(cSlice *CParameterEventDescriptors__Sequence, goSlice []ParameterEventDescriptors) {
+func ParameterEventDescriptors__Sequence_into_C(cSlice *CParameterEventDescriptors__Sequence, goSlice []ParameterEventDescriptors) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__msg__ParameterEventDescriptors__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -204,7 +204,7 @@ func ParameterEventDescriptors__Array_to_Go(goSlice []ParameterEventDescriptors,
 		ParameterEventDescriptorsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ParameterEventDescriptors__Array_to_C(cSlice []CParameterEventDescriptors, goSlice []ParameterEventDescriptors) {
+func ParameterEventDescriptors__Array_into_C(cSlice []CParameterEventDescriptors, goSlice []ParameterEventDescriptors) {
 	for i := 0; i < len(goSlice); i++ {
 		ParameterEventDescriptorsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

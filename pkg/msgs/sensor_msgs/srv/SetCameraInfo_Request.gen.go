@@ -163,7 +163,7 @@ func SetCameraInfo_Request__Sequence_to_Go(goSlice *[]SetCameraInfo_Request, cSl
 		SetCameraInfo_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetCameraInfo_Request__Sequence_to_C(cSlice *CSetCameraInfo_Request__Sequence, goSlice []SetCameraInfo_Request) {
+func SetCameraInfo_Request__Sequence_into_C(cSlice *CSetCameraInfo_Request__Sequence, goSlice []SetCameraInfo_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__srv__SetCameraInfo_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -186,7 +186,7 @@ func SetCameraInfo_Request__Array_to_Go(goSlice []SetCameraInfo_Request, cSlice 
 		SetCameraInfo_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetCameraInfo_Request__Array_to_C(cSlice []CSetCameraInfo_Request, goSlice []SetCameraInfo_Request) {
+func SetCameraInfo_Request__Array_into_C(cSlice []CSetCameraInfo_Request, goSlice []SetCameraInfo_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		SetCameraInfo_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

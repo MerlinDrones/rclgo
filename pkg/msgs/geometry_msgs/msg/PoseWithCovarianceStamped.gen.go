@@ -168,7 +168,7 @@ func PoseWithCovarianceStamped__Sequence_to_Go(goSlice *[]PoseWithCovarianceStam
 		PoseWithCovarianceStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PoseWithCovarianceStamped__Sequence_to_C(cSlice *CPoseWithCovarianceStamped__Sequence, goSlice []PoseWithCovarianceStamped) {
+func PoseWithCovarianceStamped__Sequence_into_C(cSlice *CPoseWithCovarianceStamped__Sequence, goSlice []PoseWithCovarianceStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__PoseWithCovarianceStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func PoseWithCovarianceStamped__Array_to_Go(goSlice []PoseWithCovarianceStamped,
 		PoseWithCovarianceStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PoseWithCovarianceStamped__Array_to_C(cSlice []CPoseWithCovarianceStamped, goSlice []PoseWithCovarianceStamped) {
+func PoseWithCovarianceStamped__Array_into_C(cSlice []CPoseWithCovarianceStamped, goSlice []PoseWithCovarianceStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		PoseWithCovarianceStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -172,7 +172,7 @@ func Point__Sequence_to_Go(goSlice *[]Point, cSlice CPoint__Sequence) {
 		PointTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Point__Sequence_to_C(cSlice *CPoint__Sequence, goSlice []Point) {
+func Point__Sequence_into_C(cSlice *CPoint__Sequence, goSlice []Point) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__Point__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -195,7 +195,7 @@ func Point__Array_to_Go(goSlice []Point, cSlice []CPoint) {
 		PointTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Point__Array_to_C(cSlice []CPoint, goSlice []Point) {
+func Point__Array_into_C(cSlice []CPoint, goSlice []Point) {
 	for i := 0; i < len(goSlice); i++ {
 		PointTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

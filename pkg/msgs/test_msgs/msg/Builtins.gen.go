@@ -168,7 +168,7 @@ func Builtins__Sequence_to_Go(goSlice *[]Builtins, cSlice CBuiltins__Sequence) {
 		BuiltinsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Builtins__Sequence_to_C(cSlice *CBuiltins__Sequence, goSlice []Builtins) {
+func Builtins__Sequence_into_C(cSlice *CBuiltins__Sequence, goSlice []Builtins) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__msg__Builtins__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func Builtins__Array_to_Go(goSlice []Builtins, cSlice []CBuiltins) {
 		BuiltinsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Builtins__Array_to_C(cSlice []CBuiltins, goSlice []Builtins) {
+func Builtins__Array_into_C(cSlice []CBuiltins, goSlice []Builtins) {
 	for i := 0; i < len(goSlice); i++ {
 		BuiltinsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

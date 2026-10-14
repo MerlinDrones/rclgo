@@ -163,14 +163,14 @@ func (t _ParameterDescriptorTypeSupport) ReleaseMemory(pointer_to_free unsafe.Po
 func (t _ParameterDescriptorTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ParameterDescriptor)
 	mem := (*C.rcl_interfaces__msg__ParameterDescriptor)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
 	mem._type = C.uint8_t(m.Type)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.description), m.Description)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.additional_constraints), m.AdditionalConstraints)
+	primitives.StringIntoC(unsafe.Pointer(&mem.description), m.Description)
+	primitives.StringIntoC(unsafe.Pointer(&mem.additional_constraints), m.AdditionalConstraints)
 	mem.read_only = C.bool(m.ReadOnly)
 	mem.dynamic_typing = C.bool(m.DynamicTyping)
-	FloatingPointRange__Sequence_to_C(&mem.floating_point_range, m.FloatingPointRange)
-	IntegerRange__Sequence_to_C(&mem.integer_range, m.IntegerRange)
+	FloatingPointRange__Sequence_into_C(&mem.floating_point_range, m.FloatingPointRange)
+	IntegerRange__Sequence_into_C(&mem.integer_range, m.IntegerRange)
 }
 
 func (t _ParameterDescriptorTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -204,7 +204,7 @@ func ParameterDescriptor__Sequence_to_Go(goSlice *[]ParameterDescriptor, cSlice 
 		ParameterDescriptorTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ParameterDescriptor__Sequence_to_C(cSlice *CParameterDescriptor__Sequence, goSlice []ParameterDescriptor) {
+func ParameterDescriptor__Sequence_into_C(cSlice *CParameterDescriptor__Sequence, goSlice []ParameterDescriptor) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__msg__ParameterDescriptor__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -227,7 +227,7 @@ func ParameterDescriptor__Array_to_Go(goSlice []ParameterDescriptor, cSlice []CP
 		ParameterDescriptorTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ParameterDescriptor__Array_to_C(cSlice []CParameterDescriptor, goSlice []ParameterDescriptor) {
+func ParameterDescriptor__Array_into_C(cSlice []CParameterDescriptor, goSlice []ParameterDescriptor) {
 	for i := 0; i < len(goSlice); i++ {
 		ParameterDescriptorTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

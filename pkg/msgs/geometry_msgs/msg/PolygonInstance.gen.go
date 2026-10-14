@@ -167,7 +167,7 @@ func PolygonInstance__Sequence_to_Go(goSlice *[]PolygonInstance, cSlice CPolygon
 		PolygonInstanceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PolygonInstance__Sequence_to_C(cSlice *CPolygonInstance__Sequence, goSlice []PolygonInstance) {
+func PolygonInstance__Sequence_into_C(cSlice *CPolygonInstance__Sequence, goSlice []PolygonInstance) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__PolygonInstance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -190,7 +190,7 @@ func PolygonInstance__Array_to_Go(goSlice []PolygonInstance, cSlice []CPolygonIn
 		PolygonInstanceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PolygonInstance__Array_to_C(cSlice []CPolygonInstance, goSlice []PolygonInstance) {
+func PolygonInstance__Array_into_C(cSlice []CPolygonInstance, goSlice []PolygonInstance) {
 	for i := 0; i < len(goSlice); i++ {
 		PolygonInstanceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

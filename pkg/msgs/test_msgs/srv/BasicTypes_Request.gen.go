@@ -188,7 +188,7 @@ func (t _BasicTypes_RequestTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.
 	mem.uint32_value = C.uint32_t(m.Uint32Value)
 	mem.int64_value = C.int64_t(m.Int64Value)
 	mem.uint64_value = C.uint64_t(m.Uint64Value)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value), m.StringValue)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value), m.StringValue)
 }
 
 func (t _BasicTypes_RequestTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -228,7 +228,7 @@ func BasicTypes_Request__Sequence_to_Go(goSlice *[]BasicTypes_Request, cSlice CB
 		BasicTypes_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BasicTypes_Request__Sequence_to_C(cSlice *CBasicTypes_Request__Sequence, goSlice []BasicTypes_Request) {
+func BasicTypes_Request__Sequence_into_C(cSlice *CBasicTypes_Request__Sequence, goSlice []BasicTypes_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__srv__BasicTypes_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -251,7 +251,7 @@ func BasicTypes_Request__Array_to_Go(goSlice []BasicTypes_Request, cSlice []CBas
 		BasicTypes_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BasicTypes_Request__Array_to_C(cSlice []CBasicTypes_Request, goSlice []BasicTypes_Request) {
+func BasicTypes_Request__Array_into_C(cSlice []CBasicTypes_Request, goSlice []BasicTypes_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		BasicTypes_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -162,7 +162,7 @@ func UInt64__Sequence_to_Go(goSlice *[]UInt64, cSlice CUInt64__Sequence) {
 		UInt64TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func UInt64__Sequence_to_C(cSlice *CUInt64__Sequence, goSlice []UInt64) {
+func UInt64__Sequence_into_C(cSlice *CUInt64__Sequence, goSlice []UInt64) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__UInt64__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -185,7 +185,7 @@ func UInt64__Array_to_Go(goSlice []UInt64, cSlice []CUInt64) {
 		UInt64TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func UInt64__Array_to_C(cSlice []CUInt64, goSlice []UInt64) {
+func UInt64__Array_into_C(cSlice []CUInt64, goSlice []UInt64) {
 	for i := 0; i < len(goSlice); i++ {
 		UInt64TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

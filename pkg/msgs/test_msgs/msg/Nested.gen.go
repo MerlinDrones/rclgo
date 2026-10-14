@@ -162,7 +162,7 @@ func Nested__Sequence_to_Go(goSlice *[]Nested, cSlice CNested__Sequence) {
 		NestedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Nested__Sequence_to_C(cSlice *CNested__Sequence, goSlice []Nested) {
+func Nested__Sequence_into_C(cSlice *CNested__Sequence, goSlice []Nested) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__msg__Nested__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -185,7 +185,7 @@ func Nested__Array_to_Go(goSlice []Nested, cSlice []CNested) {
 		NestedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Nested__Array_to_C(cSlice []CNested, goSlice []Nested) {
+func Nested__Array_into_C(cSlice []CNested, goSlice []Nested) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

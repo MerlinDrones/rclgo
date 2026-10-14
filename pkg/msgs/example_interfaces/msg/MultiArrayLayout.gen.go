@@ -142,7 +142,7 @@ func (t _MultiArrayLayoutTypeSupport) ReleaseMemory(pointer_to_free unsafe.Point
 func (t _MultiArrayLayoutTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*MultiArrayLayout)
 	mem := (*C.example_interfaces__msg__MultiArrayLayout)(dst)
-	std_msgs_msg.MultiArrayDimension__Sequence_to_C((*std_msgs_msg.CMultiArrayDimension__Sequence)(unsafe.Pointer(&mem.dim)), m.Dim)
+	std_msgs_msg.MultiArrayDimension__Sequence_into_C((*std_msgs_msg.CMultiArrayDimension__Sequence)(unsafe.Pointer(&mem.dim)), m.Dim)
 	mem.data_offset = C.uint32_t(m.DataOffset)
 }
 
@@ -171,7 +171,7 @@ func MultiArrayLayout__Sequence_to_Go(goSlice *[]MultiArrayLayout, cSlice CMulti
 		MultiArrayLayoutTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func MultiArrayLayout__Sequence_to_C(cSlice *CMultiArrayLayout__Sequence, goSlice []MultiArrayLayout) {
+func MultiArrayLayout__Sequence_into_C(cSlice *CMultiArrayLayout__Sequence, goSlice []MultiArrayLayout) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.example_interfaces__msg__MultiArrayLayout__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -194,7 +194,7 @@ func MultiArrayLayout__Array_to_Go(goSlice []MultiArrayLayout, cSlice []CMultiAr
 		MultiArrayLayoutTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func MultiArrayLayout__Array_to_C(cSlice []CMultiArrayLayout, goSlice []MultiArrayLayout) {
+func MultiArrayLayout__Array_into_C(cSlice []CMultiArrayLayout, goSlice []MultiArrayLayout) {
 	for i := 0; i < len(goSlice); i++ {
 		MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

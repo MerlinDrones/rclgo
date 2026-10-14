@@ -167,7 +167,7 @@ func Pose__Sequence_to_Go(goSlice *[]Pose, cSlice CPose__Sequence) {
 		PoseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Pose__Sequence_to_C(cSlice *CPose__Sequence, goSlice []Pose) {
+func Pose__Sequence_into_C(cSlice *CPose__Sequence, goSlice []Pose) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__Pose__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -190,7 +190,7 @@ func Pose__Array_to_Go(goSlice []Pose, cSlice []CPose) {
 		PoseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Pose__Array_to_C(cSlice []CPose, goSlice []Pose) {
+func Pose__Array_into_C(cSlice []CPose, goSlice []Pose) {
 	for i := 0; i < len(goSlice); i++ {
 		PoseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

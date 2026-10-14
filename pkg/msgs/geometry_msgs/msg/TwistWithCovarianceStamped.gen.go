@@ -168,7 +168,7 @@ func TwistWithCovarianceStamped__Sequence_to_Go(goSlice *[]TwistWithCovarianceSt
 		TwistWithCovarianceStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TwistWithCovarianceStamped__Sequence_to_C(cSlice *CTwistWithCovarianceStamped__Sequence, goSlice []TwistWithCovarianceStamped) {
+func TwistWithCovarianceStamped__Sequence_into_C(cSlice *CTwistWithCovarianceStamped__Sequence, goSlice []TwistWithCovarianceStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__TwistWithCovarianceStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func TwistWithCovarianceStamped__Array_to_Go(goSlice []TwistWithCovarianceStampe
 		TwistWithCovarianceStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TwistWithCovarianceStamped__Array_to_C(cSlice []CTwistWithCovarianceStamped, goSlice []TwistWithCovarianceStamped) {
+func TwistWithCovarianceStamped__Array_into_C(cSlice []CTwistWithCovarianceStamped, goSlice []TwistWithCovarianceStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		TwistWithCovarianceStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

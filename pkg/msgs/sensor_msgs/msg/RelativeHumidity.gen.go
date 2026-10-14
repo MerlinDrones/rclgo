@@ -173,7 +173,7 @@ func RelativeHumidity__Sequence_to_Go(goSlice *[]RelativeHumidity, cSlice CRelat
 		RelativeHumidityTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func RelativeHumidity__Sequence_to_C(cSlice *CRelativeHumidity__Sequence, goSlice []RelativeHumidity) {
+func RelativeHumidity__Sequence_into_C(cSlice *CRelativeHumidity__Sequence, goSlice []RelativeHumidity) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__RelativeHumidity__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -196,7 +196,7 @@ func RelativeHumidity__Array_to_Go(goSlice []RelativeHumidity, cSlice []CRelativ
 		RelativeHumidityTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func RelativeHumidity__Array_to_C(cSlice []CRelativeHumidity, goSlice []RelativeHumidity) {
+func RelativeHumidity__Array_into_C(cSlice []CRelativeHumidity, goSlice []RelativeHumidity) {
 	for i := 0; i < len(goSlice); i++ {
 		RelativeHumidityTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -170,7 +170,7 @@ func CancelGoal_Request__Sequence_to_Go(goSlice *[]CancelGoal_Request, cSlice CC
 		CancelGoal_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func CancelGoal_Request__Sequence_to_C(cSlice *CCancelGoal_Request__Sequence, goSlice []CancelGoal_Request) {
+func CancelGoal_Request__Sequence_into_C(cSlice *CCancelGoal_Request__Sequence, goSlice []CancelGoal_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.action_msgs__srv__CancelGoal_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -193,7 +193,7 @@ func CancelGoal_Request__Array_to_Go(goSlice []CancelGoal_Request, cSlice []CCan
 		CancelGoal_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func CancelGoal_Request__Array_to_C(cSlice []CCancelGoal_Request, goSlice []CancelGoal_Request) {
+func CancelGoal_Request__Array_into_C(cSlice []CCancelGoal_Request, goSlice []CancelGoal_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		CancelGoal_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

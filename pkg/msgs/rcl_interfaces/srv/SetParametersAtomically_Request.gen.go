@@ -139,7 +139,7 @@ func (t _SetParametersAtomically_RequestTypeSupport) ReleaseMemory(pointer_to_fr
 func (t _SetParametersAtomically_RequestTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*SetParametersAtomically_Request)
 	mem := (*C.rcl_interfaces__srv__SetParametersAtomically_Request)(dst)
-	rcl_interfaces_msg.Parameter__Sequence_to_C((*rcl_interfaces_msg.CParameter__Sequence)(unsafe.Pointer(&mem.parameters)), m.Parameters)
+	rcl_interfaces_msg.Parameter__Sequence_into_C((*rcl_interfaces_msg.CParameter__Sequence)(unsafe.Pointer(&mem.parameters)), m.Parameters)
 }
 
 func (t _SetParametersAtomically_RequestTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,7 +166,7 @@ func SetParametersAtomically_Request__Sequence_to_Go(goSlice *[]SetParametersAto
 		SetParametersAtomically_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetParametersAtomically_Request__Sequence_to_C(cSlice *CSetParametersAtomically_Request__Sequence, goSlice []SetParametersAtomically_Request) {
+func SetParametersAtomically_Request__Sequence_into_C(cSlice *CSetParametersAtomically_Request__Sequence, goSlice []SetParametersAtomically_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__srv__SetParametersAtomically_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -189,7 +189,7 @@ func SetParametersAtomically_Request__Array_to_Go(goSlice []SetParametersAtomica
 		SetParametersAtomically_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetParametersAtomically_Request__Array_to_C(cSlice []CSetParametersAtomically_Request, goSlice []SetParametersAtomically_Request) {
+func SetParametersAtomically_Request__Array_into_C(cSlice []CSetParametersAtomically_Request, goSlice []SetParametersAtomically_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		SetParametersAtomically_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

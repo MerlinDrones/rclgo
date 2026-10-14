@@ -332,7 +332,7 @@ func {{$Md.Name}}__Sequence_to_Go(goSlice *[]{{$Md.Name}}, cSlice C{{$Md.Name}}_
 		{{$Md.Name}}TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func {{$Md.Name}}__Sequence_to_C(cSlice *C{{$Md.Name}}__Sequence, goSlice []{{$Md.Name}}) {
+func {{$Md.Name}}__Sequence_into_C(cSlice *C{{$Md.Name}}__Sequence, goSlice []{{$Md.Name}}) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}}__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -355,7 +355,7 @@ func {{$Md.Name}}__Array_to_Go(goSlice []{{$Md.Name}}, cSlice []C{{$Md.Name}}) {
 		{{$Md.Name}}TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func {{$Md.Name}}__Array_to_C(cSlice []C{{$Md.Name}}, goSlice []{{$Md.Name}}) {
+func {{$Md.Name}}__Array_into_C(cSlice []C{{$Md.Name}}, goSlice []{{$Md.Name}}) {
 	for i := 0; i < len(goSlice); i++ {
 		{{$Md.Name}}TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}
@@ -760,7 +760,7 @@ func {{.RosType | ucFirst}}__Sequence_to_Go(goSlice *[]{{.GoType}}, cSlice C{{.R
 		(*goSlice)[i] = {{.GoType}}(src[i])
 	}
 }
-func {{.RosType | ucFirst}}__Sequence_to_C(cSlice *C{{.RosType | ucFirst}}__Sequence, goSlice []{{.GoType}}) {
+func {{.RosType | ucFirst}}__Sequence_into_C(cSlice *C{{.RosType | ucFirst}}__Sequence, goSlice []{{.GoType}}) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rosidl_runtime_c__{{.CStructName}}__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -782,7 +782,7 @@ func {{.RosType | ucFirst}}__Array_to_Go(goSlice []{{.GoType}}, cSlice []C{{.Ros
 		goSlice[i] = {{.GoType}}(cSlice[i])
 	}
 }
-func {{.RosType | ucFirst}}__Array_to_C(cSlice []C{{.RosType | ucFirst}}, goSlice []{{.GoType}}) {
+func {{.RosType | ucFirst}}__Array_into_C(cSlice []C{{.RosType | ucFirst}}, goSlice []{{.GoType}}) {
 	for i := 0; i < len(goSlice); i++ {
 		cSlice[i] = C.{{.CType}}(goSlice[i])
 	}

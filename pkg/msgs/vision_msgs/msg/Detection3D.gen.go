@@ -150,9 +150,9 @@ func (t _Detection3DTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message
 	m := msg.(*Detection3D)
 	mem := (*C.vision_msgs__msg__Detection3D)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	ObjectHypothesisWithPose__Sequence_to_C(&mem.results, m.Results)
+	ObjectHypothesisWithPose__Sequence_into_C(&mem.results, m.Results)
 	BoundingBox3DTypeSupport.AsCStruct(unsafe.Pointer(&mem.bbox), &m.Bbox)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.id), m.Id)
+	primitives.StringIntoC(unsafe.Pointer(&mem.id), m.Id)
 }
 
 func (t _Detection3DTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -181,7 +181,7 @@ func Detection3D__Sequence_to_Go(goSlice *[]Detection3D, cSlice CDetection3D__Se
 		Detection3DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Detection3D__Sequence_to_C(cSlice *CDetection3D__Sequence, goSlice []Detection3D) {
+func Detection3D__Sequence_into_C(cSlice *CDetection3D__Sequence, goSlice []Detection3D) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -201,7 +201,7 @@ func Detection3D__Array_to_Go(goSlice []Detection3D, cSlice []CDetection3D) {
 		Detection3DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Detection3D__Array_to_C(cSlice []CDetection3D, goSlice []Detection3D) {
+func Detection3D__Array_into_C(cSlice []CDetection3D, goSlice []Detection3D) {
 	for i := 0; i < len(goSlice); i++ {
 		Detection3DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

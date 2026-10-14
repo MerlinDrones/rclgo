@@ -170,7 +170,7 @@ func Fibonacci_GetResult_Request__Sequence_to_Go(goSlice *[]Fibonacci_GetResult_
 		Fibonacci_GetResult_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Fibonacci_GetResult_Request__Sequence_to_C(cSlice *CFibonacci_GetResult_Request__Sequence, goSlice []Fibonacci_GetResult_Request) {
+func Fibonacci_GetResult_Request__Sequence_into_C(cSlice *CFibonacci_GetResult_Request__Sequence, goSlice []Fibonacci_GetResult_Request) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__action__Fibonacci_GetResult_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -193,7 +193,7 @@ func Fibonacci_GetResult_Request__Array_to_Go(goSlice []Fibonacci_GetResult_Requ
 		Fibonacci_GetResult_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Fibonacci_GetResult_Request__Array_to_C(cSlice []CFibonacci_GetResult_Request, goSlice []Fibonacci_GetResult_Request) {
+func Fibonacci_GetResult_Request__Array_into_C(cSlice []CFibonacci_GetResult_Request, goSlice []Fibonacci_GetResult_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		Fibonacci_GetResult_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -155,7 +155,7 @@ func Empty__Sequence_to_Go(goSlice *[]Empty, cSlice CEmpty__Sequence) {
 		EmptyTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Empty__Sequence_to_C(cSlice *CEmpty__Sequence, goSlice []Empty) {
+func Empty__Sequence_into_C(cSlice *CEmpty__Sequence, goSlice []Empty) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__msg__Empty__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -178,7 +178,7 @@ func Empty__Array_to_Go(goSlice []Empty, cSlice []CEmpty) {
 		EmptyTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Empty__Array_to_C(cSlice []CEmpty, goSlice []Empty) {
+func Empty__Array_into_C(cSlice []CEmpty, goSlice []Empty) {
 	for i := 0; i < len(goSlice); i++ {
 		EmptyTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

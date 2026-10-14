@@ -143,7 +143,7 @@ func (t _ByteMultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	m := msg.(*ByteMultiArray)
 	mem := (*C.std_msgs__msg__ByteMultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Byte__Sequence_to_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Byte__Sequence_into_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _ByteMultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -171,7 +171,7 @@ func ByteMultiArray__Sequence_to_Go(goSlice *[]ByteMultiArray, cSlice CByteMulti
 		ByteMultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ByteMultiArray__Sequence_to_C(cSlice *CByteMultiArray__Sequence, goSlice []ByteMultiArray) {
+func ByteMultiArray__Sequence_into_C(cSlice *CByteMultiArray__Sequence, goSlice []ByteMultiArray) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.std_msgs__msg__ByteMultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -194,7 +194,7 @@ func ByteMultiArray__Array_to_Go(goSlice []ByteMultiArray, cSlice []CByteMultiAr
 		ByteMultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ByteMultiArray__Array_to_C(cSlice []CByteMultiArray, goSlice []ByteMultiArray) {
+func ByteMultiArray__Array_into_C(cSlice []CByteMultiArray, goSlice []ByteMultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		ByteMultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

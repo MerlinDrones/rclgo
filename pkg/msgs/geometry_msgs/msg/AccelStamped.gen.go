@@ -168,7 +168,7 @@ func AccelStamped__Sequence_to_Go(goSlice *[]AccelStamped, cSlice CAccelStamped_
 		AccelStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func AccelStamped__Sequence_to_C(cSlice *CAccelStamped__Sequence, goSlice []AccelStamped) {
+func AccelStamped__Sequence_into_C(cSlice *CAccelStamped__Sequence, goSlice []AccelStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__AccelStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func AccelStamped__Array_to_Go(goSlice []AccelStamped, cSlice []CAccelStamped) {
 		AccelStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func AccelStamped__Array_to_C(cSlice []CAccelStamped, goSlice []AccelStamped) {
+func AccelStamped__Array_into_C(cSlice []CAccelStamped, goSlice []AccelStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		AccelStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -154,7 +154,7 @@ func (t _StateTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*State)
 	mem := (*C.lifecycle_msgs__msg__State)(dst)
 	mem.id = C.uint8_t(m.Id)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.label), m.Label)
+	primitives.StringIntoC(unsafe.Pointer(&mem.label), m.Label)
 }
 
 func (t _StateTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -182,7 +182,7 @@ func State__Sequence_to_Go(goSlice *[]State, cSlice CState__Sequence) {
 		StateTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func State__Sequence_to_C(cSlice *CState__Sequence, goSlice []State) {
+func State__Sequence_into_C(cSlice *CState__Sequence, goSlice []State) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.lifecycle_msgs__msg__State__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -205,7 +205,7 @@ func State__Array_to_Go(goSlice []State, cSlice []CState) {
 		StateTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func State__Array_to_C(cSlice []CState, goSlice []State) {
+func State__Array_into_C(cSlice []CState, goSlice []State) {
 	for i := 0; i < len(goSlice); i++ {
 		StateTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

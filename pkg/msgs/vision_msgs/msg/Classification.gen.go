@@ -143,7 +143,7 @@ func (t _ClassificationTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	m := msg.(*Classification)
 	mem := (*C.vision_msgs__msg__Classification)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	ObjectHypothesis__Sequence_to_C(&mem.results, m.Results)
+	ObjectHypothesis__Sequence_into_C(&mem.results, m.Results)
 }
 
 func (t _ClassificationTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -170,7 +170,7 @@ func Classification__Sequence_to_Go(goSlice *[]Classification, cSlice CClassific
 		ClassificationTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Classification__Sequence_to_C(cSlice *CClassification__Sequence, goSlice []Classification) {
+func Classification__Sequence_into_C(cSlice *CClassification__Sequence, goSlice []Classification) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -190,7 +190,7 @@ func Classification__Array_to_Go(goSlice []Classification, cSlice []CClassificat
 		ClassificationTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Classification__Array_to_C(cSlice []CClassification, goSlice []Classification) {
+func Classification__Array_into_C(cSlice []CClassification, goSlice []Classification) {
 	for i := 0; i < len(goSlice); i++ {
 		ClassificationTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -166,7 +166,7 @@ func Point2D__Sequence_to_Go(goSlice *[]Point2D, cSlice CPoint2D__Sequence) {
 		Point2DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Point2D__Sequence_to_C(cSlice *CPoint2D__Sequence, goSlice []Point2D) {
+func Point2D__Sequence_into_C(cSlice *CPoint2D__Sequence, goSlice []Point2D) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -186,7 +186,7 @@ func Point2D__Array_to_Go(goSlice []Point2D, cSlice []CPoint2D) {
 		Point2DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Point2D__Array_to_C(cSlice []CPoint2D, goSlice []Point2D) {
+func Point2D__Array_into_C(cSlice []CPoint2D, goSlice []Point2D) {
 	for i := 0; i < len(goSlice); i++ {
 		Point2DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

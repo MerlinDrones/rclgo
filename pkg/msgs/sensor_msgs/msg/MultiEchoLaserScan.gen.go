@@ -177,8 +177,8 @@ func (t _MultiEchoLaserScanTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.
 	mem.scan_time = C.float(m.ScanTime)
 	mem.range_min = C.float(m.RangeMin)
 	mem.range_max = C.float(m.RangeMax)
-	LaserEcho__Sequence_to_C(&mem.ranges, m.Ranges)
-	LaserEcho__Sequence_to_C(&mem.intensities, m.Intensities)
+	LaserEcho__Sequence_into_C(&mem.ranges, m.Ranges)
+	LaserEcho__Sequence_into_C(&mem.intensities, m.Intensities)
 }
 
 func (t _MultiEchoLaserScanTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -214,7 +214,7 @@ func MultiEchoLaserScan__Sequence_to_Go(goSlice *[]MultiEchoLaserScan, cSlice CM
 		MultiEchoLaserScanTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func MultiEchoLaserScan__Sequence_to_C(cSlice *CMultiEchoLaserScan__Sequence, goSlice []MultiEchoLaserScan) {
+func MultiEchoLaserScan__Sequence_into_C(cSlice *CMultiEchoLaserScan__Sequence, goSlice []MultiEchoLaserScan) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__MultiEchoLaserScan__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -237,7 +237,7 @@ func MultiEchoLaserScan__Array_to_Go(goSlice []MultiEchoLaserScan, cSlice []CMul
 		MultiEchoLaserScanTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func MultiEchoLaserScan__Array_to_C(cSlice []CMultiEchoLaserScan, goSlice []MultiEchoLaserScan) {
+func MultiEchoLaserScan__Array_into_C(cSlice []CMultiEchoLaserScan, goSlice []MultiEchoLaserScan) {
 	for i := 0; i < len(goSlice); i++ {
 		MultiEchoLaserScanTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

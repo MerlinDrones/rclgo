@@ -174,7 +174,7 @@ func NestedMessage_Feedback__Sequence_to_Go(goSlice *[]NestedMessage_Feedback, c
 		NestedMessage_FeedbackTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NestedMessage_Feedback__Sequence_to_C(cSlice *CNestedMessage_Feedback__Sequence, goSlice []NestedMessage_Feedback) {
+func NestedMessage_Feedback__Sequence_into_C(cSlice *CNestedMessage_Feedback__Sequence, goSlice []NestedMessage_Feedback) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.test_msgs__action__NestedMessage_Feedback__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -197,7 +197,7 @@ func NestedMessage_Feedback__Array_to_Go(goSlice []NestedMessage_Feedback, cSlic
 		NestedMessage_FeedbackTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NestedMessage_Feedback__Array_to_C(cSlice []CNestedMessage_Feedback, goSlice []NestedMessage_Feedback) {
+func NestedMessage_Feedback__Array_into_C(cSlice []CNestedMessage_Feedback, goSlice []NestedMessage_Feedback) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedMessage_FeedbackTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

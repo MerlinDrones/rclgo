@@ -182,7 +182,7 @@ func RegionOfInterest__Sequence_to_Go(goSlice *[]RegionOfInterest, cSlice CRegio
 		RegionOfInterestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func RegionOfInterest__Sequence_to_C(cSlice *CRegionOfInterest__Sequence, goSlice []RegionOfInterest) {
+func RegionOfInterest__Sequence_into_C(cSlice *CRegionOfInterest__Sequence, goSlice []RegionOfInterest) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.sensor_msgs__msg__RegionOfInterest__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -205,7 +205,7 @@ func RegionOfInterest__Array_to_Go(goSlice []RegionOfInterest, cSlice []CRegionO
 		RegionOfInterestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func RegionOfInterest__Array_to_C(cSlice []CRegionOfInterest, goSlice []RegionOfInterest) {
+func RegionOfInterest__Array_into_C(cSlice []CRegionOfInterest, goSlice []RegionOfInterest) {
 	for i := 0; i < len(goSlice); i++ {
 		RegionOfInterestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

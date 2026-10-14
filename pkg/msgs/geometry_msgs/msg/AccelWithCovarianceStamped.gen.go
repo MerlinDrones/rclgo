@@ -168,7 +168,7 @@ func AccelWithCovarianceStamped__Sequence_to_Go(goSlice *[]AccelWithCovarianceSt
 		AccelWithCovarianceStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func AccelWithCovarianceStamped__Sequence_to_C(cSlice *CAccelWithCovarianceStamped__Sequence, goSlice []AccelWithCovarianceStamped) {
+func AccelWithCovarianceStamped__Sequence_into_C(cSlice *CAccelWithCovarianceStamped__Sequence, goSlice []AccelWithCovarianceStamped) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__AccelWithCovarianceStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -191,7 +191,7 @@ func AccelWithCovarianceStamped__Array_to_Go(goSlice []AccelWithCovarianceStampe
 		AccelWithCovarianceStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func AccelWithCovarianceStamped__Array_to_C(cSlice []CAccelWithCovarianceStamped, goSlice []AccelWithCovarianceStamped) {
+func AccelWithCovarianceStamped__Array_into_C(cSlice []CAccelWithCovarianceStamped, goSlice []AccelWithCovarianceStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		AccelWithCovarianceStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

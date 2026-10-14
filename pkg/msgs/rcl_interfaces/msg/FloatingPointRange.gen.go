@@ -172,7 +172,7 @@ func FloatingPointRange__Sequence_to_Go(goSlice *[]FloatingPointRange, cSlice CF
 		FloatingPointRangeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func FloatingPointRange__Sequence_to_C(cSlice *CFloatingPointRange__Sequence, goSlice []FloatingPointRange) {
+func FloatingPointRange__Sequence_into_C(cSlice *CFloatingPointRange__Sequence, goSlice []FloatingPointRange) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rcl_interfaces__msg__FloatingPointRange__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -195,7 +195,7 @@ func FloatingPointRange__Array_to_Go(goSlice []FloatingPointRange, cSlice []CFlo
 		FloatingPointRangeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func FloatingPointRange__Array_to_C(cSlice []CFloatingPointRange, goSlice []FloatingPointRange) {
+func FloatingPointRange__Array_into_C(cSlice []CFloatingPointRange, goSlice []FloatingPointRange) {
 	for i := 0; i < len(goSlice); i++ {
 		FloatingPointRangeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

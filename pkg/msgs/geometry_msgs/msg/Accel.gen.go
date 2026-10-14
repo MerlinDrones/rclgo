@@ -167,7 +167,7 @@ func Accel__Sequence_to_Go(goSlice *[]Accel, cSlice CAccel__Sequence) {
 		AccelTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Accel__Sequence_to_C(cSlice *CAccel__Sequence, goSlice []Accel) {
+func Accel__Sequence_into_C(cSlice *CAccel__Sequence, goSlice []Accel) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.geometry_msgs__msg__Accel__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -190,7 +190,7 @@ func Accel__Array_to_Go(goSlice []Accel, cSlice []CAccel) {
 		AccelTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Accel__Array_to_C(cSlice []CAccel, goSlice []Accel) {
+func Accel__Array_into_C(cSlice []CAccel, goSlice []Accel) {
 	for i := 0; i < len(goSlice); i++ {
 		AccelTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

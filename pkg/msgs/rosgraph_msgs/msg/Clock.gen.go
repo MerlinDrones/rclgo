@@ -163,7 +163,7 @@ func Clock__Sequence_to_Go(goSlice *[]Clock, cSlice CClock__Sequence) {
 		ClockTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Clock__Sequence_to_C(cSlice *CClock__Sequence, goSlice []Clock) {
+func Clock__Sequence_into_C(cSlice *CClock__Sequence, goSlice []Clock) {
 	// Free what the sequence holds (e.g. default values set by __init).
 	C.rosgraph_msgs__msg__Clock__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
@@ -186,7 +186,7 @@ func Clock__Array_to_Go(goSlice []Clock, cSlice []CClock) {
 		ClockTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Clock__Array_to_C(cSlice []CClock, goSlice []Clock) {
+func Clock__Array_into_C(cSlice []CClock, goSlice []Clock) {
 	for i := 0; i < len(goSlice); i++ {
 		ClockTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}
