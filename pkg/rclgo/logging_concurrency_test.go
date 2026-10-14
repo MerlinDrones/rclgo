@@ -38,7 +38,8 @@ func hasPrefixC(p unsafe.Pointer, prefix string) bool {
 }
 
 // Logging from many goroutines at once delivers every message to the output
-// handler, while loggers change level and nodes come and go.
+// handler, while new loggers get levels (growing rcutils' logger table, which
+// rcutils_log reads) and nodes come and go.
 func TestLoggingFromManyGoroutines(t *testing.T) {
 	rclctx := newSpinTestContext(t)
 	prefix := fmt.Sprintf("manylog%d", time.Now().UnixNano())
@@ -55,8 +56,10 @@ func TestLoggingFromManyGoroutines(t *testing.T) {
 			l := rclgo.GetLogger(fmt.Sprintf("%s.g%d", prefix, g))
 			for i := 0; i < each; i++ {
 				require.NoError(t, l.Infof("message %d", i))
-				if i%50 == 0 {
-					require.NoError(t, l.SetLevel(rclgo.LogSeverityDebug))
+				// Setting the level of a new logger adds it to rcutils'
+				// logger table, which grows while other goroutines log.
+				if i%4 == 0 {
+					require.NoError(t, l.Child(fmt.Sprintf("c%d", i)).SetLevel(rclgo.LogSeverityDebug))
 				}
 			}
 		}()
@@ -127,4 +130,39 @@ func TestLoggingHandlerPanic(t *testing.T) {
 		t.Fatal("logging from another thread blocked after the handler panicked")
 	}
 	require.EqualValues(t, 2, n.Load())
+}
+
+// Logging to new loggers from many goroutines while other goroutines set
+// levels: rcutils_log caches each logger's effective level in rcutils' logger
+// table, so the first message of every logger writes to that table, and
+// SetLevel changes it.
+func TestLoggingWhileLevelsChange(t *testing.T) {
+	newSpinTestContext(t)
+	prefix := fmt.Sprintf("levellog%d", time.Now().UnixNano())
+	var n atomic.Int64
+	rclgo.SetLoggingOutputHandler(countingHandler(prefix, &n))
+	t.Cleanup(func() { rclgo.SetLoggingOutputHandler(nil) })
+
+	const goroutines, each = 8, 2000
+	var wg sync.WaitGroup
+	for g := 0; g < goroutines; g++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < each; i++ {
+				rclgo.GetLogger(fmt.Sprintf("%s.g%d.n%d", prefix, g, i)).Info("x") //nolint:errcheck
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for i := 0; i < each/20; i++ {
+				if err := rclgo.GetLogger(fmt.Sprintf("%s.g%d", prefix, g)).SetLevel(rclgo.LogSeverityDebug); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	require.EqualValues(t, goroutines*each, n.Load())
 }
