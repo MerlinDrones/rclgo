@@ -2,6 +2,7 @@ package params
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo"
@@ -29,22 +30,26 @@ func TestYAMLEmptyListFitsAnyArray(t *testing.T) {
 	}
 }
 
-// A list of numbers with a float anywhere is a double array, whatever the
-// order (it was rejected when an integer came first).
-func TestYAMLMixedNumberListIsDoubleArray(t *testing.T) {
-	path := writeTemp(t, t.TempDir(), "params.yaml", "node:\n  ros__parameters:\n    a: [1, 2.5]\n    b: [2.5, 1]\n    c: [1, 2]\n")
+// A list that mixes integers and floats is rejected, in either order, as rcl
+// rejects it ("Sequence should be of same type"); uniform lists keep their type.
+func TestYAMLMixedNumberListRejected(t *testing.T) {
+	for _, list := range []string{"[1, 2.5]", "[2.5, 1]"} {
+		path := writeTemp(t, t.TempDir(), "params.yaml", "node:\n  ros__parameters:\n    a: "+list+"\n")
+		err := LoadYAML(newBareManager(), "node", path)
+		if err == nil || !strings.Contains(err.Error(), "same type") {
+			t.Errorf("LoadYAML of a: %s: %v, want a same-type error", list, err)
+		}
+	}
+	path := writeTemp(t, t.TempDir(), "params.yaml", "node:\n  ros__parameters:\n    c: [1, 2]\n    d: [1.0, 2.5]\n")
 	m := newBareManager()
 	if err := LoadYAML(m, "node", path); err != nil {
 		t.Fatal(err)
 	}
-	for name, want := range map[string][]float64{"a": {1, 2.5}, "b": {2.5, 1}} {
-		p, _ := m.Get(name)
-		if p.Value.Kind != KindDoubleArray || len(p.Value.Doubles) != 2 || p.Value.Doubles[0] != want[0] || p.Value.Doubles[1] != want[1] {
-			t.Errorf("%s = %+v, want double array %v", name, p.Value, want)
-		}
-	}
 	if p, _ := m.Get("c"); p.Value.Kind != KindInt64Array {
 		t.Errorf("c = %+v, want an integer array", p.Value)
+	}
+	if p, _ := m.Get("d"); p.Value.Kind != KindDoubleArray {
+		t.Errorf("d = %+v, want a double array", p.Value)
 	}
 }
 

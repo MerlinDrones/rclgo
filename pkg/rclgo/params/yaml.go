@@ -101,6 +101,9 @@ func LoadYAML(m *Manager, nodeName string, path string) error {
 	for _, name := range order {
 		val, ok := valueFromYAML(values[name])
 		if !ok {
+			if _, isList := values[name].([]interface{}); isList {
+				return fmt.Errorf("unsupported YAML type for %s: a list's elements must be scalars of the same type", name)
+			}
 			return fmt.Errorf("unsupported YAML type for %s", name)
 		}
 		// A later Declare in code attaches its descriptor to this value.
@@ -213,23 +216,22 @@ func valueFromYAML(v interface{}) (Value, bool) {
 				out = append(out, b)
 			}
 			return Value{Kind: KindBoolArray, Bools: out}, true
-		case int, int64, float32, float64:
-			// A list of integers is an integer array; a list with a float
-			// anywhere is a double array (whatever the order of its elements).
-			if !hasFloat(x) {
-				out := make([]int64, 0, len(x))
-				for _, e := range x {
-					switch vv := e.(type) {
-					case int:
-						out = append(out, int64(vv))
-					case int64:
-						out = append(out, vv)
-					default:
-						return Value{}, false
-					}
+		case int, int64:
+			// rcl rejects a list that mixes integers and floats ("Sequence
+			// should be of same type"), whatever the order.
+			out := make([]int64, 0, len(x))
+			for _, e := range x {
+				switch vv := e.(type) {
+				case int:
+					out = append(out, int64(vv))
+				case int64:
+					out = append(out, vv)
+				default:
+					return Value{}, false
 				}
-				return Value{Kind: KindInt64Array, Int64s: out}, true
 			}
+			return Value{Kind: KindInt64Array, Int64s: out}, true
+		case float32, float64:
 			out := make([]float64, 0, len(x))
 			for _, e := range x {
 				switch vv := e.(type) {
@@ -237,10 +239,6 @@ func valueFromYAML(v interface{}) (Value, bool) {
 					out = append(out, float64(vv))
 				case float64:
 					out = append(out, vv)
-				case int:
-					out = append(out, float64(vv))
-				case int64:
-					out = append(out, float64(vv))
 				default:
 					return Value{}, false
 				}
@@ -262,14 +260,4 @@ func valueFromYAML(v interface{}) (Value, bool) {
 	default:
 		return Value{}, false
 	}
-}
-
-func hasFloat(xs []interface{}) bool {
-	for _, x := range xs {
-		switch x.(type) {
-		case float32, float64:
-			return true
-		}
-	}
-	return false
 }
