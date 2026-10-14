@@ -105,7 +105,7 @@ go generate
 go build
 
 ./greeter &
-msg=$(ros2 topic echo --once /greeter/hello greeting_msgs/msg/Hello)
+msg=$(ros2 topic echo --once --no-daemon /greeter/hello greeting_msgs/msg/Hello)
 test "$msg" == $'name: gopher\n---'
 `)
 }
