@@ -454,8 +454,6 @@ func validate(p Parameter, d Descriptor) SetResult {
 	return SetResult{true, ""}
 }
 
-// undeclare removes a parameter, as rclcpp's undeclare_parameter: a parameter
-// that isn't declared, or is read-only, is refused.
 // dropOverride removes the override-only parameter name, whose value was cur,
 // and reports it as deleted. s.modMu must be held.
 func (s *store) dropOverride(name string, cur Parameter) {
@@ -471,6 +469,8 @@ func (s *store) dropOverride(name string, cur Parameter) {
 	s.notifyChange(nil, nil, []Parameter{cur})
 }
 
+// undeclare removes a parameter, as rclcpp's undeclare_parameter: a parameter
+// that isn't declared, or is read-only, is refused.
 func (s *store) undeclare(name string) error {
 	if err := s.lockChanges(); err != nil {
 		return err
