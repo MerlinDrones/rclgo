@@ -158,6 +158,7 @@ type CAccel__Sequence = C.geometry_msgs__msg__Accel__Sequence
 
 func Accel__Sequence_to_Go(goSlice *[]Accel, cSlice CAccel__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Accel, cSlice.size)
@@ -166,14 +167,17 @@ func Accel__Sequence_to_Go(goSlice *[]Accel, cSlice CAccel__Sequence) {
 		AccelTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Accel__Sequence_to_C(cSlice *CAccel__Sequence, goSlice []Accel) {
+func Accel__Sequence_into_C(cSlice *CAccel__Sequence, goSlice []Accel) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Accel__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Accel)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Accel * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Accel)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Accel))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -186,7 +190,7 @@ func Accel__Array_to_Go(goSlice []Accel, cSlice []CAccel) {
 		AccelTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Accel__Array_to_C(cSlice []CAccel, goSlice []Accel) {
+func Accel__Array_into_C(cSlice []CAccel, goSlice []Accel) {
 	for i := 0; i < len(goSlice); i++ {
 		AccelTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

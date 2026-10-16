@@ -159,6 +159,7 @@ type CParameterType__Sequence = C.rcl_interfaces__msg__ParameterType__Sequence
 
 func ParameterType__Sequence_to_Go(goSlice *[]ParameterType, cSlice CParameterType__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ParameterType, cSlice.size)
@@ -167,14 +168,17 @@ func ParameterType__Sequence_to_Go(goSlice *[]ParameterType, cSlice CParameterTy
 		ParameterTypeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ParameterType__Sequence_to_C(cSlice *CParameterType__Sequence, goSlice []ParameterType) {
+func ParameterType__Sequence_into_C(cSlice *CParameterType__Sequence, goSlice []ParameterType) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__ParameterType__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__ParameterType)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__ParameterType * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__ParameterType)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__ParameterType))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +191,7 @@ func ParameterType__Array_to_Go(goSlice []ParameterType, cSlice []CParameterType
 		ParameterTypeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ParameterType__Array_to_C(cSlice []CParameterType, goSlice []ParameterType) {
+func ParameterType__Array_into_C(cSlice []CParameterType, goSlice []ParameterType) {
 	for i := 0; i < len(goSlice); i++ {
 		ParameterTypeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

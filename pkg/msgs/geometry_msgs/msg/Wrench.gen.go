@@ -158,6 +158,7 @@ type CWrench__Sequence = C.geometry_msgs__msg__Wrench__Sequence
 
 func Wrench__Sequence_to_Go(goSlice *[]Wrench, cSlice CWrench__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Wrench, cSlice.size)
@@ -166,14 +167,17 @@ func Wrench__Sequence_to_Go(goSlice *[]Wrench, cSlice CWrench__Sequence) {
 		WrenchTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Wrench__Sequence_to_C(cSlice *CWrench__Sequence, goSlice []Wrench) {
+func Wrench__Sequence_into_C(cSlice *CWrench__Sequence, goSlice []Wrench) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Wrench__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Wrench)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Wrench * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Wrench)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Wrench))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -186,7 +190,7 @@ func Wrench__Array_to_Go(goSlice []Wrench, cSlice []CWrench) {
 		WrenchTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Wrench__Array_to_C(cSlice []CWrench, goSlice []Wrench) {
+func Wrench__Array_into_C(cSlice []CWrench, goSlice []Wrench) {
 	for i := 0; i < len(goSlice); i++ {
 		WrenchTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

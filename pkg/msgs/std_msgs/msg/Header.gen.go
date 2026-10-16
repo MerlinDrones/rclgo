@@ -141,7 +141,7 @@ func (t _HeaderTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Header)
 	mem := (*C.std_msgs__msg__Header)(dst)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.stamp), &m.Stamp)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.frame_id), m.FrameId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.frame_id), m.FrameId)
 }
 
 func (t _HeaderTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -160,6 +160,7 @@ type CHeader__Sequence = C.std_msgs__msg__Header__Sequence
 
 func Header__Sequence_to_Go(goSlice *[]Header, cSlice CHeader__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Header, cSlice.size)
@@ -168,14 +169,17 @@ func Header__Sequence_to_Go(goSlice *[]Header, cSlice CHeader__Sequence) {
 		HeaderTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Header__Sequence_to_C(cSlice *CHeader__Sequence, goSlice []Header) {
+func Header__Sequence_into_C(cSlice *CHeader__Sequence, goSlice []Header) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Header__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Header)(C.malloc(C.sizeof_struct_std_msgs__msg__Header * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Header)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Header))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -188,7 +192,7 @@ func Header__Array_to_Go(goSlice []Header, cSlice []CHeader) {
 		HeaderTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Header__Array_to_C(cSlice []CHeader, goSlice []Header) {
+func Header__Array_into_C(cSlice []CHeader, goSlice []Header) {
 	for i := 0; i < len(goSlice); i++ {
 		HeaderTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

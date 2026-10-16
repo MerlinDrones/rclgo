@@ -154,6 +154,7 @@ type CSetParametersAtomically_Response__Sequence = C.rcl_interfaces__srv__SetPar
 
 func SetParametersAtomically_Response__Sequence_to_Go(goSlice *[]SetParametersAtomically_Response, cSlice CSetParametersAtomically_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetParametersAtomically_Response, cSlice.size)
@@ -162,14 +163,17 @@ func SetParametersAtomically_Response__Sequence_to_Go(goSlice *[]SetParametersAt
 		SetParametersAtomically_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetParametersAtomically_Response__Sequence_to_C(cSlice *CSetParametersAtomically_Response__Sequence, goSlice []SetParametersAtomically_Response) {
+func SetParametersAtomically_Response__Sequence_into_C(cSlice *CSetParametersAtomically_Response__Sequence, goSlice []SetParametersAtomically_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__srv__SetParametersAtomically_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__srv__SetParametersAtomically_Response)(C.malloc(C.sizeof_struct_rcl_interfaces__srv__SetParametersAtomically_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__srv__SetParametersAtomically_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__srv__SetParametersAtomically_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -182,7 +186,7 @@ func SetParametersAtomically_Response__Array_to_Go(goSlice []SetParametersAtomic
 		SetParametersAtomically_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetParametersAtomically_Response__Array_to_C(cSlice []CSetParametersAtomically_Response, goSlice []SetParametersAtomically_Response) {
+func SetParametersAtomically_Response__Array_into_C(cSlice []CSetParametersAtomically_Response, goSlice []SetParametersAtomically_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		SetParametersAtomically_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

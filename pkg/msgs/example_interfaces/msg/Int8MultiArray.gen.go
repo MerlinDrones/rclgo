@@ -143,7 +143,7 @@ func (t _Int8MultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	m := msg.(*Int8MultiArray)
 	mem := (*C.example_interfaces__msg__Int8MultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Int8__Sequence_to_C((*primitives.CInt8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Int8__Sequence_into_C((*primitives.CInt8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _Int8MultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -162,6 +162,7 @@ type CInt8MultiArray__Sequence = C.example_interfaces__msg__Int8MultiArray__Sequ
 
 func Int8MultiArray__Sequence_to_Go(goSlice *[]Int8MultiArray, cSlice CInt8MultiArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Int8MultiArray, cSlice.size)
@@ -170,14 +171,17 @@ func Int8MultiArray__Sequence_to_Go(goSlice *[]Int8MultiArray, cSlice CInt8Multi
 		Int8MultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Int8MultiArray__Sequence_to_C(cSlice *CInt8MultiArray__Sequence, goSlice []Int8MultiArray) {
+func Int8MultiArray__Sequence_into_C(cSlice *CInt8MultiArray__Sequence, goSlice []Int8MultiArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__Int8MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__Int8MultiArray)(C.malloc(C.sizeof_struct_example_interfaces__msg__Int8MultiArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__Int8MultiArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__Int8MultiArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +194,7 @@ func Int8MultiArray__Array_to_Go(goSlice []Int8MultiArray, cSlice []CInt8MultiAr
 		Int8MultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Int8MultiArray__Array_to_C(cSlice []CInt8MultiArray, goSlice []Int8MultiArray) {
+func Int8MultiArray__Array_into_C(cSlice []CInt8MultiArray, goSlice []Int8MultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		Int8MultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

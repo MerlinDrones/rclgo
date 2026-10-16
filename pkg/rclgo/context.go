@@ -27,6 +27,7 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -62,10 +63,20 @@ type rosResourceStore struct {
 	// added to or removed from the store. It is called without the store's
 	// mutex held.
 	onChange func()
+
+	// closed is set when closeAll starts. Resources created afterwards are
+	// refused, so that none outlives the node or context being closed.
+	closed bool
 }
 
-func (s *rosResourceStore) addResource(r rosResource) {
+// addResource adds r to the store. It returns false, without adding r, once
+// the store is being closed.
+func (s *rosResourceStore) addResource(r rosResource) bool {
 	s.mutex.Lock()
+	if s.closed {
+		s.mutex.Unlock()
+		return false
+	}
 	if s.resources == nil {
 		s.resources = make(map[uint64]rosResource)
 		// The counter starts at one to allow removing zero-initialized
@@ -77,6 +88,7 @@ func (s *rosResourceStore) addResource(r rosResource) {
 	s.idCounter++
 	s.mutex.Unlock()
 	s.changed(r)
+	return true
 }
 
 func (s *rosResourceStore) removeResource(r rosResource) {
@@ -101,6 +113,7 @@ func (s *rosResourceStore) changed(r rosResource) {
 // already closed are ignored.
 func (s *rosResourceStore) closeAll(skip func(rosResource) bool) (err error) {
 	s.mutex.Lock()
+	s.closed = true
 	resources := make([]rosResource, 0, len(s.resources))
 	for _, r := range s.resources {
 		if skip == nil || !skip(r) {
@@ -154,20 +167,24 @@ func closeOrder(resources []rosResource) []rosResource {
 }
 
 var (
+	// defaultContextMu guards defaultContext, which Init sets and Uninit
+	// clears.
+	defaultContextMu sync.Mutex
 	defaultContext   *Context
 	errInitNotCalled = errors.New("Init has not been called")
 )
 
 // DefaultContext returns the global default context or nil if Init has not yet
 // been called.
-func DefaultContext() *Context { return defaultContext }
+func DefaultContext() *Context {
+	defaultContextMu.Lock()
+	defer defaultContextMu.Unlock()
+	return defaultContext
+}
 
 // Init is like InitWithOpts except that it always uses default options.
 func Init(args *Args) (err error) {
-	if defaultContext == nil {
-		defaultContext, err = NewContextWithOpts(args, nil)
-	}
-	return
+	return InitWithOpts(args, nil)
 }
 
 // InitWithOpts initializes the global default context and logging system if
@@ -178,6 +195,8 @@ func Init(args *Args) (err error) {
 //
 // If opts is nil, default options are used.
 func InitWithOpts(args *Args, opts *ContextOptions) (err error) {
+	defaultContextMu.Lock()
+	defer defaultContextMu.Unlock()
 	if defaultContext == nil {
 		defaultContext, err = NewContextWithOpts(args, opts)
 	}
@@ -189,9 +208,12 @@ func InitWithOpts(args *Args, opts *ContextOptions) (err error) {
 // Uninit should be called before program termination if Init has been called
 // successfully.
 func Uninit() (err error) {
-	if defaultContext != nil {
-		err = defaultContext.Close()
-		defaultContext = nil
+	defaultContextMu.Lock()
+	c := defaultContext
+	defaultContext = nil
+	defaultContextMu.Unlock()
+	if c != nil {
+		err = c.Close()
 	}
 	// Finalize logging system to flush all buffered logs
 	if loggingErr := FiniLogging(); loggingErr != nil {
@@ -204,10 +226,11 @@ func Uninit() (err error) {
 // waiting such as nodes and subscriptions. Spin returns when an error occurs or
 // ctx is canceled.
 func Spin(ctx context.Context) error {
-	if defaultContext == nil {
+	c := DefaultContext()
+	if c == nil {
 		return errInitNotCalled
 	}
-	return defaultContext.Spin(ctx)
+	return c.Spin(ctx)
 }
 
 // ContextOptions can be used to configure a Context.
@@ -233,6 +256,7 @@ type Context struct {
 	rcl_allocator_t *C.rcutils_allocator_t
 	rcl_context_t   *C.rcl_context_t
 	defaultClock    *Clock
+	clockMu         sync.RWMutex // guards clock
 	clock           *Clock
 
 	rosResourceStore
@@ -244,6 +268,11 @@ type Context struct {
 	// its nodes.
 	spinnersMu sync.Mutex
 	spinners   map[*WaitSet]struct{}
+
+	// leakedNodes counts nodes that could not be finalized. rcl and the
+	// middleware still use the context for them, so it is not finalized
+	// either; its memory is leaked instead of being freed while in use.
+	leakedNodes atomic.Int32
 }
 
 // NewContext calls NewContextWithOpts with default options except for
@@ -271,6 +300,8 @@ automatically using rclArgs for logging configuration.
 If opts is nil, default options are used.
 */
 func NewContextWithOpts(rclArgs *Args, opts *ContextOptions) (ctx *Context, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	ctx = &Context{}
 	ctx.rosResourceStore.onChange = ctx.resourcesChanged
 	defer onErr(&err, ctx.Close)
@@ -300,7 +331,12 @@ func NewContextWithOpts(rclArgs *Args, opts *ContextOptions) (ctx *Context, err 
 		return nil, errorsCast(rc)
 	}
 	// rcl_init copies the options into the context.
-	defer C.rcl_init_options_fini(&rcl_init_options_t)
+	defer func() {
+		if rc := C.rcl_init_options_fini(&rcl_init_options_t); rc != C.RCL_RET_OK {
+			// Only memory is lost; the context is usable.
+			GetLogger("rclgo").Error(errorsCastC(rc, "failed to finalize init options")) //nolint:errcheck
+		}
+	}()
 	rc = C.rcl_init_options_set_domain_id(&rcl_init_options_t, C.size_t(opts.DomainID))
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCast(rc)
@@ -352,7 +388,16 @@ func (c *Context) stopWaitSets() {
 // fini finalizes the clocks and the rcl context. It runs after every other
 // resource of the context has been finalized.
 func (c *Context) fini() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	errs := c.rosResourceStore.closeAll(nil)
+	if n := c.leakedNodes.Load(); n > 0 && c.rcl_context_t != nil {
+		// rcl_context_fini would free the middleware context under the
+		// nodes' feet (rcl frees it even when the middleware refuses).
+		c.rcl_context_t = nil
+		c.rcl_allocator_t = nil
+		return errors.Join(errs, fmt.Errorf("context not finalized because %d of its nodes could not be; its memory is leaked", n))
+	}
 	if c.rcl_context_t != nil {
 		if rc := C.rcl_shutdown(c.rcl_context_t); rc != C.RCL_RET_OK {
 			errs = errors.Join(errs, errorsCastC(rc, fmt.Sprintf("C.rcl_shutdown(%+v)", c.rcl_context_t)))
@@ -369,11 +414,18 @@ func (c *Context) fini() error {
 	return errs
 }
 
+// Clock returns the clock that timers and action servers created on c use.
 func (c *Context) Clock() *Clock {
+	c.clockMu.RLock()
+	defer c.clockMu.RUnlock()
 	return c.clock
 }
 
+// SetClock sets the clock for timers and action servers created on c from now
+// on; nil restores the context's default clock. Existing ones keep theirs.
 func (c *Context) SetClock(newClock *Clock) {
+	c.clockMu.Lock()
+	defer c.clockMu.Unlock()
 	if newClock == nil {
 		c.clock = c.defaultClock
 	} else {
@@ -390,12 +442,17 @@ func (c *Context) Spin(ctx context.Context) error {
 
 // spin waits for and handles the resources in store, following changes to it,
 // until an error occurs or ctx is canceled.
-func (c *Context) spin(ctx context.Context, store *rosResourceStore) error {
+func (c *Context) spin(ctx context.Context, store *rosResourceStore) (err error) {
 	ws, err := c.NewWaitSet()
 	if err != nil {
 		return err
 	}
-	defer ws.Close()
+	defer func() {
+		var closed closeError
+		if cerr := ws.Close(); cerr != nil && !errors.As(cerr, &closed) {
+			err = errors.Join(err, cerr)
+		}
+	}()
 	if err := ws.followResources(store); err != nil {
 		return err
 	}
@@ -408,9 +465,11 @@ func (c *Context) resourcesChanged() {
 	defer c.spinnersMu.Unlock()
 	for ws := range c.spinners {
 		// A failed trigger only delays the refresh until the wait set
-		// wakes for another reason, so there is nothing better to do with
-		// the error.
-		ws.refresh.Trigger() //nolint:errcheck
+		// wakes for another reason; a finalized one belongs to a wait set
+		// that no longer runs.
+		if err := ws.refresh.Trigger(); err != nil && !errors.Is(err, ErrClosed) {
+			GetLogger("rclgo").Error("waking the wait set for new entities failed: ", err) //nolint:errcheck
+		}
 	}
 }
 

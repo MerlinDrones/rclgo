@@ -153,6 +153,7 @@ type CFibonacci_Goal__Sequence = C.example_interfaces__action__Fibonacci_Goal__S
 
 func Fibonacci_Goal__Sequence_to_Go(goSlice *[]Fibonacci_Goal, cSlice CFibonacci_Goal__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Fibonacci_Goal, cSlice.size)
@@ -161,14 +162,17 @@ func Fibonacci_Goal__Sequence_to_Go(goSlice *[]Fibonacci_Goal, cSlice CFibonacci
 		Fibonacci_GoalTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Fibonacci_Goal__Sequence_to_C(cSlice *CFibonacci_Goal__Sequence, goSlice []Fibonacci_Goal) {
+func Fibonacci_Goal__Sequence_into_C(cSlice *CFibonacci_Goal__Sequence, goSlice []Fibonacci_Goal) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__action__Fibonacci_Goal__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__action__Fibonacci_Goal)(C.malloc(C.sizeof_struct_example_interfaces__action__Fibonacci_Goal * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__action__Fibonacci_Goal)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__action__Fibonacci_Goal))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +185,7 @@ func Fibonacci_Goal__Array_to_Go(goSlice []Fibonacci_Goal, cSlice []CFibonacci_G
 		Fibonacci_GoalTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Fibonacci_Goal__Array_to_C(cSlice []CFibonacci_Goal, goSlice []Fibonacci_Goal) {
+func Fibonacci_Goal__Array_into_C(cSlice []CFibonacci_Goal, goSlice []Fibonacci_Goal) {
 	for i := 0; i < len(goSlice); i++ {
 		Fibonacci_GoalTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

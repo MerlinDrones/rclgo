@@ -12,6 +12,7 @@ import (
 
 	"github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/internal/rclgotest"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/stretchr/testify/require"
 )
@@ -37,11 +38,18 @@ func getUnusedDomainID() int {
 	return newID
 }
 
+// setNewDomainID moves the process to a domain no earlier test used, or to the
+// domain pinned with RCLGO_TEST_DOMAIN_ID.
 func setNewDomainID() {
+	if id := os.Getenv("RCLGO_TEST_DOMAIN_ID"); id != "" {
+		os.Setenv("ROS_DOMAIN_ID", id)
+		return
+	}
 	os.Setenv("ROS_DOMAIN_ID", strconv.Itoa(getUnusedDomainID()))
 }
 
 func TestMain(m *testing.M) {
+	rclgotest.UseIsolatedDomain()
 	setNewDomainID()
 	os.Exit(m.Run())
 }
@@ -146,6 +154,12 @@ func TestPubSubCount(t *testing.T) {
 	requireValue(t, 1)(sub1.GetPublisherCount())
 	requireValue(t, 1)(sub2.GetPublisherCount())
 
+	if os.Getenv("RMW_IMPLEMENTATION") == "rmw_zenoh_cpp" {
+		// The rest checks that endpoints with incompatible QoS (a
+		// transient-local subscription and a volatile publisher) do not
+		// match, which is DDS behaviour; rmw_zenoh_cpp counts them.
+		return
+	}
 	subOptsUnrealiable := rclgo.NewDefaultSubscriptionOptions()
 	subOptsUnrealiable.Qos.Reliability = qos.ReliabilityBestEffort
 	subOptsUnrealiable.Qos.Durability = qos.DurabilityTransientLocal

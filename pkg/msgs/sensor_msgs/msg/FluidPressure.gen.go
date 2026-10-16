@@ -164,6 +164,7 @@ type CFluidPressure__Sequence = C.sensor_msgs__msg__FluidPressure__Sequence
 
 func FluidPressure__Sequence_to_Go(goSlice *[]FluidPressure, cSlice CFluidPressure__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]FluidPressure, cSlice.size)
@@ -172,14 +173,17 @@ func FluidPressure__Sequence_to_Go(goSlice *[]FluidPressure, cSlice CFluidPressu
 		FluidPressureTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func FluidPressure__Sequence_to_C(cSlice *CFluidPressure__Sequence, goSlice []FluidPressure) {
+func FluidPressure__Sequence_into_C(cSlice *CFluidPressure__Sequence, goSlice []FluidPressure) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__FluidPressure__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__FluidPressure)(C.malloc(C.sizeof_struct_sensor_msgs__msg__FluidPressure * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__FluidPressure)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__FluidPressure))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -192,7 +196,7 @@ func FluidPressure__Array_to_Go(goSlice []FluidPressure, cSlice []CFluidPressure
 		FluidPressureTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func FluidPressure__Array_to_C(cSlice []CFluidPressure, goSlice []FluidPressure) {
+func FluidPressure__Array_into_C(cSlice []CFluidPressure, goSlice []FluidPressure) {
 	for i := 0; i < len(goSlice); i++ {
 		FluidPressureTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

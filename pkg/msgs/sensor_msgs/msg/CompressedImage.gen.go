@@ -147,8 +147,8 @@ func (t _CompressedImageTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mes
 	m := msg.(*CompressedImage)
 	mem := (*C.sensor_msgs__msg__CompressedImage)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.format), m.Format)
-	primitives.Uint8__Sequence_to_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.StringIntoC(unsafe.Pointer(&mem.format), m.Format)
+	primitives.Uint8__Sequence_into_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _CompressedImageTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -168,6 +168,7 @@ type CCompressedImage__Sequence = C.sensor_msgs__msg__CompressedImage__Sequence
 
 func CompressedImage__Sequence_to_Go(goSlice *[]CompressedImage, cSlice CCompressedImage__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]CompressedImage, cSlice.size)
@@ -176,14 +177,17 @@ func CompressedImage__Sequence_to_Go(goSlice *[]CompressedImage, cSlice CCompres
 		CompressedImageTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func CompressedImage__Sequence_to_C(cSlice *CCompressedImage__Sequence, goSlice []CompressedImage) {
+func CompressedImage__Sequence_into_C(cSlice *CCompressedImage__Sequence, goSlice []CompressedImage) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__CompressedImage__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__CompressedImage)(C.malloc(C.sizeof_struct_sensor_msgs__msg__CompressedImage * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__CompressedImage)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__CompressedImage))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -196,7 +200,7 @@ func CompressedImage__Array_to_Go(goSlice []CompressedImage, cSlice []CCompresse
 		CompressedImageTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func CompressedImage__Array_to_C(cSlice []CCompressedImage, goSlice []CompressedImage) {
+func CompressedImage__Array_into_C(cSlice []CCompressedImage, goSlice []CompressedImage) {
 	for i := 0; i < len(goSlice); i++ {
 		CompressedImageTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

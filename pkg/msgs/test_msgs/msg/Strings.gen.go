@@ -173,18 +173,18 @@ func (t _StringsTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _StringsTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Strings)
 	mem := (*C.test_msgs__msg__Strings)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value), m.StringValue)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value_default1), m.StringValueDefault1)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value_default2), m.StringValueDefault2)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value_default3), m.StringValueDefault3)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value_default4), m.StringValueDefault4)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value_default5), m.StringValueDefault5)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.bounded_string_value), m.BoundedStringValue)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.bounded_string_value_default1), m.BoundedStringValueDefault1)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.bounded_string_value_default2), m.BoundedStringValueDefault2)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.bounded_string_value_default3), m.BoundedStringValueDefault3)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.bounded_string_value_default4), m.BoundedStringValueDefault4)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.bounded_string_value_default5), m.BoundedStringValueDefault5)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value), m.StringValue)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value_default1), m.StringValueDefault1)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value_default2), m.StringValueDefault2)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value_default3), m.StringValueDefault3)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value_default4), m.StringValueDefault4)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value_default5), m.StringValueDefault5)
+	primitives.StringIntoC(unsafe.Pointer(&mem.bounded_string_value), m.BoundedStringValue)
+	primitives.StringIntoC(unsafe.Pointer(&mem.bounded_string_value_default1), m.BoundedStringValueDefault1)
+	primitives.StringIntoC(unsafe.Pointer(&mem.bounded_string_value_default2), m.BoundedStringValueDefault2)
+	primitives.StringIntoC(unsafe.Pointer(&mem.bounded_string_value_default3), m.BoundedStringValueDefault3)
+	primitives.StringIntoC(unsafe.Pointer(&mem.bounded_string_value_default4), m.BoundedStringValueDefault4)
+	primitives.StringIntoC(unsafe.Pointer(&mem.bounded_string_value_default5), m.BoundedStringValueDefault5)
 }
 
 func (t _StringsTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -213,6 +213,7 @@ type CStrings__Sequence = C.test_msgs__msg__Strings__Sequence
 
 func Strings__Sequence_to_Go(goSlice *[]Strings, cSlice CStrings__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Strings, cSlice.size)
@@ -221,14 +222,17 @@ func Strings__Sequence_to_Go(goSlice *[]Strings, cSlice CStrings__Sequence) {
 		StringsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Strings__Sequence_to_C(cSlice *CStrings__Sequence, goSlice []Strings) {
+func Strings__Sequence_into_C(cSlice *CStrings__Sequence, goSlice []Strings) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__Strings__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__Strings)(C.malloc(C.sizeof_struct_test_msgs__msg__Strings * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__Strings)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__Strings))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -241,7 +245,7 @@ func Strings__Array_to_Go(goSlice []Strings, cSlice []CStrings) {
 		StringsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Strings__Array_to_C(cSlice []CStrings, goSlice []Strings) {
+func Strings__Array_into_C(cSlice []CStrings, goSlice []Strings) {
 	for i := 0; i < len(goSlice); i++ {
 		StringsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -3,26 +3,27 @@
 package msgs
 
 import (
-	_ "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/msg"            //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/srv"            //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"     //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/action"  //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/msg"     //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/srv"     //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/geometry_msgs/msg"          //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/lifecycle_msgs/msg"         //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/lifecycle_msgs/srv"         //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/msg"         //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/srv"         //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/rosgraph_msgs/msg"          //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/sensor_msgs/msg"            //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/sensor_msgs/srv"            //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/service_msgs/msg"           //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"               //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/std_srvs/srv"               //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/action"           //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"              //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/srv"              //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/unique_identifier_msgs/msg" //
-	_ "github.com/merlindrones/rclgo/pkg/msgs/vision_msgs/msg"            //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/msg"                    //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/srv"                    //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/action_tutorials_interfaces/action" //nolint:revive // Depending on the build, this may be an unused import.
+	_ "github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"             //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/action"          //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/msg"             //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/srv"             //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/geometry_msgs/msg"                  //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/lifecycle_msgs/msg"                 //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/lifecycle_msgs/srv"                 //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/msg"                 //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/srv"                 //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/rosgraph_msgs/msg"                  //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/sensor_msgs/msg"                    //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/sensor_msgs/srv"                    //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/service_msgs/msg"                   //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"                       //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/std_srvs/srv"                       //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/action"                   //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"                      //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/srv"                      //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/unique_identifier_msgs/msg"         //
+	_ "github.com/merlindrones/rclgo/pkg/msgs/vision_msgs/msg"                    //
 )

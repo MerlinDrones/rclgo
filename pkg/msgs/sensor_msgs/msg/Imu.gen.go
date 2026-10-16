@@ -159,13 +159,13 @@ func (t _ImuTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	geometry_msgs_msg.QuaternionTypeSupport.AsCStruct(unsafe.Pointer(&mem.orientation), &m.Orientation)
 	cSlice_orientation_covariance := mem.orientation_covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_orientation_covariance)), m.OrientationCovariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_orientation_covariance)), m.OrientationCovariance[:])
 	geometry_msgs_msg.Vector3TypeSupport.AsCStruct(unsafe.Pointer(&mem.angular_velocity), &m.AngularVelocity)
 	cSlice_angular_velocity_covariance := mem.angular_velocity_covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_angular_velocity_covariance)), m.AngularVelocityCovariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_angular_velocity_covariance)), m.AngularVelocityCovariance[:])
 	geometry_msgs_msg.Vector3TypeSupport.AsCStruct(unsafe.Pointer(&mem.linear_acceleration), &m.LinearAcceleration)
 	cSlice_linear_acceleration_covariance := mem.linear_acceleration_covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_linear_acceleration_covariance)), m.LinearAccelerationCovariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_linear_acceleration_covariance)), m.LinearAccelerationCovariance[:])
 }
 
 func (t _ImuTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -192,6 +192,7 @@ type CImu__Sequence = C.sensor_msgs__msg__Imu__Sequence
 
 func Imu__Sequence_to_Go(goSlice *[]Imu, cSlice CImu__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Imu, cSlice.size)
@@ -200,14 +201,17 @@ func Imu__Sequence_to_Go(goSlice *[]Imu, cSlice CImu__Sequence) {
 		ImuTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Imu__Sequence_to_C(cSlice *CImu__Sequence, goSlice []Imu) {
+func Imu__Sequence_into_C(cSlice *CImu__Sequence, goSlice []Imu) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__Imu__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__Imu)(C.malloc(C.sizeof_struct_sensor_msgs__msg__Imu * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__Imu)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__Imu))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -220,7 +224,7 @@ func Imu__Array_to_Go(goSlice []Imu, cSlice []CImu) {
 		ImuTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Imu__Array_to_C(cSlice []CImu, goSlice []Imu) {
+func Imu__Array_into_C(cSlice []CImu, goSlice []Imu) {
 	for i := 0; i < len(goSlice); i++ {
 		ImuTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

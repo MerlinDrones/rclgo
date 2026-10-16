@@ -139,7 +139,7 @@ func (t _ObjectHypothesisTypeSupport) ReleaseMemory(pointer_to_free unsafe.Point
 func (t _ObjectHypothesisTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ObjectHypothesis)
 	mem := (*C.vision_msgs__msg__ObjectHypothesis)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.class_id), m.ClassId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.class_id), m.ClassId)
 	mem.score = C.double(m.Score)
 }
 
@@ -167,7 +167,7 @@ func ObjectHypothesis__Sequence_to_Go(goSlice *[]ObjectHypothesis, cSlice CObjec
 		ObjectHypothesisTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ObjectHypothesis__Sequence_to_C(cSlice *CObjectHypothesis__Sequence, goSlice []ObjectHypothesis) {
+func ObjectHypothesis__Sequence_into_C(cSlice *CObjectHypothesis__Sequence, goSlice []ObjectHypothesis) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -187,7 +187,7 @@ func ObjectHypothesis__Array_to_Go(goSlice []ObjectHypothesis, cSlice []CObjectH
 		ObjectHypothesisTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ObjectHypothesis__Array_to_C(cSlice []CObjectHypothesis, goSlice []ObjectHypothesis) {
+func ObjectHypothesis__Array_into_C(cSlice []CObjectHypothesis, goSlice []ObjectHypothesis) {
 	for i := 0; i < len(goSlice); i++ {
 		ObjectHypothesisTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

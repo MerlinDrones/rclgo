@@ -162,6 +162,7 @@ type CFibonacci_SendGoal_Response__Sequence = C.example_interfaces__action__Fibo
 
 func Fibonacci_SendGoal_Response__Sequence_to_Go(goSlice *[]Fibonacci_SendGoal_Response, cSlice CFibonacci_SendGoal_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Fibonacci_SendGoal_Response, cSlice.size)
@@ -170,14 +171,17 @@ func Fibonacci_SendGoal_Response__Sequence_to_Go(goSlice *[]Fibonacci_SendGoal_R
 		Fibonacci_SendGoal_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Fibonacci_SendGoal_Response__Sequence_to_C(cSlice *CFibonacci_SendGoal_Response__Sequence, goSlice []Fibonacci_SendGoal_Response) {
+func Fibonacci_SendGoal_Response__Sequence_into_C(cSlice *CFibonacci_SendGoal_Response__Sequence, goSlice []Fibonacci_SendGoal_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__action__Fibonacci_SendGoal_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__action__Fibonacci_SendGoal_Response)(C.malloc(C.sizeof_struct_example_interfaces__action__Fibonacci_SendGoal_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__action__Fibonacci_SendGoal_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__action__Fibonacci_SendGoal_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +194,7 @@ func Fibonacci_SendGoal_Response__Array_to_Go(goSlice []Fibonacci_SendGoal_Respo
 		Fibonacci_SendGoal_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Fibonacci_SendGoal_Response__Array_to_C(cSlice []CFibonacci_SendGoal_Response, goSlice []Fibonacci_SendGoal_Response) {
+func Fibonacci_SendGoal_Response__Array_into_C(cSlice []CFibonacci_SendGoal_Response, goSlice []Fibonacci_SendGoal_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		Fibonacci_SendGoal_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

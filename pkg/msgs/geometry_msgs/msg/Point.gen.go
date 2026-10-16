@@ -163,6 +163,7 @@ type CPoint__Sequence = C.geometry_msgs__msg__Point__Sequence
 
 func Point__Sequence_to_Go(goSlice *[]Point, cSlice CPoint__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Point, cSlice.size)
@@ -171,14 +172,17 @@ func Point__Sequence_to_Go(goSlice *[]Point, cSlice CPoint__Sequence) {
 		PointTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Point__Sequence_to_C(cSlice *CPoint__Sequence, goSlice []Point) {
+func Point__Sequence_into_C(cSlice *CPoint__Sequence, goSlice []Point) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Point__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Point)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Point * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Point)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Point))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -191,7 +195,7 @@ func Point__Array_to_Go(goSlice []Point, cSlice []CPoint) {
 		PointTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Point__Array_to_C(cSlice []CPoint, goSlice []Point) {
+func Point__Array_into_C(cSlice []CPoint, goSlice []Point) {
 	for i := 0; i < len(goSlice); i++ {
 		PointTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

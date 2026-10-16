@@ -2,11 +2,13 @@ package rclgo_test
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	action_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/msg"
+	action_msgs_srv "github.com/merlindrones/rclgo/pkg/msgs/action_msgs/srv"
 	example_interfaces_action "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/action"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
@@ -135,4 +137,151 @@ func TestActionClientWatchGoalCancelsOnContext(t *testing.T) {
 		t.Fatal("WatchGoal did not return after its context was canceled")
 	}
 	requireClosed(t, canceled, "the server goal was not canceled")
+}
+
+// Requests on a closed action client fail with ErrClosed instead of panicking.
+// Nothing spins the context, so Close finalizes the client at once.
+func TestActionClientRequestsAfterClose(t *testing.T) {
+	ctx := newSpinTestContext(t)
+	node, err := ctx.NewNode("after_close_node", "/action_test")
+	require.NoError(t, err)
+	client, err := node.NewActionClient("after_close", example_interfaces_action.FibonacciTypeSupport, nil)
+	require.NoError(t, err)
+	require.NoError(t, client.Close())
+
+	cctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
+	defer cancel()
+	var id types.GoalID
+	id[0] = 1
+	_, _, err = client.SendGoal(cctx, fibGoal(1))
+	require.ErrorIs(t, err, rclgo.ErrClosed)
+	_, _, err = client.WatchGoal(cctx, fibGoal(1), nil)
+	require.ErrorIs(t, err, rclgo.ErrClosed)
+	_, err = client.GetResult(cctx, &id)
+	require.ErrorIs(t, err, rclgo.ErrClosed)
+	_, err = client.CancelGoal(cctx, action_msgs_srv.NewCancelGoal_Request())
+	require.ErrorIs(t, err, rclgo.ErrClosed)
+}
+
+// WatchGoal reports a goal that did not succeed with a *GoalFailedError and
+// still returns its result.
+func TestActionClientWatchGoalReportsAbortedGoal(t *testing.T) {
+	f := newActionFixture(t, "watch_aborted", nil, func(_ context.Context, goal *rclgo.GoalHandle) (types.Message, error) {
+		if _, err := goal.Accept(); err != nil {
+			return nil, err
+		}
+		return nil, errors.New("failed while executing")
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
+	defer cancel()
+	result, _, err := f.client.WatchGoal(ctx, fibGoal(3), nil)
+	var failed *rclgo.GoalFailedError
+	require.ErrorAs(t, err, &failed)
+	require.Equal(t, rclgo.GoalAborted, failed.Status)
+	require.NotNil(t, result)
+	require.EqualValues(t, rclgo.GoalAborted, result.(*example_interfaces_action.Fibonacci_GetResult_Response).Status)
+}
+
+// Feedback reaches a handler in the order it was sent, even in a burst, and a
+// panicking handler doesn't end the process.
+func TestActionClientFeedbackInOrderAndPanicsRecovered(t *testing.T) {
+	const n = 40
+	f := newActionFixture(t, "feedback_order", nil, func(_ context.Context, goal *rclgo.GoalHandle) (types.Message, error) {
+		sender, err := goal.Accept()
+		if err != nil {
+			return nil, err
+		}
+		// Give the client's feedback subscription time to match.
+		time.Sleep(300 * time.Millisecond)
+		for i := int32(1); i <= n; i++ {
+			fb := example_interfaces_action.NewFibonacci_Feedback()
+			fb.Sequence = []int32{i}
+			if err := sender.Send(fb); err != nil {
+				return nil, err
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+		return fibResult(1), nil
+	})
+	var (
+		mu  sync.Mutex
+		got []int32
+	)
+	ctx, cancel := context.WithTimeout(context.Background(), actionTimeout)
+	defer cancel()
+	_, _, err := f.client.WatchGoal(ctx, fibGoal(3), func(_ context.Context, m types.Message) {
+		v := m.(*example_interfaces_action.Fibonacci_FeedbackMessage).Feedback.Sequence[0]
+		mu.Lock()
+		got = append(got, v)
+		mu.Unlock()
+		if v == 1 {
+			panic("handler panic must be recovered")
+		}
+		time.Sleep(time.Millisecond) // a slow handler must not reorder later messages
+	})
+	require.NoError(t, err)
+	mu.Lock()
+	defer mu.Unlock()
+	require.NotEmpty(t, got, "no feedback received")
+	for i := 1; i < len(got); i++ {
+		require.Greater(t, got[i], got[i-1], "feedback out of order: %v", got)
+	}
+}
+
+// When WatchGoal's context ends and Spin stops with it, WatchGoal still
+// cancels the goal on the server and returns at once, instead of waiting for
+// a cancel response that no one takes.
+func TestActionClientWatchGoalCancelWithSharedSpinContext(t *testing.T) {
+	executing := make(chan struct{})
+	canceled := make(chan struct{})
+	_ = newActionFixture(t, "shared_ctx", nil, func(ctx context.Context, goal *rclgo.GoalHandle) (types.Message, error) {
+		if _, err := goal.Accept(); err != nil {
+			return nil, err
+		}
+		if goal.Description.(*example_interfaces_action.Fibonacci_Goal).Order != 7 {
+			return fibResult(1), nil
+		}
+		close(executing)
+		<-ctx.Done()
+		close(canceled)
+		return nil, ctx.Err()
+	})
+	clientCtx := newSpinTestContext(t)
+	node, err := clientCtx.NewNode("shared_ctx_client", "/action_test")
+	require.NoError(t, err)
+	client, err := node.NewActionClient("shared_ctx", example_interfaces_action.FibonacciTypeSupport, nil)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	spinDone := make(chan struct{})
+	go func() { defer close(spinDone); _ = clientCtx.Spin(ctx) }()
+	// Wait until the client can reach the server.
+	deadline := time.Now().Add(spinTimeout)
+	for {
+		c, stop := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		_, _, err := client.WatchGoal(c, fibGoal(1), nil)
+		stop()
+		if err == nil {
+			break
+		}
+		require.True(t, time.Now().Before(deadline), "server not reachable: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := client.WatchGoal(ctx, fibGoal(7), nil)
+		done <- err
+	}()
+	requireClosed(t, executing, "goal never started")
+	start := time.Now()
+	cancel()
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+		require.Less(t, time.Since(start), time.Second, "WatchGoal waited for the cancel response")
+	case <-time.After(actionTimeout):
+		t.Fatal("WatchGoal did not return")
+	}
+	requireClosed(t, canceled, "the goal was not canceled on the server")
+	<-spinDone
 }

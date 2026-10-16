@@ -167,7 +167,7 @@ func ObjectHypothesisWithPose__Sequence_to_Go(goSlice *[]ObjectHypothesisWithPos
 		ObjectHypothesisWithPoseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ObjectHypothesisWithPose__Sequence_to_C(cSlice *CObjectHypothesisWithPose__Sequence, goSlice []ObjectHypothesisWithPose) {
+func ObjectHypothesisWithPose__Sequence_into_C(cSlice *CObjectHypothesisWithPose__Sequence, goSlice []ObjectHypothesisWithPose) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -187,7 +187,7 @@ func ObjectHypothesisWithPose__Array_to_Go(goSlice []ObjectHypothesisWithPose, c
 		ObjectHypothesisWithPoseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ObjectHypothesisWithPose__Array_to_C(cSlice []CObjectHypothesisWithPose, goSlice []ObjectHypothesisWithPose) {
+func ObjectHypothesisWithPose__Array_into_C(cSlice []CObjectHypothesisWithPose, goSlice []ObjectHypothesisWithPose) {
 	for i := 0; i < len(goSlice); i++ {
 		ObjectHypothesisWithPoseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

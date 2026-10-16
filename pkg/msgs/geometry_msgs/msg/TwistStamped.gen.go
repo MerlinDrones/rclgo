@@ -159,6 +159,7 @@ type CTwistStamped__Sequence = C.geometry_msgs__msg__TwistStamped__Sequence
 
 func TwistStamped__Sequence_to_Go(goSlice *[]TwistStamped, cSlice CTwistStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]TwistStamped, cSlice.size)
@@ -167,14 +168,17 @@ func TwistStamped__Sequence_to_Go(goSlice *[]TwistStamped, cSlice CTwistStamped_
 		TwistStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TwistStamped__Sequence_to_C(cSlice *CTwistStamped__Sequence, goSlice []TwistStamped) {
+func TwistStamped__Sequence_into_C(cSlice *CTwistStamped__Sequence, goSlice []TwistStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__TwistStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__TwistStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__TwistStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__TwistStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__TwistStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +191,7 @@ func TwistStamped__Array_to_Go(goSlice []TwistStamped, cSlice []CTwistStamped) {
 		TwistStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TwistStamped__Array_to_C(cSlice []CTwistStamped, goSlice []TwistStamped) {
+func TwistStamped__Array_into_C(cSlice []CTwistStamped, goSlice []TwistStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		TwistStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

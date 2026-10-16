@@ -143,7 +143,7 @@ func (t _Int32MultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mes
 	m := msg.(*Int32MultiArray)
 	mem := (*C.std_msgs__msg__Int32MultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Int32__Sequence_to_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Int32__Sequence_into_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _Int32MultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -162,6 +162,7 @@ type CInt32MultiArray__Sequence = C.std_msgs__msg__Int32MultiArray__Sequence
 
 func Int32MultiArray__Sequence_to_Go(goSlice *[]Int32MultiArray, cSlice CInt32MultiArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Int32MultiArray, cSlice.size)
@@ -170,14 +171,17 @@ func Int32MultiArray__Sequence_to_Go(goSlice *[]Int32MultiArray, cSlice CInt32Mu
 		Int32MultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Int32MultiArray__Sequence_to_C(cSlice *CInt32MultiArray__Sequence, goSlice []Int32MultiArray) {
+func Int32MultiArray__Sequence_into_C(cSlice *CInt32MultiArray__Sequence, goSlice []Int32MultiArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Int32MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Int32MultiArray)(C.malloc(C.sizeof_struct_std_msgs__msg__Int32MultiArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Int32MultiArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Int32MultiArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +194,7 @@ func Int32MultiArray__Array_to_Go(goSlice []Int32MultiArray, cSlice []CInt32Mult
 		Int32MultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Int32MultiArray__Array_to_C(cSlice []CInt32MultiArray, goSlice []Int32MultiArray) {
+func Int32MultiArray__Array_into_C(cSlice []CInt32MultiArray, goSlice []Int32MultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		Int32MultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

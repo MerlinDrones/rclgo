@@ -38,6 +38,9 @@ func (q Profile) Validate() error {
 	default:
 		return fmt.Errorf("invalid History=%v", q.History)
 	}
+	if q.Depth < 0 {
+		return errors.New("Depth must not be negative")
+	}
 	if q.History == HistoryKeepLast && q.Depth < 1 {
 		return errors.New("KeepLast requires Depth >= 1")
 	}

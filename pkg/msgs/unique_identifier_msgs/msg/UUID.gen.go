@@ -137,7 +137,7 @@ func (t _UUIDTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*UUID)
 	mem := (*C.unique_identifier_msgs__msg__UUID)(dst)
 	cSlice_uuid := mem.uuid[:]
-	primitives.Uint8__Array_to_C(*(*[]primitives.CUint8)(unsafe.Pointer(&cSlice_uuid)), m.Uuid[:])
+	primitives.Uint8__Array_into_C(*(*[]primitives.CUint8)(unsafe.Pointer(&cSlice_uuid)), m.Uuid[:])
 }
 
 func (t _UUIDTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +156,7 @@ type CUUID__Sequence = C.unique_identifier_msgs__msg__UUID__Sequence
 
 func UUID__Sequence_to_Go(goSlice *[]UUID, cSlice CUUID__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]UUID, cSlice.size)
@@ -164,14 +165,17 @@ func UUID__Sequence_to_Go(goSlice *[]UUID, cSlice CUUID__Sequence) {
 		UUIDTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func UUID__Sequence_to_C(cSlice *CUUID__Sequence, goSlice []UUID) {
+func UUID__Sequence_into_C(cSlice *CUUID__Sequence, goSlice []UUID) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.unique_identifier_msgs__msg__UUID__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.unique_identifier_msgs__msg__UUID)(C.malloc(C.sizeof_struct_unique_identifier_msgs__msg__UUID * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.unique_identifier_msgs__msg__UUID)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_unique_identifier_msgs__msg__UUID))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +188,7 @@ func UUID__Array_to_Go(goSlice []UUID, cSlice []CUUID) {
 		UUIDTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func UUID__Array_to_C(cSlice []CUUID, goSlice []UUID) {
+func UUID__Array_into_C(cSlice []CUUID, goSlice []UUID) {
 	for i := 0; i < len(goSlice); i++ {
 		UUIDTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

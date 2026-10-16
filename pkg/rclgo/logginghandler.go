@@ -21,21 +21,18 @@ type LoggingOutputHandler = func(
 
 // GetLoggingOutputHandler returns the current logging output handler.
 func GetLoggingOutputHandler() LoggingOutputHandler {
-	loggingMutex.Lock()
-	defer loggingMutex.Unlock()
-	return currentLoggingOutputHandler
+	return *currentLoggingOutputHandler.Load()
 }
 
 // SetLoggingOutputHandler sets the current logging output handler to h. If h ==
-// nil, DefaultLoggingOutputHandler is used.
+// nil, DefaultLoggingOutputHandler is used. h receives messages once logging is
+// initialized (by Init, NewContext or InitLogging); before that rcutils prints
+// messages with its own handler.
 func SetLoggingOutputHandler(h LoggingOutputHandler) {
-	loggingMutex.Lock()
-	defer loggingMutex.Unlock()
 	if h == nil {
-		currentLoggingOutputHandler = DefaultLoggingOutputHandler
-	} else {
-		currentLoggingOutputHandler = h
+		h = DefaultLoggingOutputHandler
 	}
+	currentLoggingOutputHandler.Store(&h)
 }
 
 // DefaultLoggingOutputHandler is the logging output handler used by default,
@@ -60,7 +57,7 @@ func DefaultLoggingOutputHandler(
 
 	// If realtime logging is enabled, flush stdout and stderr immediately
 	// to ensure logs are written without buffering delays.
-	if realtimeLogging {
+	if realtimeLogging.Load() {
 		C.fflush(C.stdout)
 		C.fflush(C.stderr)
 	}
@@ -75,9 +72,8 @@ func loggingOutputHandler(
 	format *C.char,
 	args *C.va_list,
 ) {
-	loggingMutex.Lock()
-	defer loggingMutex.Unlock()
-	currentLoggingOutputHandler(
+	// rclgo_output_handler (logging.go) holds the logging mutex.
+	(*currentLoggingOutputHandler.Load())(
 		unsafe.Pointer(location),
 		int(severity),
 		unsafe.Pointer(name),

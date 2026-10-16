@@ -143,7 +143,7 @@ func (t _BoundingBox2DArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.
 	m := msg.(*BoundingBox2DArray)
 	mem := (*C.vision_msgs__msg__BoundingBox2DArray)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	BoundingBox2D__Sequence_to_C(&mem.boxes, m.Boxes)
+	BoundingBox2D__Sequence_into_C(&mem.boxes, m.Boxes)
 }
 
 func (t _BoundingBox2DArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -170,7 +170,7 @@ func BoundingBox2DArray__Sequence_to_Go(goSlice *[]BoundingBox2DArray, cSlice CB
 		BoundingBox2DArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BoundingBox2DArray__Sequence_to_C(cSlice *CBoundingBox2DArray__Sequence, goSlice []BoundingBox2DArray) {
+func BoundingBox2DArray__Sequence_into_C(cSlice *CBoundingBox2DArray__Sequence, goSlice []BoundingBox2DArray) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -190,7 +190,7 @@ func BoundingBox2DArray__Array_to_Go(goSlice []BoundingBox2DArray, cSlice []CBou
 		BoundingBox2DArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BoundingBox2DArray__Array_to_C(cSlice []CBoundingBox2DArray, goSlice []BoundingBox2DArray) {
+func BoundingBox2DArray__Array_into_C(cSlice []CBoundingBox2DArray, goSlice []BoundingBox2DArray) {
 	for i := 0; i < len(goSlice); i++ {
 		BoundingBox2DArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

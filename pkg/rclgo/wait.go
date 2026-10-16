@@ -9,7 +9,9 @@ import "C"
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sync"
+	"time"
 	"unsafe"
 )
 
@@ -47,13 +49,21 @@ type WaitSet struct {
 }
 
 func NewWaitSet() (*WaitSet, error) {
-	if defaultContext == nil {
+	c := DefaultContext()
+	if c == nil {
 		return nil, errInitNotCalled
 	}
-	return defaultContext.NewWaitSet()
+	return c.NewWaitSet()
 }
 
 func (c *Context) NewWaitSet() (ws *WaitSet, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	// The context must stay usable while the entity is created on it.
+	if !c.life.acquire() {
+		return nil, closedErr("context")
+	}
+	defer c.life.release()
 	const (
 		subscriptionsCount   = 0
 		guardConditionsCount = 0
@@ -90,7 +100,9 @@ func (c *Context) NewWaitSet() (ws *WaitSet, err error) {
 		return nil, err
 	}
 	ws.addGuardConditions(ws.cancelWait)
-	c.addResource(ws)
+	if !c.addResource(ws) {
+		return nil, closedErr("context")
+	}
 	return ws, nil
 }
 
@@ -196,6 +208,8 @@ finalized once Run no longer uses them. Run returns an error when the wait set
 or its context is closed.
 */
 func (w *WaitSet) Run(ctx context.Context) (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if ctx == nil {
 		return errors.New("context must not be nil")
 	}
@@ -229,10 +243,32 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		// Closed between acquiring and publishing stopRun.
 		cancel()
 	}
+	// runDone closes when the wait loop has returned (deferred calls run in
+	// reverse order: before cancel and before errs is read).
+	runDone := make(chan struct{})
+	defer close(runDone)
 	go func() {
 		defer close(errs)
 		<-errctx.Done()
-		errs <- w.cancelWait.Trigger()
+		// rcl_wait waits without a timeout, so the trigger is the only way to
+		// wake it: retry a failed trigger until the loop has returned.
+		for logged := false; ; logged = true {
+			err := w.cancelWait.Trigger()
+			// ErrClosed: the guard condition is finalized, which happens only
+			// after the wait loop has let go of it, so nothing waits on it.
+			if err == nil || errors.Is(err, ErrClosed) {
+				return
+			}
+			if !logged {
+				GetLogger("rclgo").Error("waking the wait set failed, retrying: ", err) //nolint:errcheck
+			}
+			select {
+			case <-runDone:
+				errs <- err
+				return
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
 	}()
 	refresh := false
 	for {
@@ -265,6 +301,11 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 			switch {
 			case guardConditions[i] == nil:
 			case guardConditions[i] == w.cancelWait.rclGuardCondition:
+				if errctx.Err() == nil {
+					// Left triggered by an earlier Run that ended for
+					// another reason; this Run was not asked to stop.
+					break
+				}
 				if err := ctx.Err(); err != nil {
 					return err
 				}
@@ -280,7 +321,10 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		for i, t := range w.Timers {
 			if timers[i] != nil && !t.life.isClosed() {
 				if err := t.call(); err != nil {
-					// The timer was canceled after rcl_wait returned.
+					// Canceled after rcl_wait returned: nothing to do.
+					if !errors.Is(err, errTimerCanceled) {
+						GetLogger("rclgo").Error("timer not called: ", err) //nolint:errcheck
+					}
 					continue
 				}
 				if t.Callback != nil {
@@ -328,19 +372,22 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 // the skip is logged once per entity.
 func (w *WaitSet) acquireEntities() (release func()) {
 	var held []*lifetime
+	// Only entities skipped in this pass are remembered, so the map doesn't
+	// grow as entities come and go.
+	skipped := map[*lifetime]bool{}
+	defer func() { w.skipped = skipped }()
 	keep := func(l *lifetime, describe func() string) bool {
 		ok, otherOwner := l.acquireFor(w)
 		if ok {
 			held = append(held, l)
 			return true
 		}
-		if otherOwner && !w.skipped[l] {
-			if w.skipped == nil {
-				w.skipped = map[*lifetime]bool{}
+		if otherOwner {
+			if !w.skipped[l] {
+				GetLogger("rclgo").Warn(describe() + //nolint:errcheck
+					" is already serviced by another running Spin or wait set; only that one services it")
 			}
-			w.skipped[l] = true
-			GetLogger("rclgo").Warn(describe() + //nolint:errcheck
-				" is already serviced by another running Spin or wait set; only that one services it")
+			skipped[l] = true
 		}
 		return false
 	}
@@ -395,6 +442,8 @@ func (w *WaitSet) stop() {
 }
 
 func (w *WaitSet) initEntities() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !C.rcl_wait_set_is_valid(&w.rcl_wait_set_t) {
 		return errorsCastC(C.RCL_RET_WAIT_SET_INVALID, "rcl_wait_set_is_valid() failed")
 	}
@@ -471,6 +520,8 @@ func (w *WaitSet) Close() error {
 }
 
 func (w *WaitSet) fini() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	rc := C.rcl_wait_set_fini(&w.rcl_wait_set_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))

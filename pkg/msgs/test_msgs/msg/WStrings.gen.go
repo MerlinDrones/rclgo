@@ -160,14 +160,14 @@ func (t _WStringsTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _WStringsTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*WStrings)
 	mem := (*C.test_msgs__msg__WStrings)(dst)
-	primitives.U16StringAsCStruct(unsafe.Pointer(&mem.wstring_value), m.WstringValue)
-	primitives.U16StringAsCStruct(unsafe.Pointer(&mem.wstring_value_default1), m.WstringValueDefault1)
-	primitives.U16StringAsCStruct(unsafe.Pointer(&mem.wstring_value_default2), m.WstringValueDefault2)
-	primitives.U16StringAsCStruct(unsafe.Pointer(&mem.wstring_value_default3), m.WstringValueDefault3)
+	primitives.U16StringIntoC(unsafe.Pointer(&mem.wstring_value), m.WstringValue)
+	primitives.U16StringIntoC(unsafe.Pointer(&mem.wstring_value_default1), m.WstringValueDefault1)
+	primitives.U16StringIntoC(unsafe.Pointer(&mem.wstring_value_default2), m.WstringValueDefault2)
+	primitives.U16StringIntoC(unsafe.Pointer(&mem.wstring_value_default3), m.WstringValueDefault3)
 	cSlice_array_of_wstrings := mem.array_of_wstrings[:]
-	primitives.U16String__Array_to_C(*(*[]primitives.CU16String)(unsafe.Pointer(&cSlice_array_of_wstrings)), m.ArrayOfWstrings[:])
-	primitives.U16String__Sequence_to_C((*primitives.CU16String__Sequence)(unsafe.Pointer(&mem.bounded_sequence_of_wstrings)), m.BoundedSequenceOfWstrings)
-	primitives.U16String__Sequence_to_C((*primitives.CU16String__Sequence)(unsafe.Pointer(&mem.unbounded_sequence_of_wstrings)), m.UnboundedSequenceOfWstrings)
+	primitives.U16String__Array_into_C(*(*[]primitives.CU16String)(unsafe.Pointer(&cSlice_array_of_wstrings)), m.ArrayOfWstrings[:])
+	primitives.U16String__Sequence_into_C((*primitives.CU16String__Sequence)(unsafe.Pointer(&mem.bounded_sequence_of_wstrings)), m.BoundedSequenceOfWstrings)
+	primitives.U16String__Sequence_into_C((*primitives.CU16String__Sequence)(unsafe.Pointer(&mem.unbounded_sequence_of_wstrings)), m.UnboundedSequenceOfWstrings)
 }
 
 func (t _WStringsTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -192,6 +192,7 @@ type CWStrings__Sequence = C.test_msgs__msg__WStrings__Sequence
 
 func WStrings__Sequence_to_Go(goSlice *[]WStrings, cSlice CWStrings__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]WStrings, cSlice.size)
@@ -200,14 +201,17 @@ func WStrings__Sequence_to_Go(goSlice *[]WStrings, cSlice CWStrings__Sequence) {
 		WStringsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func WStrings__Sequence_to_C(cSlice *CWStrings__Sequence, goSlice []WStrings) {
+func WStrings__Sequence_into_C(cSlice *CWStrings__Sequence, goSlice []WStrings) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__WStrings__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__WStrings)(C.malloc(C.sizeof_struct_test_msgs__msg__WStrings * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__WStrings)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__WStrings))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -220,7 +224,7 @@ func WStrings__Array_to_Go(goSlice []WStrings, cSlice []CWStrings) {
 		WStringsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func WStrings__Array_to_C(cSlice []CWStrings, goSlice []WStrings) {
+func WStrings__Array_into_C(cSlice []CWStrings, goSlice []WStrings) {
 	for i := 0; i < len(goSlice); i++ {
 		WStringsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

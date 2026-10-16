@@ -150,9 +150,9 @@ func (t _Detection2DTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message
 	m := msg.(*Detection2D)
 	mem := (*C.vision_msgs__msg__Detection2D)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	ObjectHypothesisWithPose__Sequence_to_C(&mem.results, m.Results)
+	ObjectHypothesisWithPose__Sequence_into_C(&mem.results, m.Results)
 	BoundingBox2DTypeSupport.AsCStruct(unsafe.Pointer(&mem.bbox), &m.Bbox)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.id), m.Id)
+	primitives.StringIntoC(unsafe.Pointer(&mem.id), m.Id)
 }
 
 func (t _Detection2DTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -181,7 +181,7 @@ func Detection2D__Sequence_to_Go(goSlice *[]Detection2D, cSlice CDetection2D__Se
 		Detection2DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Detection2D__Sequence_to_C(cSlice *CDetection2D__Sequence, goSlice []Detection2D) {
+func Detection2D__Sequence_into_C(cSlice *CDetection2D__Sequence, goSlice []Detection2D) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -201,7 +201,7 @@ func Detection2D__Array_to_Go(goSlice []Detection2D, cSlice []CDetection2D) {
 		Detection2DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Detection2D__Array_to_C(cSlice []CDetection2D, goSlice []Detection2D) {
+func Detection2D__Array_into_C(cSlice []CDetection2D, goSlice []Detection2D) {
 	for i := 0; i < len(goSlice); i++ {
 		Detection2DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -23,6 +23,11 @@ var rootCmd = &cobra.Command{
 	Use:   "rclgo-gen",
 	Short: "ROS2 client library in Golang - ROS2 Message generator",
 	Long:  `Call this program to generate Go types for the ROS2 messages found in your ROS2 environment.`,
+	// Execute prints the error once, and exits with status 1.
+	SilenceErrors: true,
+	// Usage is shown for bad flags and arguments, not for failures while
+	// generating.
+	PersistentPreRun: func(cmd *cobra.Command, _ []string) { cmd.SilenceUsage = true },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

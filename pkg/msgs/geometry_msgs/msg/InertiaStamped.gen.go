@@ -159,6 +159,7 @@ type CInertiaStamped__Sequence = C.geometry_msgs__msg__InertiaStamped__Sequence
 
 func InertiaStamped__Sequence_to_Go(goSlice *[]InertiaStamped, cSlice CInertiaStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]InertiaStamped, cSlice.size)
@@ -167,14 +168,17 @@ func InertiaStamped__Sequence_to_Go(goSlice *[]InertiaStamped, cSlice CInertiaSt
 		InertiaStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func InertiaStamped__Sequence_to_C(cSlice *CInertiaStamped__Sequence, goSlice []InertiaStamped) {
+func InertiaStamped__Sequence_into_C(cSlice *CInertiaStamped__Sequence, goSlice []InertiaStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__InertiaStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__InertiaStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__InertiaStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__InertiaStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__InertiaStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +191,7 @@ func InertiaStamped__Array_to_Go(goSlice []InertiaStamped, cSlice []CInertiaStam
 		InertiaStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func InertiaStamped__Array_to_C(cSlice []CInertiaStamped, goSlice []InertiaStamped) {
+func InertiaStamped__Array_into_C(cSlice []CInertiaStamped, goSlice []InertiaStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		InertiaStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

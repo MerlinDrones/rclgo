@@ -154,7 +154,7 @@ func (t _StateTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*State)
 	mem := (*C.lifecycle_msgs__msg__State)(dst)
 	mem.id = C.uint8_t(m.Id)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.label), m.Label)
+	primitives.StringIntoC(unsafe.Pointer(&mem.label), m.Label)
 }
 
 func (t _StateTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -173,6 +173,7 @@ type CState__Sequence = C.lifecycle_msgs__msg__State__Sequence
 
 func State__Sequence_to_Go(goSlice *[]State, cSlice CState__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]State, cSlice.size)
@@ -181,14 +182,17 @@ func State__Sequence_to_Go(goSlice *[]State, cSlice CState__Sequence) {
 		StateTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func State__Sequence_to_C(cSlice *CState__Sequence, goSlice []State) {
+func State__Sequence_into_C(cSlice *CState__Sequence, goSlice []State) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__msg__State__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__msg__State)(C.malloc(C.sizeof_struct_lifecycle_msgs__msg__State * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__msg__State)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__msg__State))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -201,7 +205,7 @@ func State__Array_to_Go(goSlice []State, cSlice []CState) {
 		StateTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func State__Array_to_C(cSlice []CState, goSlice []State) {
+func State__Array_into_C(cSlice []CState, goSlice []State) {
 	for i := 0; i < len(goSlice); i++ {
 		StateTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -141,7 +141,7 @@ func (t _TwistWithCovarianceTypeSupport) AsCStruct(dst unsafe.Pointer, msg types
 	mem := (*C.geometry_msgs__msg__TwistWithCovariance)(dst)
 	TwistTypeSupport.AsCStruct(unsafe.Pointer(&mem.twist), &m.Twist)
 	cSlice_covariance := mem.covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_covariance)), m.Covariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_covariance)), m.Covariance[:])
 }
 
 func (t _TwistWithCovarianceTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -161,6 +161,7 @@ type CTwistWithCovariance__Sequence = C.geometry_msgs__msg__TwistWithCovariance_
 
 func TwistWithCovariance__Sequence_to_Go(goSlice *[]TwistWithCovariance, cSlice CTwistWithCovariance__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]TwistWithCovariance, cSlice.size)
@@ -169,14 +170,17 @@ func TwistWithCovariance__Sequence_to_Go(goSlice *[]TwistWithCovariance, cSlice 
 		TwistWithCovarianceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TwistWithCovariance__Sequence_to_C(cSlice *CTwistWithCovariance__Sequence, goSlice []TwistWithCovariance) {
+func TwistWithCovariance__Sequence_into_C(cSlice *CTwistWithCovariance__Sequence, goSlice []TwistWithCovariance) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__TwistWithCovariance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__TwistWithCovariance)(C.malloc(C.sizeof_struct_geometry_msgs__msg__TwistWithCovariance * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__TwistWithCovariance)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__TwistWithCovariance))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -189,7 +193,7 @@ func TwistWithCovariance__Array_to_Go(goSlice []TwistWithCovariance, cSlice []CT
 		TwistWithCovarianceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TwistWithCovariance__Array_to_C(cSlice []CTwistWithCovariance, goSlice []TwistWithCovariance) {
+func TwistWithCovariance__Array_into_C(cSlice []CTwistWithCovariance, goSlice []TwistWithCovariance) {
 	for i := 0; i < len(goSlice); i++ {
 		TwistWithCovarianceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

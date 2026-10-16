@@ -54,6 +54,7 @@ go run ./cmd/rclgo-gen generate \
   --include-package example_interfaces \
   --include-package test_msgs \
   --include-package action_msgs \
+  --include-package action_tutorials_interfaces \
   --include-package vision_msgs \
   --include-package builtin_interfaces \
   --include-package unique_identifier_msgs \

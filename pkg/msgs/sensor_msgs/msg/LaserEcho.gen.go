@@ -139,7 +139,7 @@ func (t _LaserEchoTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _LaserEchoTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*LaserEcho)
 	mem := (*C.sensor_msgs__msg__LaserEcho)(dst)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.echoes)), m.Echoes)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.echoes)), m.Echoes)
 }
 
 func (t _LaserEchoTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -157,6 +157,7 @@ type CLaserEcho__Sequence = C.sensor_msgs__msg__LaserEcho__Sequence
 
 func LaserEcho__Sequence_to_Go(goSlice *[]LaserEcho, cSlice CLaserEcho__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]LaserEcho, cSlice.size)
@@ -165,14 +166,17 @@ func LaserEcho__Sequence_to_Go(goSlice *[]LaserEcho, cSlice CLaserEcho__Sequence
 		LaserEchoTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func LaserEcho__Sequence_to_C(cSlice *CLaserEcho__Sequence, goSlice []LaserEcho) {
+func LaserEcho__Sequence_into_C(cSlice *CLaserEcho__Sequence, goSlice []LaserEcho) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__LaserEcho__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__LaserEcho)(C.malloc(C.sizeof_struct_sensor_msgs__msg__LaserEcho * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__LaserEcho)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__LaserEcho))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -185,7 +189,7 @@ func LaserEcho__Array_to_Go(goSlice []LaserEcho, cSlice []CLaserEcho) {
 		LaserEchoTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func LaserEcho__Array_to_C(cSlice []CLaserEcho, goSlice []LaserEcho) {
+func LaserEcho__Array_into_C(cSlice []CLaserEcho, goSlice []LaserEcho) {
 	for i := 0; i < len(goSlice); i++ {
 		LaserEchoTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

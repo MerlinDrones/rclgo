@@ -158,6 +158,7 @@ type CPolygonInstance__Sequence = C.geometry_msgs__msg__PolygonInstance__Sequenc
 
 func PolygonInstance__Sequence_to_Go(goSlice *[]PolygonInstance, cSlice CPolygonInstance__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]PolygonInstance, cSlice.size)
@@ -166,14 +167,17 @@ func PolygonInstance__Sequence_to_Go(goSlice *[]PolygonInstance, cSlice CPolygon
 		PolygonInstanceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PolygonInstance__Sequence_to_C(cSlice *CPolygonInstance__Sequence, goSlice []PolygonInstance) {
+func PolygonInstance__Sequence_into_C(cSlice *CPolygonInstance__Sequence, goSlice []PolygonInstance) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__PolygonInstance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__PolygonInstance)(C.malloc(C.sizeof_struct_geometry_msgs__msg__PolygonInstance * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__PolygonInstance)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__PolygonInstance))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -186,7 +190,7 @@ func PolygonInstance__Array_to_Go(goSlice []PolygonInstance, cSlice []CPolygonIn
 		PolygonInstanceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PolygonInstance__Array_to_C(cSlice []CPolygonInstance, goSlice []PolygonInstance) {
+func PolygonInstance__Array_into_C(cSlice []CPolygonInstance, goSlice []PolygonInstance) {
 	for i := 0; i < len(goSlice); i++ {
 		PolygonInstanceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

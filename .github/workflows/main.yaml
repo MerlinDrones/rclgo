@@ -22,11 +22,26 @@ jobs:
           apt-get install -y \
             make \
             ros-jazzy-action-msgs \
+            ros-jazzy-action-tutorials-interfaces \
+            ros-jazzy-action-tutorials-cpp \
+            ros-jazzy-demo-nodes-cpp \
+            ros-jazzy-demo-nodes-py \
+            ros-jazzy-rmw-cyclonedds-cpp \
+            ros-jazzy-rmw-zenoh-cpp \
             ros-jazzy-example-interfaces \
             ros-jazzy-test-msgs
 
-      - name: Run tests
-        run: make test
+      - name: Run tests with the race detector
+        run: make test-race
+
+      - name: Run tests on every installed RMW
+        run: make test-rmw
+
+      - name: Make every rcl call fail in turn
+        run: make test-faults
+
+      - name: Check test coverage
+        run: make cover
 
   run-linter:
     runs-on: ubuntu-latest
@@ -40,6 +55,7 @@ jobs:
           apt-get update
           apt-get install -y \
             ros-jazzy-action-msgs \
+            ros-jazzy-action-tutorials-interfaces \
             ros-jazzy-example-interfaces \
             ros-jazzy-test-msgs
           env > "$GITHUB_ENV"

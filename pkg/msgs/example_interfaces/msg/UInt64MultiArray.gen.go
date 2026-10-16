@@ -143,7 +143,7 @@ func (t _UInt64MultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*UInt64MultiArray)
 	mem := (*C.example_interfaces__msg__UInt64MultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Uint64__Sequence_to_C((*primitives.CUint64__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Uint64__Sequence_into_C((*primitives.CUint64__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _UInt64MultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -162,6 +162,7 @@ type CUInt64MultiArray__Sequence = C.example_interfaces__msg__UInt64MultiArray__
 
 func UInt64MultiArray__Sequence_to_Go(goSlice *[]UInt64MultiArray, cSlice CUInt64MultiArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]UInt64MultiArray, cSlice.size)
@@ -170,14 +171,17 @@ func UInt64MultiArray__Sequence_to_Go(goSlice *[]UInt64MultiArray, cSlice CUInt6
 		UInt64MultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func UInt64MultiArray__Sequence_to_C(cSlice *CUInt64MultiArray__Sequence, goSlice []UInt64MultiArray) {
+func UInt64MultiArray__Sequence_into_C(cSlice *CUInt64MultiArray__Sequence, goSlice []UInt64MultiArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__UInt64MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__UInt64MultiArray)(C.malloc(C.sizeof_struct_example_interfaces__msg__UInt64MultiArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__UInt64MultiArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__UInt64MultiArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +194,7 @@ func UInt64MultiArray__Array_to_Go(goSlice []UInt64MultiArray, cSlice []CUInt64M
 		UInt64MultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func UInt64MultiArray__Array_to_C(cSlice []CUInt64MultiArray, goSlice []UInt64MultiArray) {
+func UInt64MultiArray__Array_into_C(cSlice []CUInt64MultiArray, goSlice []UInt64MultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		UInt64MultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

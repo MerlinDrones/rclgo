@@ -30,13 +30,13 @@ var CancelGoalTypeSupport = pub.CancelGoalTypeSupport
 var CancelGoal_RequestTypeSupport = pub.CancelGoal_RequestTypeSupport
 var CancelGoal_ResponseTypeSupport = pub.CancelGoal_ResponseTypeSupport
 
-var CancelGoal_Request__Array_to_C = pub.CancelGoal_Request__Array_to_C
+var CancelGoal_Request__Array_into_C = pub.CancelGoal_Request__Array_into_C
 var CancelGoal_Request__Array_to_Go = pub.CancelGoal_Request__Array_to_Go
-var CancelGoal_Request__Sequence_to_C = pub.CancelGoal_Request__Sequence_to_C
+var CancelGoal_Request__Sequence_into_C = pub.CancelGoal_Request__Sequence_into_C
 var CancelGoal_Request__Sequence_to_Go = pub.CancelGoal_Request__Sequence_to_Go
-var CancelGoal_Response__Array_to_C = pub.CancelGoal_Response__Array_to_C
+var CancelGoal_Response__Array_into_C = pub.CancelGoal_Response__Array_into_C
 var CancelGoal_Response__Array_to_Go = pub.CancelGoal_Response__Array_to_Go
-var CancelGoal_Response__Sequence_to_C = pub.CancelGoal_Response__Sequence_to_C
+var CancelGoal_Response__Sequence_into_C = pub.CancelGoal_Response__Sequence_into_C
 var CancelGoal_Response__Sequence_to_Go = pub.CancelGoal_Response__Sequence_to_Go
 var CloneCancelGoal_RequestSlice = pub.CloneCancelGoal_RequestSlice
 var CloneCancelGoal_ResponseSlice = pub.CloneCancelGoal_ResponseSlice

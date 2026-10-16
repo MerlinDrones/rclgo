@@ -162,10 +162,10 @@ func (t _JointStateTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message)
 	m := msg.(*JointState)
 	mem := (*C.sensor_msgs__msg__JointState)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.name)), m.Name)
-	primitives.Float64__Sequence_to_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.position)), m.Position)
-	primitives.Float64__Sequence_to_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.velocity)), m.Velocity)
-	primitives.Float64__Sequence_to_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.effort)), m.Effort)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.name)), m.Name)
+	primitives.Float64__Sequence_into_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.position)), m.Position)
+	primitives.Float64__Sequence_into_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.velocity)), m.Velocity)
+	primitives.Float64__Sequence_into_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.effort)), m.Effort)
 }
 
 func (t _JointStateTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -187,6 +187,7 @@ type CJointState__Sequence = C.sensor_msgs__msg__JointState__Sequence
 
 func JointState__Sequence_to_Go(goSlice *[]JointState, cSlice CJointState__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]JointState, cSlice.size)
@@ -195,14 +196,17 @@ func JointState__Sequence_to_Go(goSlice *[]JointState, cSlice CJointState__Seque
 		JointStateTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func JointState__Sequence_to_C(cSlice *CJointState__Sequence, goSlice []JointState) {
+func JointState__Sequence_into_C(cSlice *CJointState__Sequence, goSlice []JointState) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__JointState__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__JointState)(C.malloc(C.sizeof_struct_sensor_msgs__msg__JointState * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__JointState)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__JointState))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -215,7 +219,7 @@ func JointState__Array_to_Go(goSlice []JointState, cSlice []CJointState) {
 		JointStateTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func JointState__Array_to_C(cSlice []CJointState, goSlice []JointState) {
+func JointState__Array_into_C(cSlice []CJointState, goSlice []JointState) {
 	for i := 0; i < len(goSlice); i++ {
 		JointStateTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

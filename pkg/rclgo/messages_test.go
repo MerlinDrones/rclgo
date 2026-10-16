@@ -143,6 +143,15 @@ func TestPublishSubscribeRoundTrip(t *testing.T) {
 	}
 }
 
+// Deserialize rejects input too short to hold the CDR header, for every RMW
+// (Cyclone DDS crashes on an empty buffer if it gets one).
+func TestDeserializeRejectsShortInput(t *testing.T) {
+	for _, n := range []int{0, 1, 3} {
+		_, err := rclgo.Deserialize(make([]byte, n), test_msgs.ArraysTypeSupport)
+		require.Error(t, err, "%d bytes", n)
+	}
+}
+
 // PublishSerialized and TakeSerializedMessage move CDR bytes unchanged.
 func TestSerializedPublishAndTake(t *testing.T) {
 	rclctx := newSpinTestContext(t)

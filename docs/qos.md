@@ -45,7 +45,7 @@ qos.NewSensorDataProfile()
 // KeepLast(5), BestEffort, Volatile, LivelinessAutomatic
 
 qos.NewParameterEventsProfile()
-// KeepAll, Reliable, TransientLocal, LivelinessAutomatic
+// KeepLast(1000), Reliable, Volatile (as rmw_qos_profile_parameter_events)
 ```
 
 Use a preset as a base, then tweak what you need:
@@ -98,7 +98,8 @@ A quick cheat sheet:
 * **Sensor streams (cameras, IMU, LIDAR):** `SensorData` (BestEffort, small KeepLast) to minimize latency and drop old frames under load.
 * **Status/telemetry where message loss is ok:** BestEffort + small depth.
 * **Commands/config where delivery matters:** Reliable + KeepLast(depth≥1).
-* **Parameter events / latched-like behavior:** Reliable + TransientLocal (+ KeepAll).
+* **Latched-like behavior (late subscribers get the last value):** Reliable + TransientLocal + KeepLast(1).
+* **Parameter events:** `NewParameterEventsProfile()`, as rclcpp/rclpy use (no history for late subscribers).
 * **Clock/time sync topics:** `Clock` (BestEffort, KeepLast(1)).
 
 If you mix profiles across publishers/subscribers on the same topic, ROS 2 uses compatibility rules. A common pitfall is pairing a BestEffort subscriber with a Reliable publisher across lossy networks—prefer matching policies unless you have a reason not to.
@@ -130,7 +131,7 @@ If you mix profiles across publishers/subscribers on the same topic, ROS 2 uses 
   requests in bursts, raise `Depth` on both sides (e.g. `ServiceOptions.Qos`/`ClientOptions.Qos`, or
   `GoalServiceQos`/`CancelServiceQos`/`ResultServiceQos` in `ActionServerOptions` and `ActionClientOptions`), or use
   `HistoryKeepAll`.
-* **Late joiners see nothing:** Use `TransientLocal` on the publisher if you need late subscribers to get the last value (e.g., parameter or latched-like topics).
+* **Late joiners see nothing:** Use `TransientLocal` on the publisher if you need late subscribers to get the last value (e.g., latched-like topics such as a map or a robot description).
 * **IDE builds fail but terminal passes:** your IDE likely isn’t inheriting the environment used in your shell (include/lib paths, `GOCACHE`). See the cgo notes above.
 
 ---

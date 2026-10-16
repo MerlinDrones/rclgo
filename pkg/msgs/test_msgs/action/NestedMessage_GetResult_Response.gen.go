@@ -158,6 +158,7 @@ type CNestedMessage_GetResult_Response__Sequence = C.test_msgs__action__NestedMe
 
 func NestedMessage_GetResult_Response__Sequence_to_Go(goSlice *[]NestedMessage_GetResult_Response, cSlice CNestedMessage_GetResult_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]NestedMessage_GetResult_Response, cSlice.size)
@@ -166,14 +167,17 @@ func NestedMessage_GetResult_Response__Sequence_to_Go(goSlice *[]NestedMessage_G
 		NestedMessage_GetResult_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NestedMessage_GetResult_Response__Sequence_to_C(cSlice *CNestedMessage_GetResult_Response__Sequence, goSlice []NestedMessage_GetResult_Response) {
+func NestedMessage_GetResult_Response__Sequence_into_C(cSlice *CNestedMessage_GetResult_Response__Sequence, goSlice []NestedMessage_GetResult_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__NestedMessage_GetResult_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__NestedMessage_GetResult_Response)(C.malloc(C.sizeof_struct_test_msgs__action__NestedMessage_GetResult_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__NestedMessage_GetResult_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__NestedMessage_GetResult_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -186,7 +190,7 @@ func NestedMessage_GetResult_Response__Array_to_Go(goSlice []NestedMessage_GetRe
 		NestedMessage_GetResult_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NestedMessage_GetResult_Response__Array_to_C(cSlice []CNestedMessage_GetResult_Response, goSlice []NestedMessage_GetResult_Response) {
+func NestedMessage_GetResult_Response__Array_into_C(cSlice []CNestedMessage_GetResult_Response, goSlice []NestedMessage_GetResult_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedMessage_GetResult_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

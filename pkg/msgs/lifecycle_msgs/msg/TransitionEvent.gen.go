@@ -168,6 +168,7 @@ type CTransitionEvent__Sequence = C.lifecycle_msgs__msg__TransitionEvent__Sequen
 
 func TransitionEvent__Sequence_to_Go(goSlice *[]TransitionEvent, cSlice CTransitionEvent__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]TransitionEvent, cSlice.size)
@@ -176,14 +177,17 @@ func TransitionEvent__Sequence_to_Go(goSlice *[]TransitionEvent, cSlice CTransit
 		TransitionEventTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TransitionEvent__Sequence_to_C(cSlice *CTransitionEvent__Sequence, goSlice []TransitionEvent) {
+func TransitionEvent__Sequence_into_C(cSlice *CTransitionEvent__Sequence, goSlice []TransitionEvent) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__msg__TransitionEvent__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__msg__TransitionEvent)(C.malloc(C.sizeof_struct_lifecycle_msgs__msg__TransitionEvent * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__msg__TransitionEvent)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__msg__TransitionEvent))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -196,7 +200,7 @@ func TransitionEvent__Array_to_Go(goSlice []TransitionEvent, cSlice []CTransitio
 		TransitionEventTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TransitionEvent__Array_to_C(cSlice []CTransitionEvent, goSlice []TransitionEvent) {
+func TransitionEvent__Array_into_C(cSlice []CTransitionEvent, goSlice []TransitionEvent) {
 	for i := 0; i < len(goSlice); i++ {
 		TransitionEventTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -140,7 +140,7 @@ func (t _Trigger_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*Trigger_Response)
 	mem := (*C.std_srvs__srv__Trigger_Response)(dst)
 	mem.success = C.bool(m.Success)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.message), m.Message)
+	primitives.StringIntoC(unsafe.Pointer(&mem.message), m.Message)
 }
 
 func (t _Trigger_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -159,6 +159,7 @@ type CTrigger_Response__Sequence = C.std_srvs__srv__Trigger_Response__Sequence
 
 func Trigger_Response__Sequence_to_Go(goSlice *[]Trigger_Response, cSlice CTrigger_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Trigger_Response, cSlice.size)
@@ -167,14 +168,17 @@ func Trigger_Response__Sequence_to_Go(goSlice *[]Trigger_Response, cSlice CTrigg
 		Trigger_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Trigger_Response__Sequence_to_C(cSlice *CTrigger_Response__Sequence, goSlice []Trigger_Response) {
+func Trigger_Response__Sequence_into_C(cSlice *CTrigger_Response__Sequence, goSlice []Trigger_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_srvs__srv__Trigger_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_srvs__srv__Trigger_Response)(C.malloc(C.sizeof_struct_std_srvs__srv__Trigger_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_srvs__srv__Trigger_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_srvs__srv__Trigger_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +191,7 @@ func Trigger_Response__Array_to_Go(goSlice []Trigger_Response, cSlice []CTrigger
 		Trigger_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Trigger_Response__Array_to_C(cSlice []CTrigger_Response, goSlice []Trigger_Response) {
+func Trigger_Response__Array_into_C(cSlice []CTrigger_Response, goSlice []Trigger_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		Trigger_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

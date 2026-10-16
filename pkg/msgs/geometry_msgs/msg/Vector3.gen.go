@@ -163,6 +163,7 @@ type CVector3__Sequence = C.geometry_msgs__msg__Vector3__Sequence
 
 func Vector3__Sequence_to_Go(goSlice *[]Vector3, cSlice CVector3__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Vector3, cSlice.size)
@@ -171,14 +172,17 @@ func Vector3__Sequence_to_Go(goSlice *[]Vector3, cSlice CVector3__Sequence) {
 		Vector3TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Vector3__Sequence_to_C(cSlice *CVector3__Sequence, goSlice []Vector3) {
+func Vector3__Sequence_into_C(cSlice *CVector3__Sequence, goSlice []Vector3) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Vector3__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Vector3)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Vector3 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Vector3)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Vector3))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -191,7 +195,7 @@ func Vector3__Array_to_Go(goSlice []Vector3, cSlice []CVector3) {
 		Vector3TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Vector3__Array_to_C(cSlice []CVector3, goSlice []Vector3) {
+func Vector3__Array_into_C(cSlice []CVector3, goSlice []Vector3) {
 	for i := 0; i < len(goSlice); i++ {
 		Vector3TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -166,6 +166,7 @@ type CFibonacci_FeedbackMessage__Sequence = C.test_msgs__action__Fibonacci_Feedb
 
 func Fibonacci_FeedbackMessage__Sequence_to_Go(goSlice *[]Fibonacci_FeedbackMessage, cSlice CFibonacci_FeedbackMessage__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Fibonacci_FeedbackMessage, cSlice.size)
@@ -174,14 +175,17 @@ func Fibonacci_FeedbackMessage__Sequence_to_Go(goSlice *[]Fibonacci_FeedbackMess
 		Fibonacci_FeedbackMessageTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Fibonacci_FeedbackMessage__Sequence_to_C(cSlice *CFibonacci_FeedbackMessage__Sequence, goSlice []Fibonacci_FeedbackMessage) {
+func Fibonacci_FeedbackMessage__Sequence_into_C(cSlice *CFibonacci_FeedbackMessage__Sequence, goSlice []Fibonacci_FeedbackMessage) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__Fibonacci_FeedbackMessage__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__Fibonacci_FeedbackMessage)(C.malloc(C.sizeof_struct_test_msgs__action__Fibonacci_FeedbackMessage * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__Fibonacci_FeedbackMessage)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__Fibonacci_FeedbackMessage))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -194,7 +198,7 @@ func Fibonacci_FeedbackMessage__Array_to_Go(goSlice []Fibonacci_FeedbackMessage,
 		Fibonacci_FeedbackMessageTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Fibonacci_FeedbackMessage__Array_to_C(cSlice []CFibonacci_FeedbackMessage, goSlice []Fibonacci_FeedbackMessage) {
+func Fibonacci_FeedbackMessage__Array_into_C(cSlice []CFibonacci_FeedbackMessage, goSlice []Fibonacci_FeedbackMessage) {
 	for i := 0; i < len(goSlice); i++ {
 		Fibonacci_FeedbackMessageTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

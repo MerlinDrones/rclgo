@@ -27,6 +27,9 @@ type lifetime struct {
 	users   int
 	closed  bool
 	pending func()
+	// finalized is set when the handle's finalizer starts; the handle must
+	// not be used after that.
+	finalized bool
 
 	// owner is the wait set that services the entity while it runs. Another
 	// running wait set skips the entity, so each message or request is
@@ -41,6 +44,20 @@ func (l *lifetime) acquire() bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.closed {
+		return false
+	}
+	l.users++
+	return true
+}
+
+// use registers a user of the handle as long as it has not been finalized,
+// even if the entity is already closed. It is for operations that must still
+// work on a closing entity whose handle a wait set keeps alive, such as waking
+// that wait set.
+func (l *lifetime) use() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.finalized {
 		return false
 	}
 	l.users++
@@ -99,6 +116,9 @@ func (l *lifetime) releaseLocked() {
 	var run func()
 	if l.users == 0 {
 		run, l.pending = l.pending, nil
+		if run != nil {
+			l.finalized = true
+		}
 	}
 	l.mu.Unlock()
 	if run != nil {
@@ -130,6 +150,7 @@ func (l *lifetime) markClosed() bool {
 func (l *lifetime) finalize(parent *lifetime, kind string, fini func() error) error {
 	l.mu.Lock()
 	if l.users == 0 {
+		l.finalized = true
 		l.mu.Unlock()
 		return fini()
 	}

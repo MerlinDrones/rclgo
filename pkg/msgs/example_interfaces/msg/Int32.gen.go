@@ -153,6 +153,7 @@ type CInt32__Sequence = C.example_interfaces__msg__Int32__Sequence
 
 func Int32__Sequence_to_Go(goSlice *[]Int32, cSlice CInt32__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Int32, cSlice.size)
@@ -161,14 +162,17 @@ func Int32__Sequence_to_Go(goSlice *[]Int32, cSlice CInt32__Sequence) {
 		Int32TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Int32__Sequence_to_C(cSlice *CInt32__Sequence, goSlice []Int32) {
+func Int32__Sequence_into_C(cSlice *CInt32__Sequence, goSlice []Int32) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__Int32__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__Int32)(C.malloc(C.sizeof_struct_example_interfaces__msg__Int32 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__Int32)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__Int32))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +185,7 @@ func Int32__Array_to_Go(goSlice []Int32, cSlice []CInt32) {
 		Int32TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Int32__Array_to_C(cSlice []CInt32, goSlice []Int32) {
+func Int32__Array_into_C(cSlice []CInt32, goSlice []Int32) {
 	for i := 0; i < len(goSlice); i++ {
 		Int32TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}
