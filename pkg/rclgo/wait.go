@@ -9,20 +9,13 @@ import "C"
 import (
 	"context"
 	"errors"
-	"fmt"
-	"sync/atomic"
+	"sync"
 	"unsafe"
 )
 
-type singleUse atomic.Bool
-
-func (s *singleUse) reserve() bool {
-	return (*atomic.Bool)(s).CompareAndSwap(false, true)
-}
-
-func (s *singleUse) release() {
-	(*atomic.Bool)(s).Store(false)
-}
+// errWaitSetClosed is returned by Run when the wait set or its context is
+// closed while it runs.
+var errWaitSetClosed = errors.New("wait set was closed")
 
 type WaitSet struct {
 	rosID
@@ -36,6 +29,21 @@ type WaitSet struct {
 	rcl_wait_set_t  C.rcl_wait_set_t
 	cancelWait      *guardCondition
 	context         *Context
+
+	// source, if set, is the resource store the entity lists are rebuilt
+	// from whenever refresh is triggered (see followResources).
+	source  *rosResourceStore
+	refresh *guardCondition
+
+	life lifetime
+
+	// stopRun, while Run is running, makes it return.
+	stopMu  sync.Mutex
+	stopRun context.CancelFunc
+
+	// skipped records entities left to another running wait set, so that
+	// each is reported once.
+	skipped map[*lifetime]bool
 }
 
 func NewWaitSet() (*WaitSet, error) {
@@ -119,13 +127,51 @@ func (w *WaitSet) addGuardConditions(guardConditions ...*guardCondition) {
 	w.guardConditions = append(w.guardConditions, guardConditions...)
 }
 
+// followResources makes w wait for the resources in store and rebuild its
+// entity lists whenever a resource is added to or removed from store or the
+// stores of its nodes.
+func (w *WaitSet) followResources(store *rosResourceStore) (err error) {
+	w.refresh, err = w.context.newGuardCondition()
+	if err != nil {
+		return err
+	}
+	w.addGuardConditions(w.refresh)
+	w.source = store
+	// Register before the first sync so that a resource added in between
+	// still triggers a refresh.
+	w.context.addSpinner(w)
+	w.syncResources()
+	return nil
+}
+
+// syncResources replaces the entity lists of w with the resources currently in
+// w.source.
+func (w *WaitSet) syncResources() {
+	w.Subscriptions = w.Subscriptions[:0]
+	w.Timers = w.Timers[:0]
+	w.Services = w.Services[:0]
+	w.Clients = w.Clients[:0]
+	w.ActionServers = w.ActionServers[:0]
+	w.ActionClients = w.ActionClients[:0]
+	w.addResources(w.source)
+}
+
 func (w *WaitSet) addResources(res *rosResourceStore) {
+	res.mutex.Lock()
+	defer res.mutex.Unlock()
 	for _, res := range res.resources {
 		switch res := res.(type) {
 		case *Subscription:
-			w.AddSubscriptions(res)
+			// A subscription without a callback is read by its owner with
+			// TakeMessage. Waiting on it would make Spin consume or spin
+			// on messages the owner is polling for.
+			if res.Callback != nil {
+				w.AddSubscriptions(res)
+			}
 		case *Timer:
-			w.AddTimers(res)
+			if res.Callback != nil {
+				w.AddTimers(res)
+			}
 		case *Service:
 			w.AddServices(res)
 		case *Client:
@@ -144,45 +190,26 @@ func (w *WaitSet) addResources(res *rosResourceStore) {
 /*
 Run causes the current goroutine to block on this given WaitSet.
 WaitSet executes the given timers and subscriptions and calls their callbacks on new events.
+
+Entities closed while Run is running are dropped, and their rcl handles are
+finalized once Run no longer uses them. Run returns an error when the wait set
+or its context is closed.
 */
 func (w *WaitSet) Run(ctx context.Context) (err error) {
-	for _, subscription := range w.Subscriptions {
-		if subscription.waitable.reserve() {
-			defer subscription.waitable.release()
-		}
-	}
-	for _, timer := range w.Timers {
-		if timer.waitable.reserve() {
-			defer timer.waitable.release()
-		}
-	}
-	for _, service := range w.Services {
-		if service.waitable.reserve() {
-			defer service.waitable.release()
-		}
-	}
-	for _, client := range w.Clients {
-		if client.waitable.reserve() {
-			defer client.waitable.release()
-		}
-	}
-	for _, actionClient := range w.ActionClients {
-		if actionClient.waitable.reserve() {
-			defer actionClient.waitable.release()
-		}
-	}
-	for _, actionServer := range w.ActionServers {
-		if actionServer.waitable.reserve() {
-			defer actionServer.waitable.release()
-		}
-	}
-	for _, guardCondition := range w.guardConditions {
-		if guardCondition.waitable.reserve() {
-			defer guardCondition.waitable.release()
-		}
-	}
 	if ctx == nil {
 		return errors.New("context must not be nil")
+	}
+	if !w.life.acquire() {
+		return errWaitSetClosed
+	}
+	defer w.life.release()
+	// After releasing its entities, wake the other spinning wait sets so
+	// they pick up the entities this one serviced.
+	defer w.context.resourcesChanged()
+	release := w.acquireEntities()
+	defer func() { release() }()
+	if !w.hasGuardCondition(w.cancelWait) {
+		return errWaitSetClosed
 	}
 	errs := make(chan error, 1)
 	defer func() {
@@ -190,12 +217,43 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 	}()
 	errctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	w.stopMu.Lock()
+	w.stopRun = cancel
+	w.stopMu.Unlock()
+	defer func() {
+		w.stopMu.Lock()
+		w.stopRun = nil
+		w.stopMu.Unlock()
+	}()
+	if w.life.isClosed() {
+		// Closed between acquiring and publishing stopRun.
+		cancel()
+	}
 	go func() {
 		defer close(errs)
 		<-errctx.Done()
 		errs <- w.cancelWait.Trigger()
 	}()
+	refresh := false
 	for {
+		if refresh {
+			// Acquire the new set before releasing the old one, so that
+			// entities this wait set services stay owned by it.
+			previous := release
+			w.syncResources()
+			release = w.acquireEntities()
+			previous()
+			refresh = false
+		}
+		// Closing the wait set (or its context) also closes its own
+		// guard conditions; a refresh then drops cancelWait, and its
+		// trigger would go unseen. Check before every wait.
+		if w.life.isClosed() || !w.hasGuardCondition(w.cancelWait) {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			return errWaitSetClosed
+		}
 		if err := w.initEntities(); err != nil {
 			return err
 		}
@@ -204,51 +262,145 @@ func (w *WaitSet) Run(ctx context.Context) (err error) {
 		}
 		guardConditions := unsafe.Slice(w.rcl_wait_set_t.guard_conditions, len(w.guardConditions))
 		for i := range w.guardConditions {
-			if guardConditions[i] == w.cancelWait.rclGuardCondition {
-				return ctx.Err()
+			switch {
+			case guardConditions[i] == nil:
+			case guardConditions[i] == w.cancelWait.rclGuardCondition:
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				return errWaitSetClosed
+			case w.refresh != nil && guardConditions[i] == w.refresh.rclGuardCondition:
+				refresh = true
 			}
 		}
 		timers := unsafe.Slice(w.rcl_wait_set_t.timers, len(w.Timers))
+		// An entity may be closed by a callback that ran earlier in
+		// this loop; its handle stays valid until the next refresh, but
+		// it must not be serviced any more.
 		for i, t := range w.Timers {
-			if timers[i] != nil {
-				t.Reset() //nolint:errcheck
-				t.Callback(t)
+			if timers[i] != nil && !t.life.isClosed() {
+				if err := t.call(); err != nil {
+					// The timer was canceled after rcl_wait returned.
+					continue
+				}
+				if t.Callback != nil {
+					t.Callback(t)
+				}
 			}
 		}
 		subs := unsafe.Slice(w.rcl_wait_set_t.subscriptions, len(w.Subscriptions))
 		for i, s := range w.Subscriptions {
-			if subs[i] != nil {
+			if subs[i] != nil && s.Callback != nil && !s.life.isClosed() {
 				s.Callback(s)
 			}
 		}
 		svcs := unsafe.Slice(w.rcl_wait_set_t.services, len(w.Services))
 		for i, s := range w.Services {
-			if svcs[i] != nil {
+			if svcs[i] != nil && !s.life.isClosed() {
 				s.handleRequest()
 			}
 		}
 		clients := unsafe.Slice(w.rcl_wait_set_t.clients, len(w.Clients))
 		for i, c := range w.Clients {
-			if clients[i] != nil {
+			if clients[i] != nil && !c.life.isClosed() {
 				c.sender.HandleResponse()
 			}
 		}
 		for _, s := range w.ActionServers {
-			s.handleReadyEntities(ctx, w)
+			if !s.life.isClosed() {
+				s.handleReadyEntities(w)
+			}
 		}
 		for _, c := range w.ActionClients {
-			c.handleReadyEntities(w)
+			if !c.life.isClosed() {
+				c.handleReadyEntities(w)
+			}
 		}
+	}
+}
+
+// acquireEntities registers w as a user of its entities, so that closing them
+// defers their finalization, and drops the entities that are already closed
+// from its lists. The returned function releases them.
+//
+// An entity that another running wait set already services is skipped, so
+// that it is serviced once; the first wait set keeps it until it stops, and
+// the skip is logged once per entity.
+func (w *WaitSet) acquireEntities() (release func()) {
+	var held []*lifetime
+	keep := func(l *lifetime, describe func() string) bool {
+		ok, otherOwner := l.acquireFor(w)
+		if ok {
+			held = append(held, l)
+			return true
+		}
+		if otherOwner && !w.skipped[l] {
+			if w.skipped == nil {
+				w.skipped = map[*lifetime]bool{}
+			}
+			w.skipped[l] = true
+			GetLogger("rclgo").Warn(describe() + //nolint:errcheck
+				" is already serviced by another running Spin or wait set; only that one services it")
+		}
+		return false
+	}
+	w.Subscriptions = filterEntities(w.Subscriptions, func(s *Subscription) bool {
+		return keep(&s.life, func() string { return "subscription to " + s.TopicName })
+	})
+	w.Timers = filterEntities(w.Timers, func(t *Timer) bool { return keep(&t.life, func() string { return "a timer" }) })
+	w.Services = filterEntities(w.Services, func(s *Service) bool { return keep(&s.life, func() string { return "a service" }) })
+	w.Clients = filterEntities(w.Clients, func(c *Client) bool { return keep(&c.life, func() string { return "a client" }) })
+	w.ActionClients = filterEntities(w.ActionClients, func(c *ActionClient) bool {
+		return keep(&c.life, func() string { return "an action client" })
+	})
+	w.ActionServers = filterEntities(w.ActionServers, func(s *ActionServer) bool {
+		return keep(&s.life, func() string { return "an action server" })
+	})
+	w.guardConditions = filterEntities(w.guardConditions, func(g *guardCondition) bool {
+		return keep(&g.life, func() string { return "a guard condition" })
+	})
+	return func() {
+		for _, l := range held {
+			l.releaseFor(w)
+		}
+	}
+}
+
+func filterEntities[T any](entities []T, keep func(T) bool) []T {
+	kept := entities[:0]
+	for _, e := range entities {
+		if keep(e) {
+			kept = append(kept, e)
+		}
+	}
+	return kept
+}
+
+func (w *WaitSet) hasGuardCondition(g *guardCondition) bool {
+	for _, gc := range w.guardConditions {
+		if gc == g {
+			return true
+		}
+	}
+	return false
+}
+
+// stop makes Run return if it is running.
+func (w *WaitSet) stop() {
+	w.stopMu.Lock()
+	defer w.stopMu.Unlock()
+	if w.stopRun != nil {
+		w.stopRun()
 	}
 }
 
 func (w *WaitSet) initEntities() error {
 	if !C.rcl_wait_set_is_valid(&w.rcl_wait_set_t) {
-		return errorsCastC(C.RCL_RET_WAIT_SET_INVALID, fmt.Sprintf("rcl_wait_set_is_valid() failed for wait_set='%v'", w))
+		return errorsCastC(C.RCL_RET_WAIT_SET_INVALID, "rcl_wait_set_is_valid() failed")
 	}
 	var rc C.rcl_ret_t = C.rcl_wait_set_clear(&w.rcl_wait_set_t)
 	if rc != C.RCL_RET_OK {
-		return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_clear() failed for wait_set='%v'", w))
+		return errorsCastC(rc, "rcl_wait_set_clear() failed")
 	}
 	rc = C.rcl_wait_set_resize(
 		&w.rcl_wait_set_t,
@@ -260,70 +412,77 @@ func (w *WaitSet) initEntities() error {
 		w.rcl_wait_set_t.size_of_events,
 	)
 	if rc != C.RCL_RET_OK {
-		return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_resize() failed for wait_set='%v'", w))
+		return errorsCastC(rc, "rcl_wait_set_resize() failed")
 	}
 	for _, sub := range w.Subscriptions {
 		rc = C.rcl_wait_set_add_subscription(&w.rcl_wait_set_t, sub.rcl_subscription_t, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_subscription() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_subscription() failed")
 		}
 	}
 	for _, timer := range w.Timers {
 		rc = C.rcl_wait_set_add_timer(&w.rcl_wait_set_t, timer.rcl_timer_t, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_timer() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_timer() failed")
 		}
 	}
 	for _, service := range w.Services {
 		rc = C.rcl_wait_set_add_service(&w.rcl_wait_set_t, service.rclService, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_service() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_service() failed")
 		}
 	}
 	for _, client := range w.Clients {
 		rc = C.rcl_wait_set_add_client(&w.rcl_wait_set_t, client.rclClient, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_client() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_client() failed")
 		}
 	}
 	for _, guardCondition := range w.guardConditions {
 		rc = C.rcl_wait_set_add_guard_condition(&w.rcl_wait_set_t, guardCondition.rclGuardCondition, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_guard_condition() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_guard_condition() failed")
 		}
 	}
 	for _, server := range w.ActionServers {
 		rc = C.rcl_action_wait_set_add_action_server(&w.rcl_wait_set_t, &server.rclServer, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_action_server() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_action_server() failed")
 		}
 	}
 	for _, client := range w.ActionClients {
 		rc = C.rcl_action_wait_set_add_action_client(&w.rcl_wait_set_t, &client.rclClient, nil, nil)
 		if rc != C.RCL_RET_OK {
-			return errorsCastC(rc, fmt.Sprintf("rcl_wait_set_add_action_client() failed for wait_set='%v'", w))
+			return errorsCastC(rc, "rcl_wait_set_add_action_client() failed")
 		}
 	}
 	return nil
 }
 
-/*
-Close frees the allocated memory
-*/
-func (w *WaitSet) Close() (err error) {
-	if w.context == nil {
-		return closeErr("wait set")
-	}
-	w.context.removeResource(w)
-	w.context = nil
+// Close stops Run if it is running and finalizes the wait set once Run has
+// returned.
+func (w *WaitSet) Close() error {
+	c := w.context
+	return closeEntity(&w.life, "wait set", func() {
+		w.stop()
+		c.removeSpinner(w)
+		c.removeResource(w)
+	}, &c.life, w.fini)
+}
+
+func (w *WaitSet) fini() (err error) {
 	rc := C.rcl_wait_set_fini(&w.rcl_wait_set_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
 	}
 	var closeError closeError
-	cancelWaitErr := w.cancelWait.Close()
-	if cancelWaitErr != nil && !errors.As(cancelWaitErr, &closeError) {
-		err = errors.Join(err, cancelWaitErr)
+	for _, g := range []*guardCondition{w.cancelWait, w.refresh} {
+		if g == nil {
+			continue
+		}
+		if gerr := g.Close(); gerr != nil && !errors.As(gerr, &closeError) {
+			err = errors.Join(err, gerr)
+		}
 	}
 	return err
 }

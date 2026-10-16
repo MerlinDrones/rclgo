@@ -123,6 +123,13 @@ If you mix profiles across publishers/subscribers on the same topic, ROS 2 uses 
 
 * **Subscriber not receiving data:** Check that publisher/subscriber reliability and durability are compatible; mismatched reliability over a lossy link is a frequent culprit.
 * **Messages “missing”:** With `BestEffort`, drops under load are expected; switch to `Reliable` or increase `Depth`.
+* **Service or action requests lost in a burst:** the default service and action QoS (`qos.NewDefault()`) is
+  `Reliable` + `KeepLast(10)`, the same as rclcpp. `Reliable` does not stop `KeepLast` from overwriting: if more
+  than 10 requests arrive before the server takes them, the oldest are dropped silently and their clients wait until
+  their own timeout. In a test, 20 concurrent goals to one action server lost 4–8 goal requests. If clients send
+  requests in bursts, raise `Depth` on both sides (e.g. `ServiceOptions.Qos`/`ClientOptions.Qos`, or
+  `GoalServiceQos`/`CancelServiceQos`/`ResultServiceQos` in `ActionServerOptions` and `ActionClientOptions`), or use
+  `HistoryKeepAll`.
 * **Late joiners see nothing:** Use `TransientLocal` on the publisher if you need late subscribers to get the last value (e.g., parameter or latched-like topics).
 * **IDE builds fail but terminal passes:** your IDE likely isn’t inheriting the environment used in your shell (include/lib paths, `GOCACHE`). See the cgo notes above.
 

@@ -34,20 +34,23 @@ static inline void rclgo_qos_set_local(
   size_t depth,
   uint32_t reliability,
   uint32_t durability,
-  uint64_t deadline,
-  uint64_t lifespan,
+  uint64_t deadline_sec, uint64_t deadline_nsec,
+  uint64_t lifespan_sec, uint64_t lifespan_nsec,
   uint32_t liveliness,
-  uint64_t liveliness_lease_duration,
+  uint64_t lease_sec, uint64_t lease_nsec,
   _Bool avoid_ns
 ) {
   dst->history = (rmw_qos_history_policy_t)history;
   dst->depth = depth;
   dst->reliability = (rmw_qos_reliability_policy_t)reliability;
   dst->durability = (rmw_qos_durability_policy_t)durability;
-  dst->deadline.nsec = deadline;
-  dst->lifespan.nsec = lifespan;
+  dst->deadline.sec = deadline_sec;
+  dst->deadline.nsec = deadline_nsec;
+  dst->lifespan.sec = lifespan_sec;
+  dst->lifespan.nsec = lifespan_nsec;
   dst->liveliness = (rmw_qos_liveliness_policy_t)liveliness;
-  dst->liveliness_lease_duration.nsec = liveliness_lease_duration;
+  dst->liveliness_lease_duration.sec = lease_sec;
+  dst->liveliness_lease_duration.nsec = lease_nsec;
   dst->avoid_ros_namespace_conventions = avoid_ns;
 }
 */
@@ -74,16 +77,19 @@ import (
 // qosToC writes a qos.Profile into a rmw_qos_profile_t.
 // qosToC writes a qos.Profile into a rmw_qos_profile_t.
 func qosToC(p qos.Profile, dst *C.rmw_qos_profile_t) {
+	deadlineSec, deadlineNsec := qos.DurationToRMW(p.Deadline)
+	lifespanSec, lifespanNsec := qos.DurationToRMW(p.Lifespan)
+	leaseSec, leaseNsec := qos.DurationToRMW(p.LivelinessLeaseDuration)
 	C.rclgo_qos_set_local(
 		dst,
 		C.uint32_t(p.History),
 		C.size_t(p.Depth),
 		C.uint32_t(p.Reliability),
 		C.uint32_t(p.Durability),
-		C.uint64_t(p.Deadline),
-		C.uint64_t(p.Lifespan),
+		C.uint64_t(deadlineSec), C.uint64_t(deadlineNsec),
+		C.uint64_t(lifespanSec), C.uint64_t(lifespanNsec),
 		C.uint32_t(p.Liveliness),
-		C.uint64_t(p.LivelinessLeaseDuration),
+		C.uint64_t(leaseSec), C.uint64_t(leaseNsec),
 		C.bool(p.AvoidROSNamespaceConventions),
 	)
 }
@@ -95,10 +101,10 @@ func qosFromC(src *C.rmw_qos_profile_t) qos.Profile {
 		Depth:                        int(src.depth),
 		Reliability:                  qos.ReliabilityPolicy(src.reliability),
 		Durability:                   qos.DurabilityPolicy(src.durability),
-		Deadline:                     time.Duration(src.deadline.nsec),
-		Lifespan:                     time.Duration(src.lifespan.nsec),
+		Deadline:                     qos.DurationFromRMW(uint64(src.deadline.sec), uint64(src.deadline.nsec)),
+		Lifespan:                     qos.DurationFromRMW(uint64(src.lifespan.sec), uint64(src.lifespan.nsec)),
 		Liveliness:                   qos.LivelinessPolicy(src.liveliness),
-		LivelinessLeaseDuration:      time.Duration(src.liveliness_lease_duration.nsec),
+		LivelinessLeaseDuration:      qos.DurationFromRMW(uint64(src.liveliness_lease_duration.sec), uint64(src.liveliness_lease_duration.nsec)),
 		AvoidROSNamespaceConventions: bool(src.avoid_ros_namespace_conventions),
 	}
 }
@@ -280,6 +286,7 @@ func Deserialize(buf []byte, ts types.MessageTypeSupport) (msg types.Message, er
 	if err != nil {
 		return nil, err
 	}
+	defer serialized.Close()
 	copy(serialized.AsSlice(), buf)
 	cmsg := ts.PrepareMemory()
 	defer ts.ReleaseMemory(cmsg)
@@ -350,6 +357,7 @@ func ExpandTopicName(
 type Node struct {
 	rosID
 	rosResourceStore
+	life               lifetime
 	rcl_node_t         *C.rcl_node_t
 	context            *Context
 	name               string
@@ -373,6 +381,7 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 		rcl_node_t: (*C.rcl_node_t)(C.malloc(C.sizeof_rcl_node_t)),
 		context:    c,
 	}
+	node.rosResourceStore.onChange = c.resourcesChanged
 	*node.rcl_node_t = C.rcl_get_zero_initialized_node()
 	defer onErr(&err, node.Close)
 
@@ -432,17 +441,22 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 	return node, nil
 }
 
-/*
-Close frees the allocated memory
-*/
+// Close closes every entity of the node and finalizes the node. Entities that a
+// running wait set still uses are finalized when it lets go of them, and the
+// node after them.
 func (n *Node) Close() error {
-	if n.rcl_node_t == nil {
+	if !n.life.markClosed() {
 		return closeErr("node")
 	}
 	n.context.removeResource(n)
+	err := n.rosResourceStore.closeAll(nil)
+	return errors.Join(err, n.life.finalize(&n.context.life, "node", n.fini))
+}
 
-	err := n.rosResourceStore.Close()
-
+func (n *Node) fini() (err error) {
+	if n.rcl_node_t == nil {
+		return nil
+	}
 	// Finalize the /rosout log publisher before finalizing the node, mirroring
 	// the initialization done in NewNode.
 	if n.rosoutInitialized {
@@ -496,15 +510,10 @@ func spinErr(spinner string, err error) error {
 }
 
 // Spin starts and waits for all ROS resources in the node that need waiting
-// such as subscriptions. Spin returns when an error occurs or ctx is canceled.
+// such as subscriptions. Resources created on the node while Spin is running
+// are picked up as well. Spin returns when an error occurs or ctx is canceled.
 func (n *Node) Spin(ctx context.Context) error {
-	ws, err := n.context.NewWaitSet()
-	if err != nil {
-		return spinErr("node", err)
-	}
-	defer ws.Close()
-	ws.addResources(&n.rosResourceStore)
-	return spinErr("node", ws.Run(ctx))
+	return spinErr("node", n.context.spin(ctx, &n.rosResourceStore))
 }
 
 type PublisherOptions struct {
@@ -515,6 +524,7 @@ func NewDefaultPublisherOptions() *PublisherOptions { return &PublisherOptions{Q
 
 type Publisher struct {
 	rosID
+	life            lifetime
 	TopicName       string
 	typeSupport     types.MessageTypeSupport
 	node            *Node
@@ -568,6 +578,10 @@ func (p *Publisher) Node() *Node {
 }
 
 func (p *Publisher) Publish(ros2msg types.Message) error {
+	if !p.life.acquire() {
+		return closedErr("publisher")
+	}
+	defer p.life.release()
 	var rc C.rcl_ret_t
 
 	ptr := p.typeSupport.PrepareMemory()
@@ -575,13 +589,17 @@ func (p *Publisher) Publish(ros2msg types.Message) error {
 	p.typeSupport.AsCStruct(ptr, ros2msg)
 	rc = C.rcl_publish(p.rcl_publisher_t, ptr, nil)
 	if rc != C.RCL_RET_OK {
-		return errorsCastC(rc, fmt.Sprintf("rcl_publish() failed for publisher '%+v'", p))
+		return errorsCastC(rc, fmt.Sprintf("rcl_publish() failed for publisher on %q", p.TopicName))
 	}
 	return nil
 }
 
 // PublishSerialized publishes a message that has already been serialized.
 func (p *Publisher) PublishSerialized(msg []byte) error {
+	if !p.life.acquire() {
+		return closedErr("publisher")
+	}
+	defer p.life.release()
 	rclMsg, err := newSerializedMessage(len(msg))
 	if err != nil {
 		return fmt.Errorf("failed to publish serialized message: %v", err)
@@ -597,6 +615,10 @@ func (p *Publisher) PublishSerialized(msg []byte) error {
 
 // GetSubscriptionCount returns the number of subscriptions matched to p.
 func (p *Publisher) GetSubscriptionCount() (int, error) {
+	if !p.life.acquire() {
+		return 0, closedErr("publisher")
+	}
+	defer p.life.release()
 	var count C.size_t
 	rc := C.rcl_publisher_get_subscription_count(p.rcl_publisher_t, &count)
 	if rc != C.RCL_RET_OK {
@@ -608,11 +630,14 @@ func (p *Publisher) GetSubscriptionCount() (int, error) {
 /*
 Close frees the allocated memory
 */
-func (p *Publisher) Close() (err error) {
+func (p *Publisher) Close() error {
+	return closeEntity(&p.life, "publisher", func() { p.node.removeResource(p) }, &p.node.life, p.fini)
+}
+
+func (p *Publisher) fini() (err error) {
 	if p.rcl_publisher_t == nil {
-		return closeErr("publisher")
+		return nil
 	}
-	p.node.removeResource(p)
 	rc := C.rcl_publisher_fini(p.rcl_publisher_t, p.node.rcl_node_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
@@ -627,6 +652,12 @@ type Clock struct {
 	rosID
 	rcl_clock_t *C.rcl_clock_t
 	context     *Context
+
+	// jumpMu serializes changes to the clock's jump callbacks. rcl keeps them
+	// in an unsynchronized array that timers (including the expire timer of
+	// action servers) grow and shrink on init and fini, so timers using one
+	// clock must not be created or finalized concurrently.
+	jumpMu sync.Mutex
 }
 
 func NewClock(clockType ClockType) (*Clock, error) {
@@ -643,8 +674,14 @@ func (c *Context) NewClock(clockType ClockType) (clock *Clock, err error) {
 	clock = &Clock{
 		context: c,
 	}
-	clock.rcl_clock_t = (*C.rcl_clock_t)(C.calloc(1, C.sizeof_rcl_clock_t))
-	defer onErr(&err, c.Close)
+	cclock := (*C.rcl_clock_t)(C.calloc(1, C.sizeof_rcl_clock_t))
+	clock.rcl_clock_t = cclock
+	defer func() {
+		// Only the clock is released on failure; the context stays usable.
+		if err != nil {
+			C.free(unsafe.Pointer(cclock))
+		}
+	}()
 	rc := C.rcl_clock_init(
 		C.rcl_clock_type_t(clockType),
 		clock.rcl_clock_t,
@@ -690,10 +727,11 @@ func (c *Clock) now() (time.Duration, error) {
 
 type Timer struct {
 	rosID
-	waitable    singleUse
+	life        lifetime
 	rcl_timer_t *C.rcl_timer_t
 	Callback    func(*Timer)
 	context     *Context
+	clock       *Clock
 }
 
 func NewTimer(timeout time.Duration, timerCallback func(*Timer)) (*Timer, error) {
@@ -711,13 +749,16 @@ func (c *Context) NewTimer(timeout time.Duration, timer_callback func(*Timer)) (
 		rcl_timer_t: (*C.rcl_timer_t)(C.malloc(C.sizeof_rcl_timer_t)),
 		Callback:    timer_callback,
 		context:     c,
+		clock:       c.Clock(),
 	}
 	*timer.rcl_timer_t = C.rcl_get_zero_initialized_timer()
 	defer onErr(&err, timer.Close)
 
+	timer.clock.jumpMu.Lock()
+	defer timer.clock.jumpMu.Unlock()
 	rc := C.rcl_timer_init2(
 		timer.rcl_timer_t,
-		c.Clock().rcl_clock_t,
+		timer.clock.rcl_clock_t,
 		c.rcl_context_t,
 		C.int64_t(timeout),
 		nil,
@@ -738,6 +779,10 @@ func (t *Timer) Context() *Context {
 }
 
 func (t *Timer) GetTimeUntilNextCall() (int64, error) {
+	if !t.life.acquire() {
+		return 0, closedErr("timer")
+	}
+	defer t.life.release()
 	var time_until_next_call C.int64_t
 	rc := C.rcl_timer_get_time_until_next_call(t.rcl_timer_t, &time_until_next_call)
 	if rc != C.RCL_RET_OK {
@@ -746,7 +791,23 @@ func (t *Timer) GetTimeUntilNextCall() (int64, error) {
 	return int64(time_until_next_call), nil
 }
 
+// call marks the timer as called: its next expiry moves forward by exactly one
+// period from the previous expiry (skipping missed periods), so the timer
+// keeps its period regardless of when it is serviced. Reset would instead
+// restart the period from now, adding the wake-up latency to every period.
+func (t *Timer) call() error {
+	rc := C.rcl_timer_call(t.rcl_timer_t)
+	if rc != C.RCL_RET_OK {
+		return errorsCast(rc)
+	}
+	return nil
+}
+
 func (t *Timer) Reset() error {
+	if !t.life.acquire() {
+		return closedErr("timer")
+	}
+	defer t.life.release()
 	rc := C.rcl_timer_reset(t.rcl_timer_t)
 	if rc != C.RCL_RET_OK {
 		return errorsCast(rc)
@@ -757,12 +818,17 @@ func (t *Timer) Reset() error {
 /*
 Close frees the allocated memory
 */
-func (t *Timer) Close() (err error) {
+func (t *Timer) Close() error {
+	return closeEntity(&t.life, "timer", func() { t.context.removeResource(t) }, &t.context.life, t.fini)
+}
+
+func (t *Timer) fini() (err error) {
 	if t.rcl_timer_t == nil {
-		return closeErr("timer")
+		return nil
 	}
-	t.context.removeResource(t)
+	t.clock.jumpMu.Lock()
 	rc := C.rcl_timer_fini(t.rcl_timer_t)
+	t.clock.jumpMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
 	}
@@ -783,7 +849,7 @@ type SubscriptionCallback func(*Subscription)
 
 type Subscription struct {
 	rosID
-	waitable           singleUse
+	life               lifetime
 	TopicName          string
 	Ros2MsgType        types.MessageTypeSupport
 	Callback           SubscriptionCallback
@@ -840,6 +906,10 @@ func (s *Subscription) Node() *Node {
 }
 
 func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
+	if !s.life.acquire() {
+		return nil, closedErr("subscription")
+	}
+	defer s.life.release()
 	rmw_message_info := C.rmw_get_zero_initialized_message_info()
 
 	ros2_msg_receive_buffer := s.Ros2MsgType.PrepareMemory()
@@ -847,7 +917,7 @@ func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
 
 	rc := C.rcl_take(s.rcl_subscription_t, ros2_msg_receive_buffer, &rmw_message_info, nil)
 	if rc != C.RCL_RET_OK {
-		return nil, errorsCastC(rc, fmt.Sprintf("rcl_take() failed for subscription='%+v'", s))
+		return nil, errorsCastC(rc, fmt.Sprintf("rcl_take() failed for subscription to %q", s.TopicName))
 	}
 	s.Ros2MsgType.AsGoStruct(out, ros2_msg_receive_buffer)
 	return &MessageInfo{
@@ -860,6 +930,10 @@ func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
 // TakeSerializedMessage takes a message without deserializing it and returns it
 // as a byte slice.
 func (s *Subscription) TakeSerializedMessage() ([]byte, *MessageInfo, error) {
+	if !s.life.acquire() {
+		return nil, nil, closedErr("subscription")
+	}
+	defer s.life.release()
 	info := C.rmw_get_zero_initialized_message_info()
 	msg, err := newSerializedMessage(0)
 	if err != nil {
@@ -868,7 +942,7 @@ func (s *Subscription) TakeSerializedMessage() ([]byte, *MessageInfo, error) {
 	defer msg.Close()
 	rc := C.rcl_take_serialized_message(s.rcl_subscription_t, msg.c(), &info, nil)
 	if rc != C.RCL_RET_OK {
-		return nil, nil, errorsCastC(rc, fmt.Sprintf("rcl_take_serialied_message() failed for subscription='%+v'", s))
+		return nil, nil, errorsCastC(rc, fmt.Sprintf("rcl_take_serialized_message() failed for subscription to %q", s.TopicName))
 	}
 	return msg.ToSlice(), &MessageInfo{
 		SourceTimestamp:   time.Unix(0, int64(info.source_timestamp)),
@@ -879,6 +953,10 @@ func (s *Subscription) TakeSerializedMessage() ([]byte, *MessageInfo, error) {
 
 // GetPublisherCount returns the number of publishers matched to s.
 func (s *Subscription) GetPublisherCount() (int, error) {
+	if !s.life.acquire() {
+		return 0, closedErr("subscription")
+	}
+	defer s.life.release()
 	var count C.size_t
 	rc := C.rcl_subscription_get_publisher_count(s.rcl_subscription_t, &count)
 	if rc != C.RCL_RET_OK {
@@ -890,11 +968,14 @@ func (s *Subscription) GetPublisherCount() (int, error) {
 /*
 Close frees the allocated memory
 */
-func (s *Subscription) Close() (err error) {
+func (s *Subscription) Close() error {
+	return closeEntity(&s.life, "subscription", func() { s.node.removeResource(s) }, &s.node.life, s.fini)
+}
+
+func (s *Subscription) fini() (err error) {
 	if s.rcl_subscription_t == nil {
-		return closeErr("subscription")
+		return nil
 	}
-	s.node.removeResource(s)
 	rc := C.rcl_subscription_fini(s.rcl_subscription_t, s.node.rcl_node_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCast(rc))
@@ -907,7 +988,7 @@ func (s *Subscription) Close() (err error) {
 
 type guardCondition struct {
 	rosID
-	waitable          singleUse
+	life              lifetime
 	rclGuardCondition *C.rcl_guard_condition_t
 	context           *Context
 }
@@ -932,10 +1013,13 @@ func (c *Context) newGuardCondition() (g *guardCondition, err error) {
 }
 
 func (c *guardCondition) Close() error {
+	return closeEntity(&c.life, "guard condition", func() { c.context.removeResource(c) }, &c.context.life, c.fini)
+}
+
+func (c *guardCondition) fini() error {
 	if c.rclGuardCondition == nil {
-		return closeErr("guard condition")
+		return nil
 	}
-	c.context.removeResource(c)
 	rc := C.rcl_guard_condition_fini(c.rclGuardCondition)
 	C.free(unsafe.Pointer(c.rclGuardCondition))
 	c.rclGuardCondition = nil
@@ -991,7 +1075,7 @@ type ServiceRequestHandler func(*ServiceInfo, types.Message, ServiceResponseSend
 
 type Service struct {
 	rosID
-	waitable            singleUse
+	life                lifetime
 	node                *Node
 	rclService          *C.rcl_service_t
 	name                *C.char
@@ -1039,11 +1123,14 @@ func (n *Node) NewService(
 	return s, nil
 }
 
-func (s *Service) Close() (err error) {
+func (s *Service) Close() error {
+	return closeEntity(&s.life, "service", func() { s.node.removeResource(s) }, &s.node.life, s.fini)
+}
+
+func (s *Service) fini() (err error) {
 	if s.name == nil {
-		return closeErr("service")
+		return nil
 	}
-	s.node.removeResource(s)
 	rc := C.rcl_service_fini(s.rclService, s.node.rcl_node_t)
 	if rc != C.RCL_RET_OK {
 		err = errorsCastC(rc, "failed to finalize service")
@@ -1076,6 +1163,12 @@ func (s *Service) handleRequest() {
 			&info,
 			req,
 			serviceResponseSender(func(resp types.Message) error {
+				// The handler may answer later, from another goroutine,
+				// possibly after the service was closed.
+				if !s.life.acquire() {
+					return closedErr("service")
+				}
+				defer s.life.release()
 				respBuffer := s.responseTypeSupport.PrepareMemory()
 				defer s.responseTypeSupport.ReleaseMemory(respBuffer)
 				s.responseTypeSupport.AsCStruct(respBuffer, resp)
@@ -1103,7 +1196,7 @@ func NewDefaultClientOptions() *ClientOptions { return &ClientOptions{Qos: qos.N
 // Calling Send and Close is thread-safe. Creating clients is not thread-safe.
 type Client struct {
 	rosID
-	waitable  singleUse
+	life      lifetime
 	node      *Node
 	rclClient *C.rcl_client_t
 	sender    requestSender
@@ -1152,11 +1245,18 @@ func (n *Node) NewClient(
 }
 
 func (c *Client) Close() error {
+	return closeEntity(&c.life, "client", func() {
+		c.node.removeResource(c)
+		// Wake callers waiting for a response right away.
+		c.sender.Close() //nolint:errcheck
+	}, &c.node.life, c.fini)
+}
+
+func (c *Client) fini() error {
 	if c.rclClient == nil {
-		return closeErr("client")
+		return nil
 	}
-	c.node.removeResource(c)
-	err := c.sender.Close()
+	var err error
 	rc := C.rcl_client_fini(c.rclClient, c.node.rcl_node_t)
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCastC(rc, "failed to finalize client"))
@@ -1173,6 +1273,10 @@ func (c *Client) Node() *Node {
 }
 
 func (c *Client) Send(ctx context.Context, req types.Message) (types.Message, *ServiceInfo, error) {
+	if !c.life.acquire() {
+		return nil, nil, closedErr("client")
+	}
+	defer c.life.release()
 	resp, info, err := c.sender.Send(ctx, req)
 	if rmwInfo, ok := info.(*ServiceInfo); ok {
 		return resp, rmwInfo, err

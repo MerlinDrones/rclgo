@@ -81,11 +81,17 @@ type GetAvailableTransitions_RequestSubscriptionCallback func(msg *GetAvailableT
 
 // NewGetAvailableTransitions_RequestSubscription creates and returns a new subscription for the
 // GetAvailableTransitions_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewGetAvailableTransitions_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback GetAvailableTransitions_RequestSubscriptionCallback) (*GetAvailableTransitions_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg GetAvailableTransitions_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg GetAvailableTransitions_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, GetAvailableTransitions_RequestTypeSupport, opts, callback)
 	if err != nil {

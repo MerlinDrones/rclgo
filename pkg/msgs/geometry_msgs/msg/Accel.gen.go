@@ -87,11 +87,17 @@ type AccelSubscriptionCallback func(msg *Accel, info *rclgo.MessageInfo, err err
 
 // NewAccelSubscription creates and returns a new subscription for the
 // Accel
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewAccelSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback AccelSubscriptionCallback) (*AccelSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Accel
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Accel
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, AccelTypeSupport, opts, callback)
 	if err != nil {

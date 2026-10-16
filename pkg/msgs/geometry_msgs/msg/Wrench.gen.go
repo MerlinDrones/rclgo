@@ -87,11 +87,17 @@ type WrenchSubscriptionCallback func(msg *Wrench, info *rclgo.MessageInfo, err e
 
 // NewWrenchSubscription creates and returns a new subscription for the
 // Wrench
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewWrenchSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback WrenchSubscriptionCallback) (*WrenchSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Wrench
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Wrench
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, WrenchTypeSupport, opts, callback)
 	if err != nil {

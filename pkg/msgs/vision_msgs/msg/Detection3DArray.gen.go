@@ -91,11 +91,17 @@ type Detection3DArraySubscriptionCallback func(msg *Detection3DArray, info *rclg
 
 // NewDetection3DArraySubscription creates and returns a new subscription for the
 // Detection3DArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewDetection3DArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Detection3DArraySubscriptionCallback) (*Detection3DArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Detection3DArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Detection3DArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Detection3DArrayTypeSupport, opts, callback)
 	if err != nil {

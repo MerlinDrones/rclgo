@@ -25,6 +25,19 @@ Parameters can be set from multiple sources. The priority order (highest to lowe
 3. **YAML files** (`--params-file config.yaml`)
 4. **Declared defaults** (in code) - Lowest priority
 
+### Overrides and declarations
+
+An override (YAML file, CLI `-p`, or `RCL_PARAM_*`) may set a parameter before or after the code declares it; the
+result is the same either way:
+
+- `Declare`/`DeclareIfMissing` keep the override's value instead of the default and attach the code's descriptor, so
+  `MinInt`/`MaxInt`, `MinDouble`/`MaxDouble`, `AllowedStrings` and `ReadOnly` apply to it from then on.
+- The override must fit the declaration: an integer is widened to a double (and an integer array to a double array),
+  any other type mismatch or a value outside the constraints makes `Declare` return an error naming the parameter.
+- `ReadOnly` blocks later sets, not overrides.
+- A parameter declared in code keeps its type on set (integers widen to doubles). Parameters that only exist through
+  an override, and are never declared, accept any type.
+
 ## Quick Start
 
 ### Basic Usage

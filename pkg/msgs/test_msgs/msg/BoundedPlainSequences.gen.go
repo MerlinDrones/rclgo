@@ -259,11 +259,17 @@ type BoundedPlainSequencesSubscriptionCallback func(msg *BoundedPlainSequences, 
 
 // NewBoundedPlainSequencesSubscription creates and returns a new subscription for the
 // BoundedPlainSequences
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBoundedPlainSequencesSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BoundedPlainSequencesSubscriptionCallback) (*BoundedPlainSequencesSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BoundedPlainSequences
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BoundedPlainSequences
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BoundedPlainSequencesTypeSupport, opts, callback)
 	if err != nil {

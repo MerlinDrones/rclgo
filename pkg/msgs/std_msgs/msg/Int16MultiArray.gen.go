@@ -91,11 +91,17 @@ type Int16MultiArraySubscriptionCallback func(msg *Int16MultiArray, info *rclgo.
 
 // NewInt16MultiArraySubscription creates and returns a new subscription for the
 // Int16MultiArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewInt16MultiArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Int16MultiArraySubscriptionCallback) (*Int16MultiArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Int16MultiArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Int16MultiArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Int16MultiArrayTypeSupport, opts, callback)
 	if err != nil {

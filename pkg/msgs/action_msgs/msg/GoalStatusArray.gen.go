@@ -92,11 +92,17 @@ type GoalStatusArraySubscriptionCallback func(msg *GoalStatusArray, info *rclgo.
 
 // NewGoalStatusArraySubscription creates and returns a new subscription for the
 // GoalStatusArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewGoalStatusArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback GoalStatusArraySubscriptionCallback) (*GoalStatusArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg GoalStatusArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg GoalStatusArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, GoalStatusArrayTypeSupport, opts, callback)
 	if err != nil {

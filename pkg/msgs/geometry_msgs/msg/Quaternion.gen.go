@@ -93,11 +93,17 @@ type QuaternionSubscriptionCallback func(msg *Quaternion, info *rclgo.MessageInf
 
 // NewQuaternionSubscription creates and returns a new subscription for the
 // Quaternion
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewQuaternionSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback QuaternionSubscriptionCallback) (*QuaternionSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Quaternion
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Quaternion
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, QuaternionTypeSupport, opts, callback)
 	if err != nil {

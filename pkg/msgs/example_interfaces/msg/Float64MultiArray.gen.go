@@ -91,11 +91,17 @@ type Float64MultiArraySubscriptionCallback func(msg *Float64MultiArray, info *rc
 
 // NewFloat64MultiArraySubscription creates and returns a new subscription for the
 // Float64MultiArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFloat64MultiArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Float64MultiArraySubscriptionCallback) (*Float64MultiArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Float64MultiArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Float64MultiArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Float64MultiArrayTypeSupport, opts, callback)
 	if err != nil {

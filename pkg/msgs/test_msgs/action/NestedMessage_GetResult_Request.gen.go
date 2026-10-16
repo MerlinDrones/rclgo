@@ -92,11 +92,17 @@ type NestedMessage_GetResult_RequestSubscriptionCallback func(msg *NestedMessage
 
 // NewNestedMessage_GetResult_RequestSubscription creates and returns a new subscription for the
 // NestedMessage_GetResult_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewNestedMessage_GetResult_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback NestedMessage_GetResult_RequestSubscriptionCallback) (*NestedMessage_GetResult_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg NestedMessage_GetResult_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg NestedMessage_GetResult_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, NestedMessage_GetResult_RequestTypeSupport, opts, callback)
 	if err != nil {

@@ -88,11 +88,17 @@ type AccelWithCovarianceSubscriptionCallback func(msg *AccelWithCovariance, info
 
 // NewAccelWithCovarianceSubscription creates and returns a new subscription for the
 // AccelWithCovariance
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewAccelWithCovarianceSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback AccelWithCovarianceSubscriptionCallback) (*AccelWithCovarianceSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg AccelWithCovariance
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg AccelWithCovariance
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, AccelWithCovarianceTypeSupport, opts, callback)
 	if err != nil {

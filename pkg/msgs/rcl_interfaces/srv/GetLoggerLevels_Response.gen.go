@@ -88,11 +88,17 @@ type GetLoggerLevels_ResponseSubscriptionCallback func(msg *GetLoggerLevels_Resp
 
 // NewGetLoggerLevels_ResponseSubscription creates and returns a new subscription for the
 // GetLoggerLevels_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewGetLoggerLevels_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback GetLoggerLevels_ResponseSubscriptionCallback) (*GetLoggerLevels_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg GetLoggerLevels_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg GetLoggerLevels_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, GetLoggerLevels_ResponseTypeSupport, opts, callback)
 	if err != nil {

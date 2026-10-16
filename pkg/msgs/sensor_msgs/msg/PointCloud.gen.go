@@ -98,11 +98,17 @@ type PointCloudSubscriptionCallback func(msg *PointCloud, info *rclgo.MessageInf
 
 // NewPointCloudSubscription creates and returns a new subscription for the
 // PointCloud
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPointCloudSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PointCloudSubscriptionCallback) (*PointCloudSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg PointCloud
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg PointCloud
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PointCloudTypeSupport, opts, callback)
 	if err != nil {
