@@ -7,7 +7,6 @@ package example_interfaces_msg
 
 #cgo LDFLAGS: -lrcl -lrosidl_runtime_c -lrosidl_typesupport_c -lrcutils -lrmw_implementation
 #cgo LDFLAGS: -lexample_interfaces__rosidl_typesupport_c -lexample_interfaces__rosidl_generator_c
-#cgo LDFLAGS: -lstd_msgs__rosidl_typesupport_c -lstd_msgs__rosidl_generator_c
 
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/action_msgs"
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/builtin_interfaces"
@@ -24,8 +23,6 @@ package example_interfaces_msg
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/test_msgs"
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/type_description_interfaces"
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/unique_identifier_msgs"
-#cgo CFLAGS: "-I/opt/ros/jazzy/include/std_msgs"
-
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/example_interfaces"
 */
 import "C"

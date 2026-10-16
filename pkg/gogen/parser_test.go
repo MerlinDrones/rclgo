@@ -362,3 +362,20 @@ func snapshotCanonical(name string, obj interface{}) error {
 		return cupaloy.SnapshotMulti(name, obj)
 	}
 }
+
+// An unqualified type names a message of the same package, as rosidl reads it;
+// there is no implicit std_msgs (not even for Header).
+func TestUnqualifiedTypesAreSamePackage(t *testing.T) {
+	for _, name := range []string{"Empty", "Header", "String", "Time", "MyType"} {
+		f := &ROS2Field{RosType: name}
+		pkg, _, _ := translateROS2Type(f, &ROS2Message{Metadata: &Metadata{Package: "my_msgs", Type: "msg"}})
+		if pkg != "." {
+			t.Errorf("msg field of type %s resolved to package %q, want the same package", name, pkg)
+		}
+		f = &ROS2Field{RosType: name}
+		pkg, _, _ = translateROS2Type(f, &ROS2Message{Metadata: &Metadata{Package: "my_msgs", Type: "srv"}})
+		if pkg != "my_msgs" {
+			t.Errorf("srv field of type %s resolved to package %q, want my_msgs (its msg package)", name, pkg)
+		}
+	}
+}

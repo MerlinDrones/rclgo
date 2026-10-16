@@ -384,21 +384,10 @@ func translateROS2Type(f *ROS2Field, m *ROS2Message) (pkgName string, cType stri
 		return f.PkgName, f.RosType, f.RosType
 	}
 
-	// implicit package, type of std_msgs
-	if m.Package != "std_msgs" {
-		switch f.RosType {
-		case "Bool", "ColorRGBA",
-			"Duration", "Empty", "Float32MultiArray", "Float32",
-			"Float64MultiArray", "Float64", "Header", "Int8MultiArray",
-			"Int8", "Int16MultiArray", "Int16", "Int32MultiArray", "Int32",
-			"Int64MultiArray", "Int64", "MultiArrayDimension", "MultiarrayLayout",
-			"String", "Time", "UInt8MultiArray", "UInt8", "UInt16MultiArray", "UInt16",
-			"UInt32MultiArray", "UInt32", "UInt64MultiArray", "UInt64":
-			return "std_msgs", f.RosType, f.RosType
-		}
-	}
-
-	// These are not actually primitive types, but same-package complex types.
+	// An unqualified type is in the message's own package, as rosidl reads
+	// it (rosidl_adapter's BaseType): there is no implicit std_msgs, not even
+	// for Header. In a .srv or .action file (handled above) that package's
+	// messages live in another Go package, <pkg>/msg.
 	return ".", f.RosType, f.RosType
 }
 
