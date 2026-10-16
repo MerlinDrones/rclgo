@@ -236,6 +236,11 @@ func (p *Process) Output() string {
 	return p.out.String()
 }
 
+// Signal sends sig to the process itself, not to its process group.
+func (p *Process) Signal(sig os.Signal) error {
+	return p.cmd.Process.Signal(sig)
+}
+
 // WaitFor waits until the process's output contains s and fails the test
 // after Timeout.
 func (p *Process) WaitFor(s string) {

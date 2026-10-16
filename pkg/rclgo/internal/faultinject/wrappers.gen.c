@@ -31,23 +31,23 @@ rcl_action_goal_handle_t * __wrap_rcl_action_accept_new_goal(rcl_action_server_t
 rcl_ret_t __real_rcl_action_cancel_response_fini(rcl_action_cancel_response_t * cancel_response);
 rcl_ret_t __wrap_rcl_action_cancel_response_fini(rcl_action_cancel_response_t * cancel_response)
 {
+  rcl_ret_t real = __real_rcl_action_cancel_response_fini(cancel_response);
   int ret;
   if (rclgo_fi_should_fail("rcl_action_cancel_response_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_action_cancel_response_fini(cancel_response);
+  return real;
 }
 
 rcl_ret_t __real_rcl_action_client_fini(rcl_action_client_t * action_client, rcl_node_t * node);
 rcl_ret_t __wrap_rcl_action_client_fini(rcl_action_client_t * action_client, rcl_node_t * node)
 {
+  rcl_ret_t real = __real_rcl_action_client_fini(action_client, node);
   int ret;
   if (rclgo_fi_should_fail("rcl_action_client_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_action_client_fini(action_client, node);
+  return real;
 }
 
 rcl_ret_t __real_rcl_action_client_init(rcl_action_client_t * action_client, rcl_node_t * node, const rosidl_action_type_support_t * type_support, const char * action_name, const rcl_action_client_options_t * options);
@@ -119,12 +119,12 @@ rcl_ret_t __wrap_rcl_action_get_server_names_and_types_by_node(const rcl_node_t 
 rcl_ret_t __real_rcl_action_goal_handle_fini(rcl_action_goal_handle_t * goal_handle);
 rcl_ret_t __wrap_rcl_action_goal_handle_fini(rcl_action_goal_handle_t * goal_handle)
 {
+  rcl_ret_t real = __real_rcl_action_goal_handle_fini(goal_handle);
   int ret;
   if (rclgo_fi_should_fail("rcl_action_goal_handle_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_action_goal_handle_fini(goal_handle);
+  return real;
 }
 
 rcl_ret_t __real_rcl_action_goal_handle_get_info(const rcl_action_goal_handle_t * goal_handle, rcl_action_goal_info_t * goal_info);
@@ -152,12 +152,12 @@ rcl_ret_t __wrap_rcl_action_goal_handle_get_status(const rcl_action_goal_handle_
 rcl_ret_t __real_rcl_action_goal_status_array_fini(rcl_action_goal_status_array_t * status_array);
 rcl_ret_t __wrap_rcl_action_goal_status_array_fini(rcl_action_goal_status_array_t * status_array)
 {
+  rcl_ret_t real = __real_rcl_action_goal_status_array_fini(status_array);
   int ret;
   if (rclgo_fi_should_fail("rcl_action_goal_status_array_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_action_goal_status_array_fini(status_array);
+  return real;
 }
 
 rcl_ret_t __real_rcl_action_notify_goal_done(const rcl_action_server_t * action_server);
@@ -273,12 +273,12 @@ rcl_ret_t __wrap_rcl_action_send_result_response(const rcl_action_server_t * act
 rcl_ret_t __real_rcl_action_server_fini(rcl_action_server_t * action_server, rcl_node_t * node);
 rcl_ret_t __wrap_rcl_action_server_fini(rcl_action_server_t * action_server, rcl_node_t * node)
 {
+  rcl_ret_t real = __real_rcl_action_server_fini(action_server, node);
   int ret;
   if (rclgo_fi_should_fail("rcl_action_server_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_action_server_fini(action_server, node);
+  return real;
 }
 
 rcl_ret_t __real_rcl_action_server_init(rcl_action_server_t * action_server, rcl_node_t * node, rcl_clock_t * clock, const rosidl_action_type_support_t * type_support, const char * action_name, const rcl_action_server_options_t * options);
@@ -427,12 +427,12 @@ rcl_ret_t __wrap_rcl_action_wait_set_add_action_server(rcl_wait_set_t * wait_set
 rcl_ret_t __real_rcl_arguments_fini(rcl_arguments_t * args);
 rcl_ret_t __wrap_rcl_arguments_fini(rcl_arguments_t * args)
 {
+  rcl_ret_t real = __real_rcl_arguments_fini(args);
   int ret;
   if (rclgo_fi_should_fail("rcl_arguments_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_arguments_fini(args);
+  return real;
 }
 
 rcl_ret_t __real_rcl_arguments_get_param_overrides(const rcl_arguments_t * arguments, rcl_params_t ** parameter_overrides);
@@ -449,12 +449,12 @@ rcl_ret_t __wrap_rcl_arguments_get_param_overrides(const rcl_arguments_t * argum
 rcl_ret_t __real_rcl_client_fini(rcl_client_t * client, rcl_node_t * node);
 rcl_ret_t __wrap_rcl_client_fini(rcl_client_t * client, rcl_node_t * node)
 {
+  rcl_ret_t real = __real_rcl_client_fini(client, node);
   int ret;
   if (rclgo_fi_should_fail("rcl_client_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_client_fini(client, node);
+  return real;
 }
 
 rcl_ret_t __real_rcl_client_init(rcl_client_t * client, const rcl_node_t * node, const rosidl_service_type_support_t * type_support, const char * service_name, const rcl_client_options_t * options);
@@ -471,12 +471,12 @@ rcl_ret_t __wrap_rcl_client_init(rcl_client_t * client, const rcl_node_t * node,
 rcl_ret_t __real_rcl_clock_fini(rcl_clock_t * clock);
 rcl_ret_t __wrap_rcl_clock_fini(rcl_clock_t * clock)
 {
+  rcl_ret_t real = __real_rcl_clock_fini(clock);
   int ret;
   if (rclgo_fi_should_fail("rcl_clock_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_clock_fini(clock);
+  return real;
 }
 
 rcl_ret_t __real_rcl_clock_get_now(rcl_clock_t * clock, rcl_time_point_value_t * time_point_value);
@@ -504,12 +504,12 @@ rcl_ret_t __wrap_rcl_clock_init(rcl_clock_type_t clock_type, rcl_clock_t * clock
 rcl_ret_t __real_rcl_context_fini(rcl_context_t * context);
 rcl_ret_t __wrap_rcl_context_fini(rcl_context_t * context)
 {
+  rcl_ret_t real = __real_rcl_context_fini(context);
   int ret;
   if (rclgo_fi_should_fail("rcl_context_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_context_fini(context);
+  return real;
 }
 
 rcl_ret_t __real_rcl_disable_ros_time_override(rcl_clock_t * clock);
@@ -636,12 +636,12 @@ rcl_ret_t __wrap_rcl_get_topic_names_and_types(const rcl_node_t * node, rcl_allo
 rcl_ret_t __real_rcl_guard_condition_fini(rcl_guard_condition_t * guard_condition);
 rcl_ret_t __wrap_rcl_guard_condition_fini(rcl_guard_condition_t * guard_condition)
 {
+  rcl_ret_t real = __real_rcl_guard_condition_fini(guard_condition);
   int ret;
   if (rclgo_fi_should_fail("rcl_guard_condition_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_guard_condition_fini(guard_condition);
+  return real;
 }
 
 rcl_ret_t __real_rcl_guard_condition_init(rcl_guard_condition_t * guard_condition, rcl_context_t * context, const rcl_guard_condition_options_t options);
@@ -669,12 +669,12 @@ rcl_ret_t __wrap_rcl_init(int argc, char const * const * argv, const rcl_init_op
 rcl_ret_t __real_rcl_init_options_fini(rcl_init_options_t * init_options);
 rcl_ret_t __wrap_rcl_init_options_fini(rcl_init_options_t * init_options)
 {
+  rcl_ret_t real = __real_rcl_init_options_fini(init_options);
   int ret;
   if (rclgo_fi_should_fail("rcl_init_options_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_init_options_fini(init_options);
+  return real;
 }
 
 rcl_ret_t __real_rcl_init_options_init(rcl_init_options_t * init_options, rcl_allocator_t allocator);
@@ -724,12 +724,12 @@ rcl_ret_t __wrap_rcl_logging_configure_with_output_handler(const rcl_arguments_t
 rcl_ret_t __real_rcl_logging_fini(void);
 rcl_ret_t __wrap_rcl_logging_fini(void)
 {
+  rcl_ret_t real = __real_rcl_logging_fini();
   int ret;
   if (rclgo_fi_should_fail("rcl_logging_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_logging_fini();
+  return real;
 }
 
 rcl_ret_t __real_rcl_logging_rosout_fini_publisher_for_node(rcl_node_t * node);
@@ -757,23 +757,23 @@ rcl_ret_t __wrap_rcl_logging_rosout_init_publisher_for_node(rcl_node_t * node)
 rcl_ret_t __real_rcl_names_and_types_fini(rcl_names_and_types_t * names_and_types);
 rcl_ret_t __wrap_rcl_names_and_types_fini(rcl_names_and_types_t * names_and_types)
 {
+  rcl_ret_t real = __real_rcl_names_and_types_fini(names_and_types);
   int ret;
   if (rclgo_fi_should_fail("rcl_names_and_types_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_names_and_types_fini(names_and_types);
+  return real;
 }
 
 rcl_ret_t __real_rcl_node_fini(rcl_node_t * node);
 rcl_ret_t __wrap_rcl_node_fini(rcl_node_t * node)
 {
+  rcl_ret_t real = __real_rcl_node_fini(node);
   int ret;
   if (rclgo_fi_should_fail("rcl_node_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_node_fini(node);
+  return real;
 }
 
 const char * __real_rcl_node_get_fully_qualified_name(const rcl_node_t * node);
@@ -867,12 +867,12 @@ rcl_ret_t __wrap_rcl_publish_serialized_message(const rcl_publisher_t * publishe
 rcl_ret_t __real_rcl_publisher_fini(rcl_publisher_t * publisher, rcl_node_t * node);
 rcl_ret_t __wrap_rcl_publisher_fini(rcl_publisher_t * publisher, rcl_node_t * node)
 {
+  rcl_ret_t real = __real_rcl_publisher_fini(publisher, node);
   int ret;
   if (rclgo_fi_should_fail("rcl_publisher_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_publisher_fini(publisher, node);
+  return real;
 }
 
 rcl_ret_t __real_rcl_publisher_get_subscription_count(const rcl_publisher_t * publisher, size_t * subscription_count);
@@ -922,12 +922,12 @@ rcl_ret_t __wrap_rcl_send_response(const rcl_service_t * service, rmw_request_id
 rcl_ret_t __real_rcl_service_fini(rcl_service_t * service, rcl_node_t * node);
 rcl_ret_t __wrap_rcl_service_fini(rcl_service_t * service, rcl_node_t * node)
 {
+  rcl_ret_t real = __real_rcl_service_fini(service, node);
   int ret;
   if (rclgo_fi_should_fail("rcl_service_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_service_fini(service, node);
+  return real;
 }
 
 rcl_ret_t __real_rcl_service_init(rcl_service_t * service, const rcl_node_t * node, const rosidl_service_type_support_t * type_support, const char * service_name, const rcl_service_options_t * options);
@@ -966,12 +966,12 @@ rcl_ret_t __wrap_rcl_shutdown(rcl_context_t * context)
 rcl_ret_t __real_rcl_subscription_fini(rcl_subscription_t * subscription, rcl_node_t * node);
 rcl_ret_t __wrap_rcl_subscription_fini(rcl_subscription_t * subscription, rcl_node_t * node)
 {
+  rcl_ret_t real = __real_rcl_subscription_fini(subscription, node);
   int ret;
   if (rclgo_fi_should_fail("rcl_subscription_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_subscription_fini(subscription, node);
+  return real;
 }
 
 rmw_ret_t __real_rcl_subscription_get_publisher_count(const rcl_subscription_t * subscription, size_t * publisher_count);
@@ -1054,12 +1054,12 @@ rcl_ret_t __wrap_rcl_timer_call(rcl_timer_t * timer)
 rcl_ret_t __real_rcl_timer_fini(rcl_timer_t * timer);
 rcl_ret_t __wrap_rcl_timer_fini(rcl_timer_t * timer)
 {
+  rcl_ret_t real = __real_rcl_timer_fini(timer);
   int ret;
   if (rclgo_fi_should_fail("rcl_timer_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_timer_fini(timer);
+  return real;
 }
 
 rcl_ret_t __real_rcl_timer_get_time_until_next_call(const rcl_timer_t * timer, int64_t * time_until_next_call);
@@ -1186,12 +1186,12 @@ rcl_ret_t __wrap_rcl_wait_set_clear(rcl_wait_set_t * wait_set)
 rcl_ret_t __real_rcl_wait_set_fini(rcl_wait_set_t * wait_set);
 rcl_ret_t __wrap_rcl_wait_set_fini(rcl_wait_set_t * wait_set)
 {
+  rcl_ret_t real = __real_rcl_wait_set_fini(wait_set);
   int ret;
   if (rclgo_fi_should_fail("rcl_wait_set_fini", &ret)) {
-    (void)ret;
     return (rcl_ret_t)ret;
   }
-  return __real_rcl_wait_set_fini(wait_set);
+  return real;
 }
 
 rcl_ret_t __real_rcl_wait_set_init(rcl_wait_set_t * wait_set, size_t number_of_subscriptions, size_t number_of_guard_conditions, size_t number_of_timers, size_t number_of_clients, size_t number_of_services, size_t number_of_events, rcl_context_t * context, rcl_allocator_t allocator);
@@ -1230,23 +1230,23 @@ rcutils_ret_t __wrap_rcutils_logging_set_logger_level(const char * name, int lev
 rcutils_ret_t __real_rcutils_string_array_fini(rcutils_string_array_t * string_array);
 rcutils_ret_t __wrap_rcutils_string_array_fini(rcutils_string_array_t * string_array)
 {
+  rcutils_ret_t real = __real_rcutils_string_array_fini(string_array);
   int ret;
   if (rclgo_fi_should_fail("rcutils_string_array_fini", &ret)) {
-    (void)ret;
     return (rcutils_ret_t)ret;
   }
-  return __real_rcutils_string_array_fini(string_array);
+  return real;
 }
 
 rcutils_ret_t __real_rcutils_string_map_fini(rcutils_string_map_t * string_map);
 rcutils_ret_t __wrap_rcutils_string_map_fini(rcutils_string_map_t * string_map)
 {
+  rcutils_ret_t real = __real_rcutils_string_map_fini(string_map);
   int ret;
   if (rclgo_fi_should_fail("rcutils_string_map_fini", &ret)) {
-    (void)ret;
     return (rcutils_ret_t)ret;
   }
-  return __real_rcutils_string_map_fini(string_map);
+  return real;
 }
 
 rcutils_ret_t __real_rcutils_string_map_init(rcutils_string_map_t * string_map, size_t initial_capacity, rcutils_allocator_t allocator);
@@ -1274,12 +1274,12 @@ rcutils_ret_t __wrap_rcutils_string_map_set(rcutils_string_map_t * string_map, c
 rcutils_ret_t __real_rcutils_uint8_array_fini(rcutils_uint8_array_t * uint8_array);
 rcutils_ret_t __wrap_rcutils_uint8_array_fini(rcutils_uint8_array_t * uint8_array)
 {
+  rcutils_ret_t real = __real_rcutils_uint8_array_fini(uint8_array);
   int ret;
   if (rclgo_fi_should_fail("rcutils_uint8_array_fini", &ret)) {
-    (void)ret;
     return (rcutils_ret_t)ret;
   }
-  return __real_rcutils_uint8_array_fini(uint8_array);
+  return real;
 }
 
 rcutils_ret_t __real_rcutils_uint8_array_init(rcutils_uint8_array_t * uint8_array, size_t buffer_capacity, const rcutils_allocator_t * allocator);
@@ -1304,6 +1304,17 @@ rmw_ret_t __wrap_rmw_deserialize(const rmw_serialized_message_t * serialized_mes
   return __real_rmw_deserialize(serialized_message, type_support, ros_message);
 }
 
+rmw_ret_t __real_rmw_qos_profile_check_compatible(const rmw_qos_profile_t publisher_profile, const rmw_qos_profile_t subscription_profile, rmw_qos_compatibility_type_t * compatibility, char * reason, size_t reason_size);
+rmw_ret_t __wrap_rmw_qos_profile_check_compatible(const rmw_qos_profile_t publisher_profile, const rmw_qos_profile_t subscription_profile, rmw_qos_compatibility_type_t * compatibility, char * reason, size_t reason_size)
+{
+  int ret;
+  if (rclgo_fi_should_fail("rmw_qos_profile_check_compatible", &ret)) {
+    (void)ret;
+    return (rmw_ret_t)ret;
+  }
+  return __real_rmw_qos_profile_check_compatible(publisher_profile, subscription_profile, compatibility, reason, reason_size);
+}
+
 rmw_ret_t __real_rmw_serialize(const void * ros_message, const rosidl_message_type_support_t * type_support, rmw_serialized_message_t * serialized_message);
 rmw_ret_t __wrap_rmw_serialize(const void * ros_message, const rosidl_message_type_support_t * type_support, rmw_serialized_message_t * serialized_message)
 {
@@ -1318,10 +1329,10 @@ rmw_ret_t __wrap_rmw_serialize(const void * ros_message, const rosidl_message_ty
 rmw_ret_t __real_rmw_topic_endpoint_info_array_fini(rmw_topic_endpoint_info_array_t * topic_endpoint_info_array, rcutils_allocator_t * allocator);
 rmw_ret_t __wrap_rmw_topic_endpoint_info_array_fini(rmw_topic_endpoint_info_array_t * topic_endpoint_info_array, rcutils_allocator_t * allocator)
 {
+  rmw_ret_t real = __real_rmw_topic_endpoint_info_array_fini(topic_endpoint_info_array, allocator);
   int ret;
   if (rclgo_fi_should_fail("rmw_topic_endpoint_info_array_fini", &ret)) {
-    (void)ret;
     return (rmw_ret_t)ret;
   }
-  return __real_rmw_topic_endpoint_info_array_fini(topic_endpoint_info_array, allocator);
+  return real;
 }

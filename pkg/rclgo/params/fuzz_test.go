@@ -18,7 +18,7 @@ func FuzzLoadYAML(f *testing.F) {
 		if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		m := &Manager{st: newStore()}
+		m := newBareManager()
 		_ = LoadYAML(m, "node", path)
 	})
 }

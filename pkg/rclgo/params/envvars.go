@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const envVarPrefix = "RCL_PARAM_"
@@ -112,8 +114,9 @@ func getParamEnvVars() map[string]string {
 func parseEnvVarValue(valStr string, existingParam *Parameter) (Value, error) {
 	valStr = strings.TrimSpace(valStr)
 
-	// If we have an existing parameter, use its type
-	if existingParam != nil {
+	// If we have an existing parameter with a type, use its type; a
+	// parameter that is not set (KindNotSet) takes the inferred type.
+	if existingParam != nil && existingParam.Value.Kind != KindNotSet {
 		return parseValueWithType(valStr, existingParam.Value.Kind)
 	}
 
@@ -154,9 +157,8 @@ func inferValueType(valStr string) (Value, error) {
 		return inferArrayType(valStr)
 	}
 
-	// Check for boolean
-	lower := strings.ToLower(valStr)
-	if lower == "true" || lower == "false" {
+	// Check for boolean, with rcl's spellings
+	if _, ok := rclBool(valStr); ok {
 		return parseBool(valStr)
 	}
 
@@ -179,31 +181,18 @@ func inferValueType(valStr string) (Value, error) {
 
 // inferArrayType infers and parses an array value from string.
 func inferArrayType(valStr string) (Value, error) {
-	// Strip brackets
-	inner := strings.TrimPrefix(valStr, "[")
-	inner = strings.TrimSuffix(inner, "]")
-	inner = strings.TrimSpace(inner)
-
-	if inner == "" {
-		// Empty array - default to string array
-		return Value{Kind: KindStringArray, Strs: []string{}}, nil
+	elements, err := extractArrayElements(valStr)
+	if err != nil {
+		return Value{}, err
 	}
-
-	// Split by comma
-	elements := strings.Split(inner, ",")
-	for i := range elements {
-		elements[i] = strings.TrimSpace(elements[i])
-	}
-
 	if len(elements) == 0 {
+		// Empty array - default to string array
 		return Value{Kind: KindStringArray, Strs: []string{}}, nil
 	}
 
 	// Infer type from first element
 	first := elements[0]
-	lower := strings.ToLower(first)
-
-	if lower == "true" || lower == "false" {
+	if _, ok := rclBool(first); ok {
 		// Bool array
 		return parseBoolArray(valStr)
 	}
@@ -228,6 +217,9 @@ func inferArrayType(valStr string) (Value, error) {
 // Scalar parsers
 
 func parseBool(valStr string) (Value, error) {
+	if b, ok := rclBool(valStr); ok {
+		return Value{Kind: KindBool, Bool: b}, nil
+	}
 	b, err := strconv.ParseBool(valStr)
 	if err != nil {
 		return Value{}, err
@@ -261,11 +253,11 @@ func parseBoolArray(valStr string) (Value, error) {
 
 	bools := make([]bool, len(elements))
 	for i, elem := range elements {
-		b, err := strconv.ParseBool(elem)
+		v, err := parseBool(elem)
 		if err != nil {
 			return Value{}, fmt.Errorf("element %d: %w", i, err)
 		}
-		bools[i] = b
+		bools[i] = v.Bool
 	}
 	return Value{Kind: KindBoolArray, Bools: bools}, nil
 }
@@ -310,33 +302,20 @@ func parseStringArray(valStr string) (Value, error) {
 		return Value{}, err
 	}
 
-	// Remove quotes from string elements if present
-	strs := make([]string, len(elements))
-	for i, elem := range elements {
-		strs[i] = strings.Trim(elem, `"'`)
-	}
-	return Value{Kind: KindStringArray, Strs: strs}, nil
+	return Value{Kind: KindStringArray, Strs: elements}, nil
 }
 
-// extractArrayElements splits an array string "[a,b,c]" into ["a", "b", "c"].
+// extractArrayElements splits an array string "[a,b,c]" into ["a", "b", "c"]
+// as a YAML flow sequence, as rcl parses -p values: quoted elements may contain
+// commas, and their quotes are removed.
 func extractArrayElements(valStr string) ([]string, error) {
 	valStr = strings.TrimSpace(valStr)
 	if !strings.HasPrefix(valStr, "[") || !strings.HasSuffix(valStr, "]") {
 		return nil, fmt.Errorf("not an array (missing brackets): %s", valStr)
 	}
-
-	inner := strings.TrimPrefix(valStr, "[")
-	inner = strings.TrimSuffix(inner, "]")
-	inner = strings.TrimSpace(inner)
-
-	if inner == "" {
-		return []string{}, nil
+	elements := []string{}
+	if err := yaml.Unmarshal([]byte(valStr), &elements); err != nil {
+		return nil, fmt.Errorf("invalid array %s: %w", valStr, err)
 	}
-
-	elements := strings.Split(inner, ",")
-	for i := range elements {
-		elements[i] = strings.TrimSpace(elements[i])
-	}
-
 	return elements, nil
 }

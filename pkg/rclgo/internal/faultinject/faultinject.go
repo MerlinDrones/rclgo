@@ -8,7 +8,10 @@
 // wrapper passes the call through unless it is the call chosen with Arm; that
 // call returns the chosen error code (NULL for functions returning a pointer)
 // and sets the rcl error message
-// "injected fault in <function>", without calling the real function.
+// "injected fault in <function>", without calling the real function. A
+// failing *_fini function is the exception: the real function runs first,
+// because rcl's fini functions release everything even when they report an
+// error.
 //
 // The wrappers are generated: run go generate after rclgo starts calling a new
 // function.

@@ -134,6 +134,7 @@ package faultinject
 #cgo LDFLAGS: -Wl,--wrap=rcutils_uint8_array_fini
 #cgo LDFLAGS: -Wl,--wrap=rcutils_uint8_array_init
 #cgo LDFLAGS: -Wl,--wrap=rmw_deserialize
+#cgo LDFLAGS: -Wl,--wrap=rmw_qos_profile_check_compatible
 #cgo LDFLAGS: -Wl,--wrap=rmw_serialize
 #cgo LDFLAGS: -Wl,--wrap=rmw_topic_endpoint_info_array_fini
 */
@@ -258,6 +259,7 @@ var Functions = []string{
 	"rcutils_uint8_array_fini",
 	"rcutils_uint8_array_init",
 	"rmw_deserialize",
+	"rmw_qos_profile_check_compatible",
 	"rmw_serialize",
 	"rmw_topic_endpoint_info_array_fini",
 }

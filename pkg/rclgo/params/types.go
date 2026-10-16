@@ -111,6 +111,12 @@ type store struct {
 	// has not declared yet. Declaring one attaches the code's descriptor and
 	// type to the override's value.
 	overridden map[string]bool
+
+	// notify, if set, is told about every change after it is made, while
+	// modMu is still held, so that notifications (parameter events and
+	// post-set callbacks) are delivered in the order of the changes, as in
+	// rclcpp, where they run under the parameters mutex.
+	notify func(declared, changed, deleted []Parameter)
 }
 
 // errInCallback is returned for a change attempted from an on-set callback.
@@ -143,6 +149,19 @@ func (s *store) runCallback(params []Parameter) SetResult {
 	return cb(params)
 }
 
+// notifyChange calls notify for a change; modMu must be held and mu not. A
+// change attempted from the notification fails with errInCallback, as rclcpp
+// rejects changes from post-set callbacks.
+func (s *store) notifyChange(declared, changed, deleted []Parameter) {
+	if s.notify == nil || len(declared)+len(changed)+len(deleted) == 0 {
+		return
+	}
+	prev := s.cbOwner.Load()
+	s.cbOwner.Store(goroutineID())
+	defer s.cbOwner.Store(prev)
+	s.notify(declared, changed, deleted)
+}
+
 func (s *store) setCallback(cb OnSetCallback) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -159,39 +178,61 @@ func (s *store) declare(name string, v Value, d Descriptor) (Parameter, error) {
 	return p, err
 }
 
-// declareOrClaim declares a parameter. If an override already created it, the
-// override's value is kept, converted to the type of v and checked against d,
-// and claimed reports true.
+// declareOrClaim declares a parameter, as rclcpp's declare_parameter: the
+// value (v, or an override's value if an override already created the
+// parameter, converted to v's type; claimed then reports true) must satisfy d
+// and the on-set callback, and is then reported as a new parameter (or, for a
+// claimed override, a changed one).
 func (s *store) declareOrClaim(name string, v Value, d Descriptor) (p Parameter, claimed bool, err error) {
 	if err := s.lockChanges(); err != nil {
 		return Parameter{}, false, err
 	}
 	defer s.modMu.Unlock()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if _, exists := s.vals[name]; exists {
-		if !s.overridden[name] {
-			return Parameter{}, false, fmt.Errorf("parameter %q already declared", name)
-		}
-		override := s.vals[name].Value
-		val, ok := coerce(override, v.Kind)
+	s.mu.RLock()
+	cur, exists := s.vals[name]
+	claimed = exists && s.overridden[name]
+	s.mu.RUnlock()
+	if exists && !claimed {
+		return Parameter{}, false, fmt.Errorf("parameter %q already declared", name)
+	}
+	if claimed {
+		// A declaration that fails leaves the parameter undeclared, as in
+		// rclcpp: the override is dropped instead of staying settable with
+		// no descriptor.
+		defer func() {
+			if err != nil {
+				s.dropOverride(name, cur)
+			}
+		}()
+	}
+	what := fmt.Sprintf("default %v", v)
+	p = Parameter{Name: name, Value: v}
+	if claimed {
+		what = fmt.Sprintf("override %v", cur.Value)
+		val, ok := coerce(cur.Value, v.Kind)
 		if !ok {
 			return Parameter{}, false, fmt.Errorf("parameter %q: override of type %s cannot be used for a %s parameter",
-				name, kindName(override.Kind), kindName(v.Kind))
+				name, kindName(cur.Value.Kind), kindName(v.Kind))
 		}
-		p = Parameter{Name: name, Value: val}
-		if res := validate(p, d); !res.Successful {
-			return Parameter{}, false, fmt.Errorf("parameter %q: override %v rejected: %s", name, override, res.Reason)
-		}
-		s.desc[name] = d
-		s.vals[name] = p
-		delete(s.overridden, name)
-		return p, true, nil
+		p.Value = val
 	}
+	if res := validate(p, d); !res.Successful {
+		return Parameter{}, false, fmt.Errorf("parameter %q: %s rejected: %s", name, what, res.Reason)
+	}
+	if res := s.runCallback([]Parameter{p}); !res.Successful {
+		return Parameter{}, false, fmt.Errorf("parameter %q: %s rejected by the on-set callback: %s", name, what, res.Reason)
+	}
+	s.mu.Lock()
 	s.desc[name] = d
-	p = Parameter{Name: name, Value: v}
 	s.vals[name] = p
-	return p, false, nil
+	delete(s.overridden, name)
+	s.mu.Unlock()
+	if claimed {
+		s.notifyChange(nil, []Parameter{p}, nil)
+	} else {
+		s.notifyChange([]Parameter{p}, nil, nil)
+	}
+	return p, claimed, nil
 }
 
 // applyOverride sets a parameter from an override. An undeclared parameter is
@@ -212,12 +253,14 @@ func (s *store) applyOverride(name string, v Value, d Descriptor) (p Parameter, 
 		s.vals[name] = p
 		s.overridden[name] = true
 		s.mu.Unlock()
+		s.notifyChange([]Parameter{p}, nil, nil)
 		return p, true, nil
 	}
 	if s.overridden[name] {
 		p = Parameter{Name: name, Value: v}
 		s.vals[name] = p
 		s.mu.Unlock()
+		s.notifyChange(nil, []Parameter{p}, nil)
 		return p, false, nil
 	}
 	desc := s.desc[name]
@@ -237,6 +280,7 @@ func (s *store) applyOverride(name string, v Value, d Descriptor) (p Parameter, 
 	s.mu.Lock()
 	s.vals[name] = p
 	s.mu.Unlock()
+	s.notifyChange(nil, []Parameter{p}, nil)
 	return p, false, nil
 }
 
@@ -268,8 +312,24 @@ func coerce(v Value, kind uint8) (Value, bool) {
 			ds[i] = float64(x)
 		}
 		return Value{Kind: KindDoubleArray, Doubles: ds}, true
+	case isArrayKind(kind) && isArrayKind(v.Kind) && arrayLen(v) == 0:
+		// An empty list (e.g. `[]` in a YAML file, which has no element
+		// type) fits any array type.
+		return Value{Kind: kind}, true
 	}
 	return v, false
+}
+
+func isArrayKind(kind uint8) bool {
+	switch kind {
+	case KindBytes, KindBoolArray, KindInt64Array, KindDoubleArray, KindStringArray:
+		return true
+	}
+	return false
+}
+
+func arrayLen(v Value) int {
+	return len(v.Bytes) + len(v.Bools) + len(v.Int64s) + len(v.Doubles) + len(v.Strs)
 }
 
 func kindName(kind uint8) string {
@@ -332,7 +392,6 @@ func (s *store) set(params []Parameter) (SetResult, []Parameter, []Parameter) {
 		return res, nil, nil
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	old := make([]Parameter, 0, len(coerced))
 	newp := make([]Parameter, 0, len(coerced))
 	for _, np := range coerced {
@@ -340,6 +399,8 @@ func (s *store) set(params []Parameter) (SetResult, []Parameter, []Parameter) {
 		s.vals[np.Name] = np
 		newp = append(newp, np)
 	}
+	s.mu.Unlock()
+	s.notifyChange(nil, newp, nil)
 	return SetResult{true, ""}, old, newp
 }
 
@@ -409,21 +470,42 @@ func validate(p Parameter, d Descriptor) SetResult {
 	return SetResult{true, ""}
 }
 
-// --- Undeclare ---
-// removes a parameter definition and its descriptor if present.
-// returns the removed Parameter and true if it existed.
-func (s *store) undeclare(name string) (Parameter, bool) {
-	if s.lockChanges() != nil {
-		return Parameter{}, false
-	}
-	defer s.modMu.Unlock()
+// dropOverride removes the override-only parameter name, whose value was cur,
+// and reports it as deleted. s.modMu must be held.
+func (s *store) dropOverride(name string, cur Parameter) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	p, ok := s.vals[name]
-	if !ok {
-		return Parameter{}, false
+	if !s.overridden[name] {
+		s.mu.Unlock()
+		return
 	}
 	delete(s.vals, name)
 	delete(s.desc, name)
-	return p, true
+	delete(s.overridden, name)
+	s.mu.Unlock()
+	s.notifyChange(nil, nil, []Parameter{cur})
+}
+
+// undeclare removes a parameter, as rclcpp's undeclare_parameter: a parameter
+// that isn't declared, or is read-only, is refused.
+func (s *store) undeclare(name string) error {
+	if err := s.lockChanges(); err != nil {
+		return err
+	}
+	defer s.modMu.Unlock()
+	s.mu.Lock()
+	p, ok := s.vals[name]
+	if !ok {
+		s.mu.Unlock()
+		return fmt.Errorf("parameter %q is not declared", name)
+	}
+	if s.desc[name].ReadOnly {
+		s.mu.Unlock()
+		return fmt.Errorf("parameter %q is read-only", name)
+	}
+	delete(s.vals, name)
+	delete(s.desc, name)
+	delete(s.overridden, name)
+	s.mu.Unlock()
+	s.notifyChange(nil, nil, []Parameter{p})
+	return nil
 }
