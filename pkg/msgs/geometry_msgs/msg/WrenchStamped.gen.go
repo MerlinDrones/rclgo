@@ -56,6 +56,18 @@ func (t *WrenchStamped) GetTypeSupport() types.MessageTypeSupport {
 	return WrenchStampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *WrenchStamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Wrench); err != nil {
+		return types.InField("wrench", err)
+	}
+	return nil
+}
+
 // WrenchStampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type WrenchStampedPublisher struct {

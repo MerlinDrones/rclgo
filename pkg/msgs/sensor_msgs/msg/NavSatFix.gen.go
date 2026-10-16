@@ -79,6 +79,18 @@ func (t *NavSatFix) GetTypeSupport() types.MessageTypeSupport {
 	return NavSatFixTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NavSatFix) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Status); err != nil {
+		return types.InField("status", err)
+	}
+	return nil
+}
+
 // NavSatFixPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type NavSatFixPublisher struct {

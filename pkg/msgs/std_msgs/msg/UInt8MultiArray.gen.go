@@ -59,6 +59,15 @@ func (t *UInt8MultiArray) GetTypeSupport() types.MessageTypeSupport {
 	return UInt8MultiArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *UInt8MultiArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Layout); err != nil {
+		return types.InField("layout", err)
+	}
+	return nil
+}
+
 // UInt8MultiArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type UInt8MultiArrayPublisher struct {

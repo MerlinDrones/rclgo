@@ -56,6 +56,12 @@ func (t *GetParameterTypes_Response) GetTypeSupport() types.MessageTypeSupport {
 	return GetParameterTypes_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *GetParameterTypes_Response) CheckBounds() error {
+	return nil
+}
+
 // GetParameterTypes_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type GetParameterTypes_ResponsePublisher struct {

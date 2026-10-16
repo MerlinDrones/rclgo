@@ -59,6 +59,15 @@ func (t *Illuminance) GetTypeSupport() types.MessageTypeSupport {
 	return IlluminanceTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Illuminance) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // IlluminancePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type IlluminancePublisher struct {

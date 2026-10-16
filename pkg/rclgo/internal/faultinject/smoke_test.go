@@ -7,15 +7,18 @@ import (
 	"testing"
 	"time"
 
+	example_interfaces_action "github.com/merlindrones/rclgo/pkg/msgs/example_interfaces/action"
 	std_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/internal/faultinject"
 	"github.com/merlindrones/rclgo/pkg/rclgo/internal/rclgotest"
+	"github.com/merlindrones/rclgo/pkg/rclgo/types"
+	"go.uber.org/goleak"
 )
 
 func TestMain(m *testing.M) {
 	rclgotest.UseIsolatedDomain()
-	m.Run()
+	goleak.VerifyTestMain(m)
 }
 
 // A call from rclgo is routed through its wrapper: the chosen call fails with
@@ -92,5 +95,62 @@ func TestSpinReturnsWhenWakingFails(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		faultinject.Disarm()
 		t.Fatal("Spin did not return")
+	}
+}
+
+// A result request is answered even if the goal's final state can't be set
+// in rcl: it gets the state the server decided instead of waiting forever.
+func TestResultAnsweredWhenFinalStateUpdateFails(t *testing.T) {
+	node := rclgotest.Node(t, "result_fault", "/faultinject")
+	release := make(chan struct{})
+	_, err := example_interfaces_action.NewFibonacciServer(node, "fib", example_interfaces_action.NewFibonacciAction(
+		func(_ context.Context, goal *example_interfaces_action.FibonacciGoalHandle) (*example_interfaces_action.Fibonacci_Result, error) {
+			if _, err := goal.Accept(); err != nil {
+				return nil, err
+			}
+			<-release
+			return example_interfaces_action.NewFibonacci_Result(), nil
+		}), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := example_interfaces_action.NewFibonacciClient(node, "fib", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rclgotest.Spin(t, node.Context().Spin)
+	var id *types.GoalID
+	rclgotest.Eventually(t, "goal accepted", func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		resp, goalID, err := client.SendGoal(ctx, example_interfaces_action.NewFibonacci_Goal())
+		if err == nil && !resp.Accepted {
+			err = errors.New("goal rejected")
+		}
+		id = goalID
+		return err
+	})
+	results := make(chan *example_interfaces_action.Fibonacci_GetResult_Response, 1)
+	go func() {
+		resp, err := client.GetResult(context.Background(), id)
+		if err != nil {
+			t.Error(err)
+		}
+		results <- resp
+	}()
+	time.Sleep(200 * time.Millisecond) // the result request is waiting
+	faultinject.Arm(1, "rcl_action_update_goal_state", faultinject.RetError)
+	close(release)
+	select {
+	case resp := <-results:
+		if _, failed := faultinject.Disarm(); failed == "" {
+			t.Fatal("the state update was not made to fail")
+		}
+		if resp != nil && resp.Status != int8(rclgo.GoalSucceeded) {
+			t.Fatalf("status %d, want SUCCEEDED (what the server decided)", resp.Status)
+		}
+	case <-time.After(10 * time.Second):
+		faultinject.Disarm()
+		t.Fatal("the result request was never answered")
 	}
 }

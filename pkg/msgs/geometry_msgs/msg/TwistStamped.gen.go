@@ -56,6 +56,18 @@ func (t *TwistStamped) GetTypeSupport() types.MessageTypeSupport {
 	return TwistStampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *TwistStamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Twist); err != nil {
+		return types.InField("twist", err)
+	}
+	return nil
+}
+
 // TwistStampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TwistStampedPublisher struct {

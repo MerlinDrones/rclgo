@@ -80,6 +80,15 @@ func (t *Log) GetTypeSupport() types.MessageTypeSupport {
 	return LogTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Log) CheckBounds() error {
+	if err := types.CheckBounds(&t.Stamp); err != nil {
+		return types.InField("stamp", err)
+	}
+	return nil
+}
+
 // LogPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type LogPublisher struct {

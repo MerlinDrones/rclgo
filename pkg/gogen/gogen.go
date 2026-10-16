@@ -493,22 +493,20 @@ func (g *Generator) generateMessage(md *Metadata, sourcePath string) (*ROS2Messa
 	return msg, nil
 }
 
+// parseMetadataFromPath reads the package, interface type and name from a
+// path ending in <package>/<msg|srv|action>/<Name>.<ext>.
 func parseMetadataFromPath(p string) (*Metadata, error) {
 	base := filepath.Base(p)
 	ext := filepath.Ext(base)
-	m := &Metadata{
-		Name: strings.TrimSuffix(base, ext),
-		Type: ext[1:],
-	}
-	dirs := strings.Split(p, string(filepath.Separator))
-
-	if len(dirs) >= 2 {
-		m.Package = dirs[len(dirs)-3]
-	} else {
+	dirs := strings.Split(filepath.Clean(p), string(filepath.Separator))
+	if ext == "" || len(dirs) < 3 || dirs[len(dirs)-3] == "" {
 		return nil, fmt.Errorf("Path '%s' cannot be parsed for ROS2 package name!", p)
 	}
-
-	return m, nil
+	return &Metadata{
+		Name:    strings.TrimSuffix(base, ext),
+		Type:    ext[1:],
+		Package: dirs[len(dirs)-3],
+	}, nil
 }
 
 func ifaceFilePath(destPathPkgRoot string, m *Metadata) string {

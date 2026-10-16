@@ -80,6 +80,28 @@ func (t *ParameterDescriptor) GetTypeSupport() types.MessageTypeSupport {
 	return ParameterDescriptorTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ParameterDescriptor) CheckBounds() error {
+	if len(t.FloatingPointRange) > 1 {
+		return types.BoundExceeded("floating_point_range", len(t.FloatingPointRange), 1)
+	}
+	for i := range t.FloatingPointRange {
+		if err := types.CheckBounds(&t.FloatingPointRange[i]); err != nil {
+			return types.InElement("floating_point_range", i, err)
+		}
+	}
+	if len(t.IntegerRange) > 1 {
+		return types.BoundExceeded("integer_range", len(t.IntegerRange), 1)
+	}
+	for i := range t.IntegerRange {
+		if err := types.CheckBounds(&t.IntegerRange[i]); err != nil {
+			return types.InElement("integer_range", i, err)
+		}
+	}
+	return nil
+}
+
 // ParameterDescriptorPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ParameterDescriptorPublisher struct {

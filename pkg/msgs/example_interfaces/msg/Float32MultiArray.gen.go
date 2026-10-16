@@ -59,6 +59,15 @@ func (t *Float32MultiArray) GetTypeSupport() types.MessageTypeSupport {
 	return Float32MultiArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Float32MultiArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Layout); err != nil {
+		return types.InField("layout", err)
+	}
+	return nil
+}
+
 // Float32MultiArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Float32MultiArrayPublisher struct {

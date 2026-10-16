@@ -19,17 +19,6 @@ const rcutils_log_location_t zero_location = {
     .line_number = 0
 };
 
-// Variable argument functions can't be called from Go so a wrapper is required.
-void rcutils_log_wrapper(
-    const rcutils_log_location_t* location,
-    int severity,
-    const char* name,
-    const char* format,
-    const char* msg
-) {
-    rcutils_log(location, severity, name, format, msg);
-}
-
 #include <pthread.h>
 #include <rcl/logging_rosout.h>
 #include <rcl/node.h>
@@ -85,6 +74,43 @@ static rcl_ret_t rclgo_logging_fini(void) {
     rcl_ret_t rc = rcl_logging_fini();
     rclgo_logging_unlock();
     return rc;
+}
+
+// Variable argument functions can't be called from Go so a wrapper is required.
+// rcutils_log looks up the logger's level in rcutils' logger table before it
+// calls the output handler, so the whole call holds the mutex: a concurrent
+// SetLevel changes that table.
+void rcutils_log_wrapper(
+    const rcutils_log_location_t* location,
+    int severity,
+    const char* name,
+    const char* format,
+    const char* msg
+) {
+    rclgo_logging_lock();
+    rcutils_log(location, severity, name, format, msg);
+    rclgo_logging_unlock();
+}
+
+static int rclgo_get_logger_level(const char* name) {
+    rclgo_logging_lock();
+    int level = rcutils_logging_get_logger_level(name);
+    rclgo_logging_unlock();
+    return level;
+}
+
+static int rclgo_get_logger_effective_level(const char* name) {
+    rclgo_logging_lock();
+    int level = rcutils_logging_get_logger_effective_level(name);
+    rclgo_logging_unlock();
+    return level;
+}
+
+static bool rclgo_logger_is_enabled_for(const char* name, int severity) {
+    rclgo_logging_lock();
+    bool enabled = rcutils_logging_logger_is_enabled_for(name, severity);
+    rclgo_logging_unlock();
+    return enabled;
 }
 
 static rcutils_ret_t rclgo_set_logger_level(const char* name, int level) {
@@ -416,9 +442,7 @@ func (l *Logger) Child(name string) *Logger {
 func (l *Logger) Level() (LogSeverity, error) {
 	runtime.LockOSThread() // rcutils error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
-	loggingMutex.Lock()
-	defer loggingMutex.Unlock()
-	level := C.rcutils_logging_get_logger_level(l.cname)
+	level := C.rclgo_get_logger_level(l.cname)
 	runtime.KeepAlive(l)
 	if level < 0 {
 		return 0, errors.New("failed to get log level: " + errorString())
@@ -443,9 +467,7 @@ func (l *Logger) SetLevel(level LogSeverity) error {
 // IsEnabledFor returns true if l can log messages whose severity is at least
 // level and false if not.
 func (l *Logger) IsEnabledFor(level LogSeverity) bool {
-	loggingMutex.Lock()
-	defer loggingMutex.Unlock()
-	b := C.rcutils_logging_logger_is_enabled_for(l.cname, C.int(level))
+	b := C.rclgo_logger_is_enabled_for(l.cname, C.int(level))
 	runtime.KeepAlive(l)
 	return bool(b)
 }
@@ -456,9 +478,7 @@ func (l *Logger) IsEnabledFor(level LogSeverity) bool {
 func (l *Logger) EffectiveLevel() (LogSeverity, error) {
 	runtime.LockOSThread() // rcutils error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
-	loggingMutex.Lock()
-	defer loggingMutex.Unlock()
-	level := C.rcutils_logging_get_logger_effective_level(l.cname)
+	level := C.rclgo_get_logger_effective_level(l.cname)
 	runtime.KeepAlive(l)
 	if level < 0 {
 		return 0, errors.New("failed to get effective log level: " + errorString())

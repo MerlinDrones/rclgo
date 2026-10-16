@@ -9,6 +9,7 @@ import "C"
 import (
 	"context"
 	"errors"
+	"fmt"
 	"runtime"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ import (
 
 // errWaitSetClosed is returned by Run when the wait set or its context is
 // closed while it runs.
-var errWaitSetClosed = errors.New("wait set was closed")
+var errWaitSetClosed = fmt.Errorf("wait set was closed: %w", ErrClosed)
 
 type WaitSet struct {
 	rosID

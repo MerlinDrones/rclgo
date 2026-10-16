@@ -87,6 +87,9 @@ func resultStatus(resp types.Message) (GoalStatus, bool) {
 type FeedbackSender struct{ goal *GoalHandle }
 
 func (s *FeedbackSender) Send(msg types.Message) error {
+	if err := checkMessage("send feedback", messageType(s.goal.server.typeSupport.Feedback()), msg); err != nil {
+		return err
+	}
 	return s.goal.server.sendFeedback(s.goal, msg)
 }
 
@@ -109,6 +112,11 @@ type GoalHandle struct {
 
 	result     types.Message
 	resultCond *sync.Cond
+	// finished is set, and finalStatus to the terminal state the server
+	// decided, when ExecuteGoal has returned and the goal was handled, even
+	// if updating its state in rcl failed. Guarded by resultCond.L.
+	finished    bool
+	finalStatus GoalStatus
 }
 
 func newEmptyGoal(s *ActionServer, cancel context.CancelFunc) *GoalHandle {
@@ -203,11 +211,18 @@ func (g *GoalHandle) waitResult() (GoalStatus, types.Message) {
 		status, err := g.status()
 		if err != nil {
 			g.server.logGoalError(&g.ID, err)
-			return GoalUnknown, nil
+			if !g.finished {
+				return GoalUnknown, nil
+			}
 		}
-		switch status {
-		case GoalSucceeded, GoalAborted, GoalCanceled:
+		switch {
+		case err == nil && (status == GoalSucceeded || status == GoalAborted || status == GoalCanceled):
 			return status, g.result
+		case g.finished:
+			// rcl's state could not be updated (the error was logged);
+			// answer with the state the server decided rather than wait
+			// forever.
+			return g.finalStatus, g.result
 		default:
 			g.resultCond.Wait()
 		}
@@ -571,6 +586,22 @@ func (s *ActionServer) executeGoal(ctx context.Context, goal *GoalHandle) {
 		}()
 		result, err = s.action.ExecuteGoal(ctx, goal)
 	}()
+	if isNilMessage(result) {
+		// A typed nil pointer, e.g. a nil *X_Result returned as a
+		// types.Message by a hand-written Action, means no result.
+		result = nil
+	}
+	if err == nil && result != nil {
+		// A result that can't be sent aborts the goal, so that the client
+		// gets an answer.
+		if terr := checkMessage("goal result", messageType(s.typeSupport.Result()), result); terr != nil {
+			s.logGoalError(&goal.ID, "aborting, the result can't be sent: ", terr)
+			result, err = nil, terr
+		} else if berr := types.CheckBounds(result); berr != nil {
+			s.logGoalError(&goal.ID, "aborting, the result can't be sent: ", berr)
+			result, err = nil, berr
+		}
+	}
 	s.finishGoal(goal, result, err)
 }
 
@@ -579,6 +610,13 @@ func (s *ActionServer) executeGoal(ctx context.Context, goal *GoalHandle) {
 func (s *ActionServer) finishGoal(goal *GoalHandle, result types.Message, execErr error) {
 	goal.resultCond.L.Lock()
 	defer goal.resultCond.L.Unlock()
+	// Whatever happens below, result requests waiting for this goal get an
+	// answer.
+	goal.finalStatus = GoalAborted
+	defer func() {
+		goal.finished = true
+		goal.resultCond.Broadcast()
+	}()
 	if goal.handle == nil {
 		if execErr == nil {
 			s.logGoalError(&goal.ID, "ExecuteGoal returned without calling Accept, rejecting the goal")
@@ -605,8 +643,10 @@ func (s *ActionServer) finishGoal(goal *GoalHandle, result types.Message, execEr
 	switch {
 	case status == GoalCanceling && (execErr == nil || errors.Is(execErr, context.Canceled)):
 		event = C.GOAL_EVENT_CANCELED
+		goal.finalStatus = GoalCanceled
 	case execErr == nil && result != nil:
 		event = C.GOAL_EVENT_SUCCEED
+		goal.finalStatus = GoalSucceeded
 	default:
 		if execErr == nil {
 			s.logGoalError(&goal.ID, "a nil result was returned even though the goal was executed successfully")
@@ -630,7 +670,6 @@ func (s *ActionServer) finishGoal(goal *GoalHandle, result types.Message, execEr
 	if err != nil {
 		s.logGoalDebug(&goal.ID, err)
 	}
-	goal.resultCond.Broadcast()
 }
 
 func (s *ActionServer) expireGoals() error {
@@ -691,6 +730,9 @@ func (s *ActionServer) getGoal(id *types.GoalID) *GoalHandle {
 func (s *ActionServer) sendResultResponse(status GoalStatus, result types.Message, header *C.rmw_request_id_t) error {
 	ts := s.typeSupport.GetResult().Response()
 	resp := s.typeSupport.NewGetResultResponse(int8(status), result)
+	if err := types.CheckBounds(resp); err != nil {
+		return err
+	}
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)
 	ts.AsCStruct(buf, resp)
@@ -716,6 +758,13 @@ func (s *ActionServer) handleResultRequest() {
 	}
 	go func() {
 		id := req.GetGoalID()
+		defer func() {
+			// Results are checked when ExecuteGoal returns; this keeps a bug
+			// in a type support from taking the process down.
+			if r := recover(); r != nil {
+				s.logGoalError(id, fmt.Sprintf("rclgo: panic when sending a result: %v", r))
+			}
+		}()
 		status, result := GoalUnknown, types.Message(nil)
 		if goal := s.getGoal(id); goal != nil {
 			status, result = goal.waitResult()
@@ -814,6 +863,9 @@ func (s *ActionServer) handleCancelRequest() {
 
 func (s *ActionServer) sendFeedback(goal *GoalHandle, fb types.Message) error {
 	msg := s.typeSupport.NewFeedbackMessage(&goal.ID, fb)
+	if err := types.CheckBounds(msg); err != nil {
+		return err
+	}
 	ts := s.typeSupport.FeedbackMessage()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)
@@ -1074,6 +1126,9 @@ type ActionClient struct {
 	// delivered to a status watcher when it subscribes. Guarded by
 	// rclClientMu.
 	lastStatus map[types.GoalID]types.Message
+
+	// closed is closed by Close; watches end with ErrClosed then.
+	closed chan struct{}
 }
 
 func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *ActionClientOptions) (*ActionClient, error) {
@@ -1092,6 +1147,7 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 		feedbackSubs: newActionClientHandlers(),
 		statusSubs:   newActionClientHandlers(),
 		lastStatus:   make(map[types.GoalID]types.Message),
+		closed:       make(chan struct{}),
 	}
 	c.goalSender = newRequestSender(requestSenderTransport{
 		SendRequest:  c.sendGoalRequest,
@@ -1147,6 +1203,7 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 func (c *ActionClient) Close() error {
 	return closeEntity(&c.life, "action client", func() {
 		c.node.removeResource(c)
+		close(c.closed)
 		// Wake callers waiting for a response right away.
 		c.cancelSender.Close() //nolint:errcheck
 		c.goalSender.Close()   //nolint:errcheck
@@ -1231,6 +1288,9 @@ func (c *ActionClient) SendGoal(ctx context.Context, goal types.Message) (types.
 }
 
 func (c *ActionClient) newSendGoalRequest(goal types.Message) (goalRequestMessage, error) {
+	if err := checkMessage("send goal", messageType(c.typeSupport.Goal()), goal); err != nil {
+		return nil, err
+	}
 	msg := c.typeSupport.SendGoal().Request().New().(goalRequestMessage)
 	goalID := msg.GetGoalID()
 	if _, err := rand.Read(goalID[:]); err != nil {
@@ -1345,12 +1405,29 @@ func (c *ActionClient) takeCancelResponse(resp unsafe.Pointer) (C.int64_t, inter
 }
 
 func (c *ActionClient) WatchFeedback(ctx context.Context, goalID *types.GoalID, handler FeedbackHandler) <-chan error {
-	unsub := c.subscribe(ctx, &c.feedbackSubs, goalID, handler)
+	return c.watch(ctx, &c.feedbackSubs, goalID, handler)
+}
+
+// watch calls handler for the messages subs receives (for goalID, or for every
+// goal if it is nil) until ctx ends or the client is closed; the returned
+// channel then receives ctx.Err() or an error matching ErrClosed. On a closed
+// client it receives ErrClosed at once.
+func (c *ActionClient) watch(ctx context.Context, subs *actionClientSubs, goalID *types.GoalID, handler actionClientHandler) <-chan error {
 	errc := make(chan error, 1)
+	if !c.life.acquire() {
+		errc <- closedErr("action client")
+		return errc
+	}
+	unsub := c.subscribe(ctx, subs, goalID, handler)
+	c.life.release()
 	go func() {
 		defer unsub()
-		<-ctx.Done()
-		errc <- ctx.Err()
+		select {
+		case <-ctx.Done():
+			errc <- ctx.Err()
+		case <-c.closed:
+			errc <- closedErr("action client")
+		}
 	}()
 	return errc
 }
@@ -1422,14 +1499,7 @@ func (c *ActionClient) handleFeedback() {
 }
 
 func (c *ActionClient) WatchStatus(ctx context.Context, goalID *types.GoalID, handler StatusHandler) <-chan error {
-	unsub := c.subscribe(ctx, &c.statusSubs, goalID, handler)
-	errc := make(chan error, 1)
-	go func() {
-		defer unsub()
-		<-ctx.Done()
-		errc <- ctx.Err()
-	}()
-	return errc
+	return c.watch(ctx, &c.statusSubs, goalID, handler)
 }
 
 func (c *ActionClient) handleStatus() {
@@ -1499,4 +1569,13 @@ func wrapErr(format string, err *error, a ...interface{}) {
 		args = append(args, a...)
 		*err = fmt.Errorf(format, args...)
 	}
+}
+
+// isNilMessage reports whether m is nil or a nil pointer in an interface.
+func isNilMessage(m types.Message) bool {
+	if m == nil {
+		return true
+	}
+	v := reflect.ValueOf(m)
+	return v.Kind() == reflect.Pointer && v.IsNil()
 }

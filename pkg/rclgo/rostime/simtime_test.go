@@ -3,7 +3,6 @@ package rostime_test
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/rostime"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 // Simulated time end to end, after rclcpp's test_time_source and rclpy's
@@ -24,7 +24,7 @@ import (
 
 func TestMain(m *testing.M) {
 	rclgotest.UseIsolatedDomain()
-	os.Exit(m.Run())
+	goleak.VerifyTestMain(m)
 }
 
 // simulator publishes /clock from its own context, as Gazebo or a bag

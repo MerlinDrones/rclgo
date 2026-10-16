@@ -55,6 +55,17 @@ func (t *JoyFeedbackArray) GetTypeSupport() types.MessageTypeSupport {
 	return JoyFeedbackArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *JoyFeedbackArray) CheckBounds() error {
+	for i := range t.Array {
+		if err := types.CheckBounds(&t.Array[i]); err != nil {
+			return types.InElement("array", i, err)
+		}
+	}
+	return nil
+}
+
 // JoyFeedbackArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type JoyFeedbackArrayPublisher struct {

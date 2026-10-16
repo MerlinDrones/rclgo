@@ -3,7 +3,6 @@ package params_test
 import (
 	"fmt"
 	"math"
-	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -17,6 +16,7 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 // Parameter services end to end, after rclcpp's test_parameter_service and
@@ -25,7 +25,7 @@ import (
 
 func TestMain(m *testing.M) {
 	rclgotest.UseIsolatedDomain()
-	os.Exit(m.Run())
+	goleak.VerifyTestMain(m)
 }
 
 func i64(v int64) *int64     { return &v }

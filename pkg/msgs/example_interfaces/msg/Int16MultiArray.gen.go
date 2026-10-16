@@ -59,6 +59,15 @@ func (t *Int16MultiArray) GetTypeSupport() types.MessageTypeSupport {
 	return Int16MultiArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Int16MultiArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Layout); err != nil {
+		return types.InField("layout", err)
+	}
+	return nil
+}
+
 // Int16MultiArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Int16MultiArrayPublisher struct {

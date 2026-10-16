@@ -56,6 +56,12 @@ func (t *SetLoggerLevelsResult) GetTypeSupport() types.MessageTypeSupport {
 	return SetLoggerLevelsResultTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *SetLoggerLevelsResult) CheckBounds() error {
+	return nil
+}
+
 // SetLoggerLevelsResultPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type SetLoggerLevelsResultPublisher struct {

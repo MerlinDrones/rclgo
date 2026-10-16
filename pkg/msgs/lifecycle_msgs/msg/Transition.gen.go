@@ -89,6 +89,12 @@ func (t *Transition) GetTypeSupport() types.MessageTypeSupport {
 	return TransitionTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Transition) CheckBounds() error {
+	return nil
+}
+
 // TransitionPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TransitionPublisher struct {

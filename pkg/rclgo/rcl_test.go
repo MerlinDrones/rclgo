@@ -15,6 +15,7 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo/internal/rclgotest"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 var (
@@ -51,7 +52,7 @@ func setNewDomainID() {
 func TestMain(m *testing.M) {
 	rclgotest.UseIsolatedDomain()
 	setNewDomainID()
-	os.Exit(m.Run())
+	goleak.VerifyTestMain(m)
 }
 
 func ExampleParseArgs() {

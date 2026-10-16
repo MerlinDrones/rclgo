@@ -86,6 +86,25 @@ func (t *MultiEchoLaserScan) GetTypeSupport() types.MessageTypeSupport {
 	return MultiEchoLaserScanTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *MultiEchoLaserScan) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Ranges {
+		if err := types.CheckBounds(&t.Ranges[i]); err != nil {
+			return types.InElement("ranges", i, err)
+		}
+	}
+	for i := range t.Intensities {
+		if err := types.CheckBounds(&t.Intensities[i]); err != nil {
+			return types.InElement("intensities", i, err)
+		}
+	}
+	return nil
+}
+
 // MultiEchoLaserScanPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type MultiEchoLaserScanPublisher struct {

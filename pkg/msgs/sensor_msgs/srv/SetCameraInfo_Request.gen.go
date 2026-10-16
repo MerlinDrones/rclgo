@@ -53,6 +53,15 @@ func (t *SetCameraInfo_Request) GetTypeSupport() types.MessageTypeSupport {
 	return SetCameraInfo_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *SetCameraInfo_Request) CheckBounds() error {
+	if err := types.CheckBounds(&t.CameraInfo); err != nil {
+		return types.InField("camera_info", err)
+	}
+	return nil
+}
+
 // SetCameraInfo_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type SetCameraInfo_RequestPublisher struct {

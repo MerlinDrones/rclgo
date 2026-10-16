@@ -55,6 +55,18 @@ func (t *NestedMessage_FeedbackMessage) SetDefaults() {
 func (t *NestedMessage_FeedbackMessage) GetTypeSupport() types.MessageTypeSupport {
 	return NestedMessage_FeedbackMessageTypeSupport
 }
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NestedMessage_FeedbackMessage) CheckBounds() error {
+	if err := types.CheckBounds(&t.GoalID); err != nil {
+		return types.InField("goal_id", err)
+	}
+	if err := types.CheckBounds(&t.Feedback); err != nil {
+		return types.InField("feedback", err)
+	}
+	return nil
+}
 func (t *NestedMessage_FeedbackMessage) GetGoalID() *types.GoalID {
 	return (*types.GoalID)(&t.GoalID.Uuid)
 }

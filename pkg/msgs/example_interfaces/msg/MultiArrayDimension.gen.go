@@ -59,6 +59,12 @@ func (t *MultiArrayDimension) GetTypeSupport() types.MessageTypeSupport {
 	return MultiArrayDimensionTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *MultiArrayDimension) CheckBounds() error {
+	return nil
+}
+
 // MultiArrayDimensionPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type MultiArrayDimensionPublisher struct {

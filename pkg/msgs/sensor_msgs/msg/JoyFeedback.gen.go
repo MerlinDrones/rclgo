@@ -64,6 +64,12 @@ func (t *JoyFeedback) GetTypeSupport() types.MessageTypeSupport {
 	return JoyFeedbackTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *JoyFeedback) CheckBounds() error {
+	return nil
+}
+
 // JoyFeedbackPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type JoyFeedbackPublisher struct {

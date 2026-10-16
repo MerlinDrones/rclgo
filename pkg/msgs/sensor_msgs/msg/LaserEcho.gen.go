@@ -56,6 +56,12 @@ func (t *LaserEcho) GetTypeSupport() types.MessageTypeSupport {
 	return LaserEchoTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *LaserEcho) CheckBounds() error {
+	return nil
+}
+
 // LaserEchoPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type LaserEchoPublisher struct {

@@ -58,6 +58,12 @@ func (t *FloatingPointRange) GetTypeSupport() types.MessageTypeSupport {
 	return FloatingPointRangeTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *FloatingPointRange) CheckBounds() error {
+	return nil
+}
+
 // FloatingPointRangePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type FloatingPointRangePublisher struct {
