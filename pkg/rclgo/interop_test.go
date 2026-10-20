@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -389,4 +390,117 @@ func TestInteropQoS(t *testing.T) {
 			t.Fatal("no message from a reliable publisher")
 		}
 	})
+}
+
+// The QoS compatibility matrix across languages: for every combination of
+// reliability and durability on each side, in both directions, a message
+// arrives exactly when the offered QoS satisfies the requested one (rmw's
+// rules, also implemented by qos.IsReliabilityCompatible and
+// qos.IsDurabilityCompatible). A best-available rclgo subscriber matches
+// every publisher. One rclpy process holds that side's endpoints. With
+// rmw_zenoh_cpp, which doesn't apply these rules, every pair delivers.
+func TestInteropQoSMatrix(t *testing.T) {
+	rclgotest.RequireROS2(t)
+	const ns = "/interop/qos_matrix"
+	reliabilities := map[qos.ReliabilityPolicy]string{qos.ReliabilityReliable: "reliable", qos.ReliabilityBestEffort: "best_effort"}
+	durabilities := map[qos.DurabilityPolicy]string{qos.DurabilityVolatile: "volatile", qos.DurabilityTransientLocal: "transient_local"}
+	type combo struct {
+		name    string
+		profile qos.Profile
+	}
+	var combos []combo
+	for rel, relName := range reliabilities {
+		for dur, durName := range durabilities {
+			p := qos.NewDefault()
+			p.Reliability, p.Durability = rel, dur
+			combos = append(combos, combo{relName + "_" + durName, p})
+		}
+	}
+	// rmw_zenoh_cpp has no QoS incompatibilities: every pair delivers.
+	zenoh := os.Getenv("RMW_IMPLEMENTATION") == "rmw_zenoh_cpp"
+	compatible := func(requested, offered qos.Profile) bool {
+		return zenoh || requested.Reliability == qos.ReliabilityBestAvailable ||
+			qos.IsReliabilityCompatible(requested.Reliability, offered.Reliability) &&
+				qos.IsDurabilityCompatible(requested.Durability, offered.Durability)
+	}
+
+	node := rclgotest.Node(t, "qos_matrix", "/interop")
+	var mu sync.Mutex
+	received := map[string]bool{} // "<topic> <requested>", as qos_matrix.py prints it
+	requested := append(combos, combo{"best_available", qos.NewBestAvailableProfile()})
+	for _, offered := range combos {
+		topic := "py_" + offered.name
+		for _, req := range requested {
+			key := topic + " " + req.name
+			_, err := node.NewSubscription(ns+"/"+topic, std_msgs_msg.StringTypeSupport, &rclgo.SubscriptionOptions{Qos: req.profile},
+				func(s *rclgo.Subscription) {
+					m := std_msgs_msg.NewString()
+					if _, err := s.TakeMessage(m); err == nil && m.Data == "matrix" {
+						mu.Lock()
+						received[key] = true
+						mu.Unlock()
+					}
+				})
+			require.NoError(t, err)
+		}
+	}
+	var pubs []*rclgo.Publisher
+	for _, offered := range combos {
+		pub, err := node.NewPublisher(ns+"/go_"+offered.name, std_msgs_msg.StringTypeSupport, &rclgo.PublisherOptions{Qos: offered.profile})
+		require.NoError(t, err)
+		pubs = append(pubs, pub)
+	}
+	rclgotest.Spin(t, node.Context().Spin)
+	py := rclgotest.Python(t, interopScripts+"qos_matrix.py", ns)
+	py.WaitFor("READY")
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
+	go func() {
+		for ctx.Err() == nil {
+			for _, pub := range pubs {
+				pub.Publish(&std_msgs_msg.String{Data: "matrix"}) //nolint:errcheck
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	}()
+
+	// Expected deliveries in both directions, keyed like received and the
+	// script's output.
+	want := map[string]bool{}
+	for _, offered := range combos {
+		for _, req := range requested {
+			want["py_"+offered.name+" "+req.name] = compatible(req.profile, offered.profile)
+			if req.name != "best_available" { // the script has no best-available subscribers
+				want["go_"+offered.name+" "+req.name] = compatible(req.profile, offered.profile)
+			}
+		}
+	}
+	got := func(key string) bool {
+		if strings.HasPrefix(key, "go_") {
+			return strings.Contains(py.Output(), "RECV "+key+"\n")
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		return received[key]
+	}
+	rclgotest.Eventually(t, "messages on every compatible pair", func() error {
+		var missing []string
+		for key, ok := range want {
+			if ok && !got(key) {
+				missing = append(missing, key)
+			}
+		}
+		if len(missing) > 0 {
+			return fmt.Errorf("nothing received on %v", missing)
+		}
+		return nil
+	})
+	// Every compatible pair is delivering, so an incompatible pair has had
+	// as long; give it a little more before concluding it never delivers.
+	time.Sleep(time.Second)
+	for key, ok := range want {
+		if !ok {
+			require.False(t, got(key), "a message arrived on the incompatible pair %s", key)
+		}
+	}
 }

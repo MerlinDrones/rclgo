@@ -195,12 +195,20 @@ type TopicEndpointInfo struct {
 	QosProfile    qos.Profile
 }
 
+// GetPublishersInfoByTopic returns the publishers of topic, with their node,
+// type and QoS (rclcpp's get_publishers_info_by_topic). With mangle true (the
+// usual case, rclcpp's default no_mangle=false) topic is a ROS topic name that
+// is converted to the middleware's name; with mangle false it is used as the
+// middleware's name unchanged. Note that mangle is the inverse of rcl's
+// no_mangle argument.
 func (n *Node) GetPublishersInfoByTopic(topic string, mangle bool) ([]TopicEndpointInfo, error) {
 	return n.getInfoByTopic("publishers", topic, mangle, func(topic *C.char, noMangle C.bool, infoArray *C.rmw_topic_endpoint_info_array_t) C.int {
 		return C.rcl_get_publishers_info_by_topic(n.rcl_node_t, n.context.rcl_allocator_t, topic, noMangle, infoArray)
 	})
 }
 
+// GetSubscriptionsInfoByTopic is GetPublishersInfoByTopic for the topic's
+// subscriptions (rclcpp's get_subscriptions_info_by_topic).
 func (n *Node) GetSubscriptionsInfoByTopic(topic string, mangle bool) ([]TopicEndpointInfo, error) {
 	return n.getInfoByTopic("subscriptions", topic, mangle, func(topic *C.char, noMangle C.bool, infoArray *C.rmw_topic_endpoint_info_array_t) C.int {
 		return C.rcl_get_subscriptions_info_by_topic(n.rcl_node_t, n.context.rcl_allocator_t, topic, noMangle, infoArray)

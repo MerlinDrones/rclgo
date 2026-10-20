@@ -16,7 +16,15 @@ import (
 func buildCLI(t *testing.T) string {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "rclgo-gen")
-	out, err := exec.Command("go", "build", "-o", bin, "..").CombinedOutput()
+	args := []string{"build", "-o", bin}
+	if os.Getenv("GOCOVERDIR") != "" {
+		// tools/coverage.sh: the binary writes its coverage there.
+		args = append(args, "-cover")
+		if pkgs := os.Getenv("RCLGO_COVERPKG"); pkgs != "" {
+			args = append(args, "-coverpkg="+pkgs)
+		}
+	}
+	out, err := exec.Command("go", append(args, "..")...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build rclgo-gen: %v\n%s", err, out)
 	}
@@ -104,4 +112,75 @@ func TestCLI(t *testing.T) {
 	), nil, "generate-cgo-flags", "-r", filepath.Join(install, "merged"), "-r", filepath.Join(install, "iso"), "--output", "-")
 	check("package not found", "jazzy", 1, list("no_such_package: package not found"), list("Usage:"),
 		gen(good, "--include-package-deps", "no_such_package")...)
+	// A mistyped root path, or a config file that can't be read, is an error
+	// instead of generating nothing (or ignoring the file) with status 0.
+	check("missing root path", "jazzy", 1, list("root path", "no_such_root"), list("Usage:"),
+		gen(filepath.Join(root, "no_such_root"))...)
+	check("missing config file", "jazzy", 1, list("config file"), nil,
+		append(gen(good), "--config-file", filepath.Join(root, "no_such_config.yaml"))...)
+	writeFile(t, filepath.Join(root, "bad_config.yaml"), "dest-path: [unclosed\n")
+	check("malformed config file", "jazzy", 1, list("config file"), nil,
+		append(gen(good), "--config-file", filepath.Join(root, "bad_config.yaml"))...)
+
+	// A package with only .idl files (which rclgo-gen can't read) is reported.
+	writeFile(t, filepath.Join(root, "idl", "share", "idl_msgs", "msg", "OnlyIdl.idl"), "module idl_msgs { };\n")
+	check("idl only", "jazzy", 0, list("idl_msgs", "only .idl"), nil,
+		"generate", "-r", filepath.Join(root, "idl"), "-r", good, "-d", t.TempDir(), "--cgo-flags-path", "")
+
+	// An overlay's package replaces the underlay's whole package, as with
+	// colcon overlays: a message only the underlay has is not generated.
+	overlay, underlay := filepath.Join(root, "overlay"), filepath.Join(root, "underlay")
+	writeFile(t, filepath.Join(overlay, "share", "layered_msgs", "msg", "Kept.msg"), "int32 a\n")
+	writeFile(t, filepath.Join(underlay, "share", "layered_msgs", "msg", "Kept.msg"), "string a\n")
+	writeFile(t, filepath.Join(underlay, "share", "layered_msgs", "msg", "Removed.msg"), "int32 b\n")
+	dest := t.TempDir()
+	check("overlay", "jazzy", 0, nil, list("Error"), "generate", "-r", overlay, "-r", underlay, "-d", dest, "--cgo-flags-path", "")
+	kept, err := os.ReadFile(filepath.Join(dest, "layered_msgs", "msg", "Kept.gen.go"))
+	if err != nil {
+		t.Fatalf("overlay: Kept not generated: %v", err)
+	}
+	if !strings.Contains(string(kept), "A int32") {
+		t.Errorf("overlay: Kept was generated from the underlay:\n%s", kept)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "layered_msgs", "msg", "Removed.gen.go")); err == nil {
+		t.Error("overlay: a message only the underlay has was generated")
+	}
+
+	// An absolute --dest-path inside the working directory's module gives the
+	// import path of that directory as the message module prefix.
+	mod := t.TempDir()
+	writeFile(t, filepath.Join(mod, "go.mod"), "module example.com/m\n\ngo 1.22\n")
+	writeFile(t, filepath.Join(mod, "main.go"), "package main\n\nfunc main() {}\n")
+	cmd := exec.Command(bin, "generate", "-r", good, "-d", filepath.Join(mod, "gen", "msgs"), "--cgo-flags-path", "")
+	cmd.Env = append(os.Environ(), "HOME="+t.TempDir(), "ROS_DISTRO=jazzy", "GOWORK=off")
+	cmd.Dir = mod
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("absolute dest-path: %v\n%s", err, out)
+	}
+	index, err := os.ReadFile(filepath.Join(mod, "gen", "msgs", "msgs.gen.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(index), `"example.com/m/gen/msgs/good_msgs/msg"`) {
+		t.Errorf("absolute dest-path: wrong message module prefix:\n%s", index)
+	}
+
+	// Include and library flags keep the order of the root paths, so an
+	// overlay's headers win over the underlay's.
+	for _, d := range []string{"zz_overlay/include/rcl", "zz_overlay/lib", "aa_underlay/include/rcl", "aa_underlay/lib"} {
+		if err := os.MkdirAll(filepath.Join(install, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cmd = exec.Command(bin, "generate-cgo-flags", "-r", filepath.Join(install, "zz_overlay"), "-r", filepath.Join(install, "aa_underlay"), "--output", "-")
+	cmd.Env = append(os.Environ(), "HOME="+t.TempDir(), "ROS_DISTRO=jazzy")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("generate-cgo-flags: %v\n%s", err, out)
+	}
+	over := strings.Index(string(out), "-I"+filepath.Join(install, "zz_overlay/include/rcl"))
+	under := strings.Index(string(out), "-I"+filepath.Join(install, "aa_underlay/include/rcl"))
+	if over < 0 || under < 0 || over > under {
+		t.Errorf("the overlay's include flag must come first:\n%s", out)
+	}
 }

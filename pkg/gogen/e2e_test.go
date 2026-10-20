@@ -21,10 +21,10 @@ func TestGeneratedBindingsForCustomPackage(t *testing.T) {
 	}
 	distro := os.Getenv("ROS_DISTRO")
 	if distro == "" {
-		t.Skip("needs a sourced ROS 2 installation")
+		unavailable(t, "needs a sourced ROS 2 installation")
 	}
 	if _, err := exec.LookPath("colcon"); err != nil {
-		t.Skip("colcon not found")
+		unavailable(t, "colcon not found")
 	}
 	ws := t.TempDir()
 	run := func(dir, script string) string {
@@ -89,8 +89,7 @@ func TestGeneratedBindingsForCustomPackage(t *testing.T) {
 	}
 
 	if _, err := exec.Command("bash", "-c", "source /opt/ros/"+distro+"/setup.bash && python3 -P -c 'import rclpy'").CombinedOutput(); err != nil {
-		t.Log("rclpy not available; skipping the rclpy check")
-		return
+		unavailable(t, "rclpy not available; skipping the rclpy check")
 	}
 	script, _ := filepath.Abs("testdata/edge_check.py")
 	py := run(mod, env+"python3 -P "+script+" "+printed["HEX"]+" "+printed["SPELLINGS"])

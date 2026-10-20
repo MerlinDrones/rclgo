@@ -51,6 +51,8 @@ func TestTimerKeepsPeriodUnderCallbackLoad(t *testing.T) {
 	n := float64(len(ticks))
 	avg := time.Duration((n*sumIT - sumI*sumT) / (n*sumII - sumI*sumI))
 	t.Logf("%d ticks, average interval %v (period %v)", len(ticks), avg, period)
-	require.InDelta(t, float64(period), float64(avg), float64(period)/400,
+	// 2% of the period: a few late ticks under load stay well inside it,
+	// a timer that drifts (e.g. rescheduling from the callback's end) not.
+	require.InDelta(t, float64(period), float64(avg), float64(period)/50,
 		"average interval %v drifts from the period %v", avg, period)
 }

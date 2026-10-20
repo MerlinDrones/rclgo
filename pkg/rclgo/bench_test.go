@@ -7,6 +7,7 @@ import (
 	std_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
 	test_msgs "github.com/merlindrones/rclgo/pkg/msgs/test_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
+	"github.com/merlindrones/rclgo/pkg/rclgo/internal/rclgotest"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 )
 
@@ -85,11 +86,16 @@ func BenchmarkPublishTake(b *testing.B) {
 		}
 	}
 	b.ReportAllocs()
+	heapBefore := rclgotest.CHeapInUse()
 	for b.Loop() {
 		if !roundTrip(time.Second) {
 			b.Fatal("message lost")
 		}
 	}
+	// C memory that a publish and take round trip leaves allocated: a leak
+	// (one malloc chunk per string field before rclgo freed replaced
+	// buffers) shows as a growing value.
+	b.ReportMetric(float64(int64(rclgotest.CHeapInUse())-int64(heapBefore))/float64(b.N), "C-heap-B/op")
 }
 
 func BenchmarkSerializeArrays(b *testing.B) {

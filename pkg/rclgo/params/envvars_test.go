@@ -1,7 +1,6 @@
 package params
 
 import (
-	"os"
 	"testing"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo"
@@ -9,16 +8,10 @@ import (
 
 func TestApplyEnvVars_ScalarTypes(t *testing.T) {
 	// Set environment variables
-	os.Setenv("RCL_PARAM_bool_var", "true")
-	os.Setenv("RCL_PARAM_int_var", "42")
-	os.Setenv("RCL_PARAM_double_var", "3.14")
-	os.Setenv("RCL_PARAM_string_var", "hello")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_bool_var")
-		os.Unsetenv("RCL_PARAM_int_var")
-		os.Unsetenv("RCL_PARAM_double_var")
-		os.Unsetenv("RCL_PARAM_string_var")
-	}()
+	t.Setenv("RCL_PARAM_bool_var", "true")
+	t.Setenv("RCL_PARAM_int_var", "42")
+	t.Setenv("RCL_PARAM_double_var", "3.14")
+	t.Setenv("RCL_PARAM_string_var", "hello")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -71,16 +64,10 @@ func TestApplyEnvVars_ScalarTypes(t *testing.T) {
 
 func TestApplyEnvVars_ArrayTypes(t *testing.T) {
 	// Set environment variables with array syntax
-	os.Setenv("RCL_PARAM_bool_array", "[true,false,true]")
-	os.Setenv("RCL_PARAM_int_array", "[1,2,3]")
-	os.Setenv("RCL_PARAM_double_array", "[1.1,2.2,3.3]")
-	os.Setenv("RCL_PARAM_string_array", "[a,b,c]")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_bool_array")
-		os.Unsetenv("RCL_PARAM_int_array")
-		os.Unsetenv("RCL_PARAM_double_array")
-		os.Unsetenv("RCL_PARAM_string_array")
-	}()
+	t.Setenv("RCL_PARAM_bool_array", "[true,false,true]")
+	t.Setenv("RCL_PARAM_int_array", "[1,2,3]")
+	t.Setenv("RCL_PARAM_double_array", "[1.1,2.2,3.3]")
+	t.Setenv("RCL_PARAM_string_array", "[a,b,c]")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -141,8 +128,7 @@ func TestApplyEnvVars_ArrayTypes(t *testing.T) {
 
 func TestApplyEnvVars_TypeFromExisting(t *testing.T) {
 	// Set env var that will be interpreted based on existing param type
-	os.Setenv("RCL_PARAM_existing_param", "123")
-	defer os.Unsetenv("RCL_PARAM_existing_param")
+	t.Setenv("RCL_PARAM_existing_param", "123")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -213,12 +199,8 @@ func TestApplyEnvVars_EmptyEnvironment(t *testing.T) {
 
 func TestApplyEnvVars_DotNotation(t *testing.T) {
 	// Test parameter names with dots (common in ROS)
-	os.Setenv("RCL_PARAM_camera.fps", "30")
-	os.Setenv("RCL_PARAM_robot.wheel.diameter", "0.5")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_camera.fps")
-		os.Unsetenv("RCL_PARAM_robot.wheel.diameter")
-	}()
+	t.Setenv("RCL_PARAM_camera.fps", "30")
+	t.Setenv("RCL_PARAM_robot.wheel.diameter", "0.5")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -356,16 +338,10 @@ func TestParseEnvVarValue_TypeInference(t *testing.T) {
 
 func TestGetParamEnvVars(t *testing.T) {
 	// Set various env vars
-	os.Setenv("RCL_PARAM_test1", "value1")
-	os.Setenv("RCL_PARAM_test2", "value2")
-	os.Setenv("OTHER_VAR", "should_be_ignored")
-	os.Setenv("RCL_PARAM_", "should_be_ignored_empty_name")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_test1")
-		os.Unsetenv("RCL_PARAM_test2")
-		os.Unsetenv("OTHER_VAR")
-		os.Unsetenv("RCL_PARAM_")
-	}()
+	t.Setenv("RCL_PARAM_test1", "value1")
+	t.Setenv("RCL_PARAM_test2", "value2")
+	t.Setenv("OTHER_VAR", "should_be_ignored")
+	t.Setenv("RCL_PARAM_", "should_be_ignored_empty_name")
 
 	result := getParamEnvVars()
 

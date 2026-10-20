@@ -123,9 +123,15 @@ func TestServiceResponseAfterClose(t *testing.T) {
 		t.Fatal("request never arrived")
 	}
 	require.NoError(t, srv.Close())
-	time.Sleep(100 * time.Millisecond) // let Spin drop the service so it is finalized
-	err := respondSum(example_interfaces_srv.NewAddTwoInts_Request(), send)
-	require.ErrorIs(t, err, rclgo.ErrClosed, "responding on a closed service must fail cleanly")
+	// Spin finalizes the service after Close; from then on a response fails
+	// cleanly instead of crashing.
+	requireEventually(t, "response on a closed service fails with ErrClosed", func() error {
+		err := respondSum(example_interfaces_srv.NewAddTwoInts_Request(), send)
+		if !errors.Is(err, rclgo.ErrClosed) {
+			return fmt.Errorf("got %v", err)
+		}
+		return nil
+	})
 }
 
 func TestClientSendHonoursContext(t *testing.T) {
