@@ -52,10 +52,17 @@ while read -r _LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
 
     # What is new in this push?
     if [ "$REMOTE_SHA" = "$ZERO" ]; then
-        # New branch: compare against where it forked from develop (or master)
+        # New branch: compare against the protected branch it forked from most
+        # recently (develop for features, master for hotfixes)
         BASE=""
+        BEST=""
         for b in $PROTECTED_BRANCHES; do
-            BASE="$(git merge-base "$LOCAL_SHA" "origin/$b" 2>/dev/null)" && break
+            mb="$(git merge-base "$LOCAL_SHA" "origin/$b" 2>/dev/null)" || continue
+            ahead="$(git rev-list --count "$mb..$LOCAL_SHA")"
+            if [ -z "$BEST" ] || [ "$ahead" -lt "$BEST" ]; then
+                BASE="$mb"
+                BEST="$ahead"
+            fi
         done
         if [ -n "$BASE" ]; then
             CHANGED="$CHANGED$(git diff --name-only --diff-filter=d "$BASE" "$LOCAL_SHA")"$'\n'

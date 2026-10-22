@@ -39,8 +39,11 @@ jobs:
       # GITHUB_TOKEN can only read this repo. Other private MerlinDrones
       # modules are read with a short-lived token from the org's swarmos-ci
       # GitHub App (Contents: read-only). See swarmos-devtools README.
+      # Public repos (gomavlib) can't see the org variable and have no private
+      # dependencies, so the token steps are skipped there.
       - name: Get read-only token for MerlinDrones modules
         id: app-token
+        if: vars.SWARMOS_CI_APP_ID != ''
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ vars.SWARMOS_CI_APP_ID }}
@@ -48,6 +51,7 @@ jobs:
           owner: MerlinDrones
 
       - name: Allow private module downloads
+        if: steps.app-token.outcome == 'success'
         env:
           GO_READ_TOKEN: ${{ steps.app-token.outputs.token }}
         run: git config --global url."https://x-access-token:${GO_READ_TOKEN}@github.com/".insteadOf "https://github.com/"
@@ -64,7 +68,7 @@ jobs:
               status=1
             fi
 
-            pkgs="$("$GITHUB_WORKSPACE/.github/scripts/go-pure-packages.sh")"
+            pkgs="$(bash "$GITHUB_WORKSPACE/.github/scripts/go-pure-packages.sh")"
             if [ -n "$pkgs" ]; then
               # shellcheck disable=SC2086
               go vet $pkgs || { echo "::error::$mod: go vet failed"; status=1; }
