@@ -1,7 +1,8 @@
 # SwarmOS Go checks — managed by swarmos-devtools; do not edit in place.
 #
-# Runs only what local hooks cannot check: a clean module graph without
-# go.work, and changes that never ran local hooks (Dependabot, --no-verify).
+# Runs only what local hooks cannot check: the module graph per target branch
+# (go.work on develop, go.mod on master; see .github/scripts/go-ci.sh), and
+# changes that never ran local hooks (Dependabot, --no-verify).
 # No ROS on GitHub: go vet runs only on packages that build without CGO
 # (see .github/scripts/go-pure-packages.sh). Builds and tests run locally.
 name: Go checks
@@ -56,27 +57,9 @@ jobs:
           GO_READ_TOKEN: ${{ steps.app-token.outputs.token }}
         run: git config --global url."https://x-access-token:${GO_READ_TOKEN}@github.com/".insteadOf "https://github.com/"
 
-      - name: go mod tidy + go vet
-        run: |
-          status=0
-          for mod in $(git ls-files 'go.mod' '*/go.mod' | xargs -r -n1 dirname | sort -u); do
-            echo "::group::$mod"
-            pushd "$mod" >/dev/null
-
-            if ! go mod tidy -diff; then
-              echo "::error::$mod: go.mod/go.sum are not tidy — run 'go mod tidy' in $mod"
-              status=1
-            fi
-
-            pkgs="$(bash "$GITHUB_WORKSPACE/.github/scripts/go-pure-packages.sh")"
-            if [ -n "$pkgs" ]; then
-              # shellcheck disable=SC2086
-              go vet $pkgs || { echo "::error::$mod: go vet failed"; status=1; }
-            else
-              echo "$mod: every package needs ROS/CGO — vet runs locally only"
-            fi
-
-            popd >/dev/null
-            echo "::endgroup::"
-          done
-          exit $status
+      # develop: vet against dependencies' develop via go.work (like local dev)
+      # master:  go mod tidy + vet against go.mod versions (like a release)
+      - name: go vet (+ tidy on release branches)
+        env:
+          TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
+        run: bash .github/scripts/go-ci.sh "$TARGET_BRANCH"

@@ -3,4 +3,6 @@
 PROTECTED_BRANCHES="jazzy humble master"
 # Only the library module; examples have their own go.mod
 GO_MODULES="."
-PUSH_TEST_CMD="make test"
+# -short skips the examples tests (they run the example modules as packages
+# of the main module, which fails since the examples got their own go.mod)
+PUSH_TEST_CMD="go test -short ./..."
