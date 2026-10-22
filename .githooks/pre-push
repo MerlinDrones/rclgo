@@ -1,0 +1,99 @@
+#!/bin/bash
+# SwarmOS pre-push hook
+#
+# 1. Push policy: only protected branches (master, develop), v* tags and PR
+#    branches (feature/, bugfix/, hotfix/) may be pushed. release/* stays local.
+# 2. go vet + go test before anything leaves the machine (ROS env loaded).
+#    Repo-specific steps (colcon build, make test, go build) run first via
+#    .githooks/pre-push.local, which receives the changed files in
+#    $SWARMOS_CHANGED_FILES (one per line).
+#
+# Canonical copy lives in swarmos-devtools/hooks/; do not edit the copy in a
+# repo's .githooks/.
+
+# shellcheck source=SCRIPTDIR/lib.sh
+source "$(dirname "$0")/lib.sh"
+
+ZERO="0000000000000000000000000000000000000000"
+CHANGED=""
+NEED_CHECKS=false
+
+while read -r _LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
+    [ -z "$REMOTE_REF" ] && continue
+
+    case "$REMOTE_REF" in
+        refs/tags/v*)
+            continue ;;
+        refs/tags/*)
+            fail "❌ Only release tags (v*) may be pushed: ${REMOTE_REF#refs/tags/}" ;;
+        refs/heads/*)
+            BRANCH="${REMOTE_REF#refs/heads/}" ;;
+        *)
+            fail "❌ Unexpected ref: $REMOTE_REF" ;;
+    esac
+
+    # Branch deletion: never for protected branches
+    if [ "$LOCAL_SHA" = "$ZERO" ]; then
+        is_protected_branch "$BRANCH" && fail "❌ Refusing to delete protected branch $BRANCH"
+        continue
+    fi
+
+    ALLOWED=false
+    is_protected_branch "$BRANCH" && ALLOWED=true
+    for p in $PR_BRANCH_PREFIXES; do
+        [[ "$BRANCH" == "$p"* ]] && ALLOWED=true
+    done
+    if [ "$ALLOWED" != true ]; then
+        echo -e "${RED}❌ Branch '$BRANCH' may not be pushed.${NC}"
+        echo "   Allowed: $PROTECTED_BRANCHES, v* tags, and PR branches ($PR_BRANCH_PREFIXES)"
+        echo "   release/* branches stay local; finish them with git flow release finish."
+        exit 1
+    fi
+
+    # What is new in this push?
+    if [ "$REMOTE_SHA" = "$ZERO" ]; then
+        # New branch: compare against where it forked from develop (or master)
+        BASE=""
+        for b in $PROTECTED_BRANCHES; do
+            BASE="$(git merge-base "$LOCAL_SHA" "origin/$b" 2>/dev/null)" && break
+        done
+        if [ -n "$BASE" ]; then
+            CHANGED="$CHANGED$(git diff --name-only --diff-filter=d "$BASE" "$LOCAL_SHA")"$'\n'
+        else
+            CHANGED="$CHANGED$(git ls-files)"$'\n'
+        fi
+    else
+        CHANGED="$CHANGED$(git diff --name-only --diff-filter=d "$REMOTE_SHA" "$LOCAL_SHA" 2>/dev/null || git ls-files)"$'\n'
+    fi
+    NEED_CHECKS=true
+done
+
+[ "$NEED_CHECKS" = true ] || exit 0
+
+CHANGED="$(echo "$CHANGED" | sed '/^$/d' | sort -u)"
+[ -z "$CHANGED" ] && exit 0
+
+info "🔍 Running pre-push checks..."
+load_ros_env
+
+export SWARMOS_CHANGED_FILES="$CHANGED"
+run_local_hook pre-push "$@"
+
+if [ "$PUSH_SCOPE" = "changed" ]; then
+    go_checks_for_changed_files < <(echo "$CHANGED")
+else
+    for mod in $(all_modules); do
+        if [ -n "$PUSH_TEST_CMD" ]; then
+            info "  → [$mod] go vet ./..."
+            (cd "$REPO_ROOT/$mod" && go vet ./...) || fail "❌ go vet failed in $mod"
+        else
+            go_vet_and_test "$mod"
+        fi
+    done
+    if [ -n "$PUSH_TEST_CMD" ]; then
+        info "  → $PUSH_TEST_CMD"
+        (cd "$REPO_ROOT" && eval "$PUSH_TEST_CMD") || fail "❌ $PUSH_TEST_CMD failed"
+    fi
+fi
+
+ok "✅ Pre-push checks passed!"

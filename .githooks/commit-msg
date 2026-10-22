@@ -1,0 +1,62 @@
+#!/bin/bash
+# SwarmOS commit-msg hook
+#
+# Canonical copy lives in swarmos-devtools/hooks/; do not edit the copy in a
+# repo's .githooks/. Repo-specific additions go in .githooks/commit-msg.local.
+
+# shellcheck source=SCRIPTDIR/lib.sh
+source "$(dirname "$0")/lib.sh"
+
+COMMIT_MSG_FILE=$1
+
+run_local_hook commit-msg "$@"
+
+# Skip validation for merge commits (e.g. git flow release/hotfix finish).
+# GIT_MERGE_AUTOEDIT=no can bypass prepare-commit-msg, so we guard here too.
+if in_merge; then
+    exit 0
+fi
+
+# Subject = first line that is not a comment or blank
+SUBJECT="$(grep -v '^#' "$COMMIT_MSG_FILE" | grep -v '^[[:space:]]*$' | head -n1)"
+
+# Git-generated messages
+if echo "$SUBJECT" | grep -qE '^(Merge |Revert "|fixup! |squash! |amend! )'; then
+    exit 0
+fi
+
+# Conventional commits format check
+if ! echo "$SUBJECT" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+"; then
+    echo -e "${RED}❌ Invalid commit message format!${NC}"
+    echo ""
+    echo "Commit messages must follow Conventional Commits format:"
+    echo "  type(scope): description"
+    echo ""
+    echo "Types:"
+    echo "  feat:     New feature"
+    echo "  fix:      Bug fix"
+    echo "  docs:     Documentation changes"
+    echo "  style:    Code style changes (formatting, etc.)"
+    echo "  refactor: Code refactoring"
+    echo "  test:     Adding or updating tests"
+    echo "  chore:    Maintenance tasks"
+    echo "  perf:     Performance improvements"
+    echo "  ci:       CI/CD changes"
+    echo "  build:    Build system changes"
+    echo "  revert:   Revert previous commit"
+    echo ""
+    echo "Examples:"
+    echo "  feat(skyhook): add orbit mode"
+    echo "  fix(operator): memory leak in message routing"
+    echo "  docs(readme): update installation instructions"
+    echo ""
+    exit 1
+fi
+
+# Check minimum description length
+DESC=$(echo "$SUBJECT" | sed -E 's/^[a-z]+(\([^)]+\))?: //')
+if [ ${#DESC} -lt 10 ]; then
+    fail "❌ Commit description too short (minimum 10 characters)"
+fi
+
+ok "✅ Commit message format valid"

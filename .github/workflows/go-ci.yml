@@ -1,0 +1,78 @@
+# SwarmOS Go checks — managed by swarmos-devtools; do not edit in place.
+#
+# Runs only what local hooks cannot check: a clean module graph without
+# go.work, and changes that never ran local hooks (Dependabot, --no-verify).
+# No ROS on GitHub: go vet runs only on packages that build without CGO
+# (see .github/scripts/go-pure-packages.sh). Builds and tests run locally.
+name: Go checks
+
+on:
+  pull_request:
+    branches: [jazzy, humble]
+    paths-ignore: ['**.md', 'docs/**']
+  push:
+    branches: [jazzy, humble]
+    paths-ignore: ['**.md', 'docs/**']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GOPRIVATE: github.com/merlindrones/*
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      # GITHUB_TOKEN can only read this repo. Other private MerlinDrones
+      # modules are read with a short-lived token from the org's swarmos-ci
+      # GitHub App (Contents: read-only). See swarmos-devtools README.
+      - name: Get read-only token for MerlinDrones modules
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.SWARMOS_CI_APP_ID }}
+          private-key: ${{ secrets.SWARMOS_CI_APP_PRIVATE_KEY }}
+          owner: MerlinDrones
+
+      - name: Allow private module downloads
+        env:
+          GO_READ_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: git config --global url."https://x-access-token:${GO_READ_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: go mod tidy + go vet
+        run: |
+          status=0
+          for mod in $(git ls-files 'go.mod' '*/go.mod' | xargs -r -n1 dirname | sort -u); do
+            echo "::group::$mod"
+            pushd "$mod" >/dev/null
+
+            if ! go mod tidy -diff; then
+              echo "::error::$mod: go.mod/go.sum are not tidy — run 'go mod tidy' in $mod"
+              status=1
+            fi
+
+            pkgs="$("$GITHUB_WORKSPACE/.github/scripts/go-pure-packages.sh")"
+            if [ -n "$pkgs" ]; then
+              # shellcheck disable=SC2086
+              go vet $pkgs || { echo "::error::$mod: go vet failed"; status=1; }
+            else
+              echo "$mod: every package needs ROS/CGO — vet runs locally only"
+            fi
+
+            popd >/dev/null
+            echo "::endgroup::"
+          done
+          exit $status
