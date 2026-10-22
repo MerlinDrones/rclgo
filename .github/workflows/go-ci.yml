@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: false
@@ -45,7 +45,7 @@ jobs:
       - name: Get read-only token for MerlinDrones modules
         id: app-token
         if: vars.SWARMOS_CI_APP_ID != ''
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.SWARMOS_CI_APP_ID }}
           private-key: ${{ secrets.SWARMOS_CI_APP_PRIVATE_KEY }}

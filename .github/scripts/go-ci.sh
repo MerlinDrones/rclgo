@@ -21,7 +21,22 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 SELF="$(basename "${GITHUB_REPOSITORY:-$ROOT}")"
 SIBLINGS="$ROOT/.ci-siblings"
 
-mapfile -t MODULES < <(git -C "$ROOT" ls-files 'go.mod' '*/go.mod' | xargs -r -n1 dirname | sort -u)
+# Modules to check: GO_MODULES from the repo's hook config (same setting the
+# pre-push hook uses, e.g. rclgo skips its examples), else every tracked go.mod.
+GO_MODULES=""
+# shellcheck source=/dev/null
+[ -f "$ROOT/.githooks/config.sh" ] && source "$ROOT/.githooks/config.sh"
+if [ -n "$GO_MODULES" ]; then
+    read -r -a MODULES <<< "$GO_MODULES"
+else
+    mapfile -t MODULES < <(git -C "$ROOT" ls-files 'go.mod' '*/go.mod' | xargs -r -n1 dirname | sort -u)
+fi
+
+# Module paths provided by this repo itself (e.g. swarmos-deployment's
+# staging/demo/target-injector) — never cloned as dependencies
+declare -A LOCAL_PATHS=()
+while read -r p; do LOCAL_PATHS[$p]=1; done < <(
+    git -C "$ROOT" ls-files 'go.mod' '*/go.mod' | while read -r f; do awk '$1 == "module" {print $2; exit}' "$ROOT/$f"; done)
 
 # Working branch of a MerlinDrones repo (rclgo is pegged to a ROS 2 distro)
 working_branch() {
@@ -31,9 +46,14 @@ working_branch() {
     esac
 }
 
-# MerlinDrones repos required by a go.mod
+# MerlinDrones repos required by a go.mod (module path's first element after
+# github.com/merlindrones/), skipping modules that live in this repo
 merlin_deps() {
-    go mod edit -json "$1" | grep -oE '"Path": "github\.com/merlindrones/[^"/]+' | sed 's#.*/##' | sort -u
+    go mod edit -json "$1" | grep -oE '"Path": "github\.com/merlindrones/[^"]+' | sed 's/^"Path": "//' | sort -u |
+        while read -r path; do
+            [ -n "${LOCAL_PATHS[$path]:-}" ] && continue
+            echo "$path" | cut -d/ -f3
+        done | sort -u
 }
 
 status=0
