@@ -1,0 +1,65 @@
+# SwarmOS Go checks — managed by swarmos-devtools; do not edit in place.
+#
+# Runs only what local hooks cannot check: the module graph per target branch
+# (go.work on develop, go.mod on master; see .github/scripts/go-ci.sh), and
+# changes that never ran local hooks (Dependabot, --no-verify).
+# No ROS on GitHub: go vet runs only on packages that build without CGO
+# (see .github/scripts/go-pure-packages.sh). Builds and tests run locally.
+name: Go checks
+
+on:
+  pull_request:
+    branches: [jazzy, humble]
+    paths-ignore: ['**.md', 'docs/**']
+  push:
+    branches: [jazzy, humble]
+    paths-ignore: ['**.md', 'docs/**']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GOPRIVATE: github.com/merlindrones/*
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      # GITHUB_TOKEN can only read this repo. Other private MerlinDrones
+      # modules are read with a short-lived token from the org's swarmos-ci
+      # GitHub App (Contents: read-only). See swarmos-devtools README.
+      # Public repos (gomavlib) can't see the org variable and have no private
+      # dependencies, so the token steps are skipped there.
+      - name: Get read-only token for MerlinDrones modules
+        id: app-token
+        if: vars.SWARMOS_CI_APP_ID != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.SWARMOS_CI_APP_ID }}
+          private-key: ${{ secrets.SWARMOS_CI_APP_PRIVATE_KEY }}
+          owner: MerlinDrones
+
+      - name: Allow private module downloads
+        if: steps.app-token.outcome == 'success'
+        env:
+          GO_READ_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: git config --global url."https://x-access-token:${GO_READ_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      # develop: vet against dependencies' develop via go.work (like local dev)
+      # master:  go mod tidy + vet against go.mod versions (like a release)
+      - name: go vet (+ tidy on release branches)
+        env:
+          TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
+        run: bash .github/scripts/go-ci.sh "$TARGET_BRANCH"

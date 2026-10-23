@@ -1,0 +1,42 @@
+# Managed by swarmos-devtools; do not edit in place.
+name: Safety
+description: Flight-critical issue — failsafes, arming, geofencing, mode transitions, anything that can endanger an aircraft or people
+type: Safety
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Safety issues default to Critical. Lower it only if there is no current flight risk.
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: hazard
+    attributes:
+      label: Hazard
+      description: What can go wrong in flight, and what is the consequence?
+    validations:
+      required: true
+  - type: textarea
+    id: conditions
+    attributes:
+      label: Conditions and reproduction
+      description: When does it happen? SITL or hardware? Steps, logs, mission type.
+    validations:
+      required: true
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Current mitigation
+      description: Does PX4 or an operator procedure cover this today?
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      placeholder: e.g. drone_driver, skyhook session, operator
