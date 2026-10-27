@@ -38,7 +38,7 @@ var ros2PackageCommonTemplate = template.Must(
 package {{ .GoPackage }}
 
 /*
-{{range $dir := .Config.RootPaths -}}
+{{range $dir := .Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$dir}}/lib" "-Wl,-rpath={{$dir}}/lib"
 {{end}}
 #cgo LDFLAGS: -lrcl -lrosidl_runtime_c -lrosidl_typesupport_c -lrcutils -lrmw_implementation
@@ -47,7 +47,7 @@ package {{ .GoPackage }}
 #cgo LDFLAGS: -l{{$k}}__rosidl_typesupport_c -l{{$k}}__rosidl_generator_c
 {{""}}
 {{- end -}}
-{{range $dir := .Config.RootPaths}}
+{{range $dir := .Config.EmbeddedRootPaths}}
 #cgo CFLAGS: "-I{{$dir}}/include/action_msgs"
 #cgo CFLAGS: "-I{{$dir}}/include/builtin_interfaces"
 #cgo CFLAGS: "-I{{$dir}}/include/example_interfaces"
@@ -724,7 +724,7 @@ var primitiveTypes = template.Must(
 package primitives
 
 /*
-{{range $rootPath := $.Config.RootPaths -}}
+{{range $rootPath := $.Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$rootPath}}/lib" "-Wl,-rpath={{$rootPath}}/lib"
 #cgo CFLAGS: "-I{{$rootPath}}/include/rosidl_runtime_c"
 {{end}}
@@ -862,7 +862,7 @@ var rclgoFlags = template.Must(
 package rclgo
 
 /*
-{{range $rootPath := $.Config.RootPaths -}}
+{{range $rootPath := $.Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$rootPath}}/lib" "-Wl,-rpath={{$rootPath}}/lib"
 {{range $dep := $.ROSIncludes -}}
 #cgo CFLAGS: "-I{{$rootPath}}/include/{{$dep}}"
@@ -882,7 +882,7 @@ var gogenTestFlags = template.Must(
 package test
 
 /*
-{{range $rootPath := $.Config.RootPaths -}}
+{{range $rootPath := $.Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$rootPath}}/lib" "-Wl,-rpath={{$rootPath}}/lib"
 #cgo CFLAGS: "-I{{$rootPath}}/include/builtin_interfaces"
 #cgo CFLAGS: "-I{{$rootPath}}/include/rosidl_runtime_c"

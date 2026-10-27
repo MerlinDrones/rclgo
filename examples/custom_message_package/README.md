@@ -21,6 +21,13 @@ Then switch to `greeter` directory. Generate Go bindings by running
 
     go generate
 
+The generated bindings embed only the paths of the ROS 2 installation
+(`/opt/ros/<distro>`), not those of the overlay, so that they build on any
+machine. `go generate` also writes the include and library paths of every
+package it used, the overlay's included, to `cgo-flags.env`. Load them with
+
+    . ./cgo-flags.env
+
 Now the program can be compiled and tested by running
 
     go build

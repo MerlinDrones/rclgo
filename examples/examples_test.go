@@ -101,6 +101,7 @@ colcon build
 
 cd ../greeter
 go generate
+. ./cgo-flags.env
 go build
 
 ./greeter &
