@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# This file is part of rclgo
+#
+# Copyright © 2025 Merlin Drones
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+#     http://www.apache.org/licenses/LICENSE-2.0
 
 # This script generates ROS2 message bindings for rclgo DEVELOPMENT.
 # This is for working on rclgo itself, using only standard ROS 2 packages.
