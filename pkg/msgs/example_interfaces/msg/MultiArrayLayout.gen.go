@@ -5,7 +5,6 @@ package example_interfaces_msg
 import (
 	"unsafe"
 
-	std_msgs_msg "github.com/merlindrones/rclgo/pkg/msgs/std_msgs/msg"
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/typemap"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
@@ -25,8 +24,8 @@ func init() {
 }
 
 type MultiArrayLayout struct {
-	Dim        []std_msgs_msg.MultiArrayDimension `yaml:"dim"`         // Array of dimension properties
-	DataOffset uint32                             `yaml:"data_offset"` // padding bytes at front of data
+	Dim        []MultiArrayDimension `yaml:"dim"`         // Array of dimension properties
+	DataOffset uint32                `yaml:"data_offset"` // padding bytes at front of data
 }
 
 // NewMultiArrayLayout creates a new MultiArrayLayout with default values.
@@ -39,8 +38,8 @@ func NewMultiArrayLayout() *MultiArrayLayout {
 func (t *MultiArrayLayout) Clone() *MultiArrayLayout {
 	c := &MultiArrayLayout{}
 	if t.Dim != nil {
-		c.Dim = make([]std_msgs_msg.MultiArrayDimension, len(t.Dim))
-		std_msgs_msg.CloneMultiArrayDimensionSlice(c.Dim, t.Dim)
+		c.Dim = make([]MultiArrayDimension, len(t.Dim))
+		CloneMultiArrayDimensionSlice(c.Dim, t.Dim)
 	}
 	c.DataOffset = t.DataOffset
 	return c
@@ -153,14 +152,14 @@ func (t _MultiArrayLayoutTypeSupport) ReleaseMemory(pointer_to_free unsafe.Point
 func (t _MultiArrayLayoutTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*MultiArrayLayout)
 	mem := (*C.example_interfaces__msg__MultiArrayLayout)(dst)
-	std_msgs_msg.MultiArrayDimension__Sequence_into_C((*std_msgs_msg.CMultiArrayDimension__Sequence)(unsafe.Pointer(&mem.dim)), m.Dim)
+	MultiArrayDimension__Sequence_into_C(&mem.dim, m.Dim)
 	mem.data_offset = C.uint32_t(m.DataOffset)
 }
 
 func (t _MultiArrayLayoutTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
 	m := msg.(*MultiArrayLayout)
 	mem := (*C.example_interfaces__msg__MultiArrayLayout)(ros2_message_buffer)
-	std_msgs_msg.MultiArrayDimension__Sequence_to_Go(&m.Dim, *(*std_msgs_msg.CMultiArrayDimension__Sequence)(unsafe.Pointer(&mem.dim)))
+	MultiArrayDimension__Sequence_to_Go(&m.Dim, mem.dim)
 	m.DataOffset = uint32(mem.data_offset)
 }
 
