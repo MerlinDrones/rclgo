@@ -76,6 +76,15 @@ func (t *Range) GetTypeSupport() types.MessageTypeSupport {
 	return RangeTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Range) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // RangePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type RangePublisher struct {

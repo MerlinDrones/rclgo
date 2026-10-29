@@ -259,8 +259,13 @@ func (m *serializedMessage) c() *C.rmw_serialized_message_t {
 	return (*C.rmw_serialized_message_t)(m)
 }
 
+// Close releases the buffer. A failure is logged, as rclcpp's
+// SerializedMessage does, and the rcl error state reset. Callers pin their OS
+// thread (see errorString).
 func (m *serializedMessage) Close() {
-	C.rcutils_uint8_array_fini(m.c())
+	if rc := C.rcutils_uint8_array_fini(m.c()); rc != C.RCUTILS_RET_OK {
+		GetLogger("rclgo").Error("failed to finalize a serialized message: " + errorString()) //nolint:errcheck
+	}
 }
 
 func (m *serializedMessage) AsSlice() []byte {
@@ -278,7 +283,10 @@ func (m *serializedMessage) ToSlice() []byte {
 func Serialize(msg types.Message) (buf []byte, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
-	defer wrapErr("failed to serialize: %v", &err)
+	defer wrapErr("failed to serialize: %w", &err)
+	if err := types.CheckBounds(msg); err != nil {
+		return nil, err
+	}
 	ts := msg.GetTypeSupport()
 	cmsg := ts.PrepareMemory()
 	defer ts.ReleaseMemory(cmsg)
@@ -304,7 +312,7 @@ func Serialize(msg types.Message) (buf []byte, err error) {
 func Deserialize(buf []byte, ts types.MessageTypeSupport) (msg types.Message, err error) {
 	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
 	defer runtime.UnlockOSThread()
-	defer wrapErr("failed to deserialize: %v", &err)
+	defer wrapErr("failed to deserialize: %w", &err)
 	// Every CDR buffer starts with a 4-byte encapsulation header. Some RMWs
 	// (Cyclone DDS on Jazzy) crash on shorter input instead of failing.
 	if len(buf) < 4 {
@@ -475,7 +483,9 @@ func (c *Context) NewNode(node_name, namespace string) (node *Node, err error) {
 	// enables rosout by default (enable_rosout = true), so the only remaining
 	// gate is whether rosout logging is enabled globally.
 	if bool(C.rcl_logging_rosout_enabled()) && bool(rcl_node_options.enable_rosout) {
+		node.entityMu.Lock() // the rosout publisher is an entity of the node
 		rc = C.rclgo_rosout_init_publisher_for_node(node.rcl_node_t)
+		node.entityMu.Unlock()
 		if rc != C.RCL_RET_OK {
 			return nil, errorsCastC(rc, "failed to initialize rosout publisher")
 		}
@@ -519,7 +529,10 @@ func (n *Node) fini() (err error) {
 	// Finalize the /rosout log publisher before finalizing the node, mirroring
 	// the initialization done in NewNode.
 	if n.rosoutInitialized {
-		if rc := C.rclgo_rosout_fini_publisher_for_node(n.rcl_node_t); rc != C.RCL_RET_OK {
+		n.entityMu.Lock()
+		rc := C.rclgo_rosout_fini_publisher_for_node(n.rcl_node_t)
+		n.entityMu.Unlock()
+		if rc != C.RCL_RET_OK {
 			return leak(errorsCastC(rc, "failed to finalize rosout publisher"))
 		}
 		n.rosoutInitialized = false
@@ -611,6 +624,7 @@ type Publisher struct {
 	life            lifetime
 	TopicName       string
 	typeSupport     types.MessageTypeSupport
+	msgType         reflect.Type // nil for a serialized-only type support
 	node            *Node
 	rcl_publisher_t *C.rcl_publisher_t
 	topicName       *C.char
@@ -638,6 +652,7 @@ func (n *Node) NewPublisher(
 	pub = &Publisher{
 		TopicName:       topicName,
 		typeSupport:     ros2msg,
+		msgType:         messageType(ros2msg),
 		node:            n,
 		rcl_publisher_t: (*C.rcl_publisher_t)(C.malloc(C.sizeof_rcl_publisher_t)),
 		topicName:       C.CString(topicName),
@@ -681,6 +696,12 @@ func (p *Publisher) Publish(ros2msg types.Message) error {
 		return closedErr("publisher")
 	}
 	defer p.life.release()
+	if err := checkMessage("publish", p.msgType, ros2msg); err != nil {
+		return err
+	}
+	if err := types.CheckBounds(ros2msg); err != nil {
+		return err
+	}
 	var rc C.rcl_ret_t
 
 	ptr := p.typeSupport.PrepareMemory()
@@ -850,12 +871,27 @@ func (c *Clock) Context() *Context {
 // SetROSTimeOverride (simulated time) instead of the system time. Timers and
 // action servers using the clock follow it. It fails for other clock types.
 func (c *Clock) EnableROSTimeOverride() error {
-	return c.override("enable", func() C.rcl_ret_t { return C.rcl_enable_ros_time_override(c.rcl_clock_t) })
+	err := c.override("enable", func() C.rcl_ret_t { return C.rcl_enable_ros_time_override(c.rcl_clock_t) })
+	c.clockSourceChanged(err)
+	return err
 }
 
 // DisableROSTimeOverride returns a ROS-time clock to the system time.
 func (c *Clock) DisableROSTimeOverride() error {
-	return c.override("disable", func() C.rcl_ret_t { return C.rcl_disable_ros_time_override(c.rcl_clock_t) })
+	err := c.override("disable", func() C.rcl_ret_t { return C.rcl_disable_ros_time_override(c.rcl_clock_t) })
+	c.clockSourceChanged(err)
+	return err
+}
+
+// clockSourceChanged wakes the context's spinning wait sets after the clock
+// switched between system and simulated time, so that they recompute how long
+// to wait for timers. rcl wakes them only for timers already overdue at the
+// switch: one due later would otherwise not fire until something else woke
+// the wait set.
+func (c *Clock) clockSourceChanged(err error) {
+	if err == nil && c.context != nil {
+		c.context.resourcesChanged()
+	}
 }
 
 // SetROSTimeOverride sets the simulated time, as a duration since the epoch,
@@ -1063,6 +1099,7 @@ type Subscription struct {
 	life               lifetime
 	TopicName          string
 	Ros2MsgType        types.MessageTypeSupport
+	msgType            reflect.Type // nil for a serialized-only type support
 	Callback           SubscriptionCallback
 	node               *Node
 	rcl_subscription_t *C.rcl_subscription_t
@@ -1092,6 +1129,7 @@ func (n *Node) NewSubscription(
 	sub = &Subscription{
 		TopicName:          topicName,
 		Ros2MsgType:        ros2msg,
+		msgType:            messageType(ros2msg),
 		Callback:           subscriptionCallback,
 		node:               n,
 		rcl_subscription_t: (*C.rcl_subscription_t)(C.malloc(C.sizeof_rcl_subscription_t)),
@@ -1136,6 +1174,9 @@ func (s *Subscription) TakeMessage(out types.Message) (*MessageInfo, error) {
 		return nil, closedErr("subscription")
 	}
 	defer s.life.release()
+	if err := checkMessage("take", s.msgType, out); err != nil {
+		return nil, err
+	}
 	rmw_message_info := C.rmw_get_zero_initialized_message_info()
 
 	ros2_msg_receive_buffer := s.Ros2MsgType.PrepareMemory()
@@ -1446,6 +1487,12 @@ func (s *Service) handleRequest() {
 					return closedErr("service")
 				}
 				defer s.life.release()
+				if err := checkMessage("send response", messageType(s.responseTypeSupport), resp); err != nil {
+					return err
+				}
+				if err := types.CheckBounds(resp); err != nil {
+					return err
+				}
 				respBuffer := s.responseTypeSupport.PrepareMemory()
 				defer s.responseTypeSupport.ReleaseMemory(respBuffer)
 				s.responseTypeSupport.AsCStruct(respBuffer, resp)
@@ -1571,6 +1618,9 @@ func (c *Client) Send(ctx context.Context, req types.Message) (types.Message, *S
 		return nil, nil, closedErr("client")
 	}
 	defer c.life.release()
+	if err := checkMessage("send request", messageType(c.sender.transport.TypeSupport.Request()), req); err != nil {
+		return nil, nil, err
+	}
 	resp, info, err := c.sender.Send(ctx, req)
 	if rmwInfo, ok := info.(*ServiceInfo); ok {
 		return resp, rmwInfo, err
@@ -1664,13 +1714,16 @@ func (s *requestSender) Send(ctx context.Context, req types.Message) (types.Mess
 		return nil, nil, ctx.Err()
 	case result := <-resultChan:
 		if result == nil {
-			return nil, nil, errors.New("sender was closed before a response was received")
+			return nil, nil, fmt.Errorf("sender was closed before a response was received: %w", ErrClosed)
 		}
 		return result.resp, result.otherData, nil
 	}
 }
 
 func (s *requestSender) addPendingRequest(req types.Message) (<-chan *sendResult, C.int64_t, error) {
+	if err := types.CheckBounds(req); err != nil {
+		return nil, 0, err
+	}
 	ts := s.transport.TypeSupport.Request()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)
@@ -1692,6 +1745,9 @@ func (s *requestSender) addPendingRequest(req types.Message) (<-chan *sendResult
 // sendNoWait sends req without waiting for its response, which is dropped
 // when it arrives.
 func (s *requestSender) sendNoWait(req types.Message) error {
+	if err := types.CheckBounds(req); err != nil {
+		return err
+	}
 	ts := s.transport.TypeSupport.Request()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)

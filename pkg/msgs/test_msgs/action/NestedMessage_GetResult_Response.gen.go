@@ -55,6 +55,15 @@ func (t *NestedMessage_GetResult_Response) GetTypeSupport() types.MessageTypeSup
 	return NestedMessage_GetResult_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NestedMessage_GetResult_Response) CheckBounds() error {
+	if err := types.CheckBounds(&t.Result); err != nil {
+		return types.InField("result", err)
+	}
+	return nil
+}
+
 // NestedMessage_GetResult_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type NestedMessage_GetResult_ResponsePublisher struct {

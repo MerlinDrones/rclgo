@@ -49,6 +49,12 @@ func (t *Trigger_Request) GetTypeSupport() types.MessageTypeSupport {
 	return Trigger_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Trigger_Request) CheckBounds() error {
+	return nil
+}
+
 // Trigger_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Trigger_RequestPublisher struct {

@@ -75,6 +75,30 @@ func (t *ParameterEvent) GetTypeSupport() types.MessageTypeSupport {
 	return ParameterEventTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ParameterEvent) CheckBounds() error {
+	if err := types.CheckBounds(&t.Stamp); err != nil {
+		return types.InField("stamp", err)
+	}
+	for i := range t.NewParameters {
+		if err := types.CheckBounds(&t.NewParameters[i]); err != nil {
+			return types.InElement("new_parameters", i, err)
+		}
+	}
+	for i := range t.ChangedParameters {
+		if err := types.CheckBounds(&t.ChangedParameters[i]); err != nil {
+			return types.InElement("changed_parameters", i, err)
+		}
+	}
+	for i := range t.DeletedParameters {
+		if err := types.CheckBounds(&t.DeletedParameters[i]); err != nil {
+			return types.InElement("deleted_parameters", i, err)
+		}
+	}
+	return nil
+}
+
 // ParameterEventPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ParameterEventPublisher struct {

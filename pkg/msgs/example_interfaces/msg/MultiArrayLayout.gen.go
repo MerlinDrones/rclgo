@@ -59,6 +59,17 @@ func (t *MultiArrayLayout) GetTypeSupport() types.MessageTypeSupport {
 	return MultiArrayLayoutTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *MultiArrayLayout) CheckBounds() error {
+	for i := range t.Dim {
+		if err := types.CheckBounds(&t.Dim[i]); err != nil {
+			return types.InElement("dim", i, err)
+		}
+	}
+	return nil
+}
+
 // MultiArrayLayoutPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type MultiArrayLayoutPublisher struct {

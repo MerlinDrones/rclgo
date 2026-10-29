@@ -56,6 +56,18 @@ func (t *ObjectHypothesisWithPose) GetTypeSupport() types.MessageTypeSupport {
 	return ObjectHypothesisWithPoseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ObjectHypothesisWithPose) CheckBounds() error {
+	if err := types.CheckBounds(&t.Hypothesis); err != nil {
+		return types.InField("hypothesis", err)
+	}
+	if err := types.CheckBounds(&t.Pose); err != nil {
+		return types.InField("pose", err)
+	}
+	return nil
+}
+
 // ObjectHypothesisWithPosePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ObjectHypothesisWithPosePublisher struct {
@@ -159,6 +171,7 @@ type CObjectHypothesisWithPose__Sequence = C.vision_msgs__msg__ObjectHypothesisW
 
 func ObjectHypothesisWithPose__Sequence_to_Go(goSlice *[]ObjectHypothesisWithPose, cSlice CObjectHypothesisWithPose__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ObjectHypothesisWithPose, cSlice.size)
@@ -168,13 +181,16 @@ func ObjectHypothesisWithPose__Sequence_to_Go(goSlice *[]ObjectHypothesisWithPos
 	}
 }
 func ObjectHypothesisWithPose__Sequence_into_C(cSlice *CObjectHypothesisWithPose__Sequence, goSlice []ObjectHypothesisWithPose) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__ObjectHypothesisWithPose__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__ObjectHypothesisWithPose)(C.malloc(C.sizeof_struct_vision_msgs__msg__ObjectHypothesisWithPose * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__ObjectHypothesisWithPose)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__ObjectHypothesisWithPose))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

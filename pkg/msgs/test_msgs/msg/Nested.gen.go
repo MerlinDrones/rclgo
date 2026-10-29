@@ -52,6 +52,15 @@ func (t *Nested) GetTypeSupport() types.MessageTypeSupport {
 	return NestedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Nested) CheckBounds() error {
+	if err := types.CheckBounds(&t.BasicTypesValue); err != nil {
+		return types.InField("basic_types_value", err)
+	}
+	return nil
+}
+
 // NestedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type NestedPublisher struct {

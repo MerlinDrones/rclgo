@@ -459,7 +459,8 @@ func (c *Context) spin(ctx context.Context, store *rosResourceStore) (err error)
 	return ws.Run(ctx)
 }
 
-// resourcesChanged tells every spinning wait set to rebuild its entity lists.
+// resourcesChanged tells every spinning wait set to rebuild its entity lists
+// and recompute its timeout.
 func (c *Context) resourcesChanged() {
 	c.spinnersMu.Lock()
 	defer c.spinnersMu.Unlock()
@@ -468,7 +469,7 @@ func (c *Context) resourcesChanged() {
 		// wakes for another reason; a finalized one belongs to a wait set
 		// that no longer runs.
 		if err := ws.refresh.Trigger(); err != nil && !errors.Is(err, ErrClosed) {
-			GetLogger("rclgo").Error("waking the wait set for new entities failed: ", err) //nolint:errcheck
+			GetLogger("rclgo").Error("waking the wait set failed: ", err) //nolint:errcheck
 		}
 	}
 }

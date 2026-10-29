@@ -57,6 +57,15 @@ func (t *Header) GetTypeSupport() types.MessageTypeSupport {
 	return HeaderTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Header) CheckBounds() error {
+	if err := types.CheckBounds(&t.Stamp); err != nil {
+		return types.InField("stamp", err)
+	}
+	return nil
+}
+
 // HeaderPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type HeaderPublisher struct {

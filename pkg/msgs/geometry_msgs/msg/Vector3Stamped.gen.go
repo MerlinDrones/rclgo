@@ -56,6 +56,18 @@ func (t *Vector3Stamped) GetTypeSupport() types.MessageTypeSupport {
 	return Vector3StampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Vector3Stamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Vector); err != nil {
+		return types.InField("vector", err)
+	}
+	return nil
+}
+
 // Vector3StampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Vector3StampedPublisher struct {

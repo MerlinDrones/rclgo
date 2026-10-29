@@ -56,6 +56,18 @@ func (t *Builtins) GetTypeSupport() types.MessageTypeSupport {
 	return BuiltinsTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Builtins) CheckBounds() error {
+	if err := types.CheckBounds(&t.DurationValue); err != nil {
+		return types.InField("duration_value", err)
+	}
+	if err := types.CheckBounds(&t.TimeValue); err != nil {
+		return types.InField("time_value", err)
+	}
+	return nil
+}
+
 // BuiltinsPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BuiltinsPublisher struct {

@@ -1,5 +1,7 @@
 Inner request_inner
 int32 type
+int32[<=2] args
 ---
 bool ok
 string message
+int32[<=2] values

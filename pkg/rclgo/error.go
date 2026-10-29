@@ -102,6 +102,9 @@ func (e closeError) Error() string {
 	return string(e)
 }
 
+// Unwrap makes a second Close match ErrClosed.
+func (e closeError) Unwrap() error { return ErrClosed }
+
 func closeErr(s string) error {
 	return closeError("tried to close a closed " + s)
 }

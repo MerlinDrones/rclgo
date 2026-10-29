@@ -52,6 +52,12 @@ func (t *Fibonacci_Goal) GetTypeSupport() types.MessageTypeSupport {
 	return Fibonacci_GoalTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Fibonacci_Goal) CheckBounds() error {
+	return nil
+}
+
 // Fibonacci_GoalPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Fibonacci_GoalPublisher struct {

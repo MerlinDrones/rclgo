@@ -73,6 +73,15 @@ func (t *Inertia) GetTypeSupport() types.MessageTypeSupport {
 	return InertiaTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Inertia) CheckBounds() error {
+	if err := types.CheckBounds(&t.Com); err != nil {
+		return types.InField("com", err)
+	}
+	return nil
+}
+
 // InertiaPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type InertiaPublisher struct {

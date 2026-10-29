@@ -52,6 +52,15 @@ func (t *NestedMessage_GetResult_Request) SetDefaults() {
 func (t *NestedMessage_GetResult_Request) GetTypeSupport() types.MessageTypeSupport {
 	return NestedMessage_GetResult_RequestTypeSupport
 }
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NestedMessage_GetResult_Request) CheckBounds() error {
+	if err := types.CheckBounds(&t.GoalID); err != nil {
+		return types.InField("goal_id", err)
+	}
+	return nil
+}
 func (t *NestedMessage_GetResult_Request) GetGoalID() *types.GoalID {
 	return (*types.GoalID)(&t.GoalID.Uuid)
 }

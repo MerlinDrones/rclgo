@@ -77,6 +77,15 @@ func (t *WStrings) GetTypeSupport() types.MessageTypeSupport {
 	return WStringsTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *WStrings) CheckBounds() error {
+	if len(t.BoundedSequenceOfWstrings) > 3 {
+		return types.BoundExceeded("bounded_sequence_of_wstrings", len(t.BoundedSequenceOfWstrings), 3)
+	}
+	return nil
+}
+
 // WStringsPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type WStringsPublisher struct {

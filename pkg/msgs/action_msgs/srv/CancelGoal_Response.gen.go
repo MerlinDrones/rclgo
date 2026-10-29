@@ -65,6 +65,17 @@ func (t *CancelGoal_Response) SetDefaults() {
 func (t *CancelGoal_Response) GetTypeSupport() types.MessageTypeSupport {
 	return CancelGoal_ResponseTypeSupport
 }
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *CancelGoal_Response) CheckBounds() error {
+	for i := range t.GoalsCanceling {
+		if err := types.CheckBounds(&t.GoalsCanceling[i]); err != nil {
+			return types.InElement("goals_canceling", i, err)
+		}
+	}
+	return nil
+}
 func (t *CancelGoal_Response) CallForEach(f func(interface{})) {
 	for i := range t.GoalsCanceling {
 		f((*types.GoalID)(&t.GoalsCanceling[i].GoalId.Uuid))

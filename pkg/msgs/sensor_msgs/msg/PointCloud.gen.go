@@ -66,6 +66,25 @@ func (t *PointCloud) GetTypeSupport() types.MessageTypeSupport {
 	return PointCloudTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PointCloud) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Points {
+		if err := types.CheckBounds(&t.Points[i]); err != nil {
+			return types.InElement("points", i, err)
+		}
+	}
+	for i := range t.Channels {
+		if err := types.CheckBounds(&t.Channels[i]); err != nil {
+			return types.InElement("channels", i, err)
+		}
+	}
+	return nil
+}
+
 // PointCloudPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PointCloudPublisher struct {

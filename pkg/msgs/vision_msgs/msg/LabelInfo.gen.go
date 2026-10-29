@@ -62,6 +62,20 @@ func (t *LabelInfo) GetTypeSupport() types.MessageTypeSupport {
 	return LabelInfoTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *LabelInfo) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.ClassMap {
+		if err := types.CheckBounds(&t.ClassMap[i]); err != nil {
+			return types.InElement("class_map", i, err)
+		}
+	}
+	return nil
+}
+
 // LabelInfoPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type LabelInfoPublisher struct {
@@ -167,6 +181,7 @@ type CLabelInfo__Sequence = C.vision_msgs__msg__LabelInfo__Sequence
 
 func LabelInfo__Sequence_to_Go(goSlice *[]LabelInfo, cSlice CLabelInfo__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]LabelInfo, cSlice.size)
@@ -176,13 +191,16 @@ func LabelInfo__Sequence_to_Go(goSlice *[]LabelInfo, cSlice CLabelInfo__Sequence
 	}
 }
 func LabelInfo__Sequence_into_C(cSlice *CLabelInfo__Sequence, goSlice []LabelInfo) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__LabelInfo__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__LabelInfo)(C.malloc(C.sizeof_struct_vision_msgs__msg__LabelInfo * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__LabelInfo)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__LabelInfo))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)

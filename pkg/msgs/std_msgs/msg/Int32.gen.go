@@ -52,6 +52,12 @@ func (t *Int32) GetTypeSupport() types.MessageTypeSupport {
 	return Int32TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Int32) CheckBounds() error {
+	return nil
+}
+
 // Int32Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Int32Publisher struct {

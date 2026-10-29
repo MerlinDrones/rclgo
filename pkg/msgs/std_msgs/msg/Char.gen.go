@@ -52,6 +52,12 @@ func (t *Char) GetTypeSupport() types.MessageTypeSupport {
 	return CharTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Char) CheckBounds() error {
+	return nil
+}
+
 // CharPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type CharPublisher struct {

@@ -55,6 +55,15 @@ func (t *Fibonacci_SendGoal_Response) SetDefaults() {
 func (t *Fibonacci_SendGoal_Response) GetTypeSupport() types.MessageTypeSupport {
 	return Fibonacci_SendGoal_ResponseTypeSupport
 }
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Fibonacci_SendGoal_Response) CheckBounds() error {
+	if err := types.CheckBounds(&t.Stamp); err != nil {
+		return types.InField("stamp", err)
+	}
+	return nil
+}
 func (t *Fibonacci_SendGoal_Response) GetGoalAccepted() bool {
 	return t.Accepted
 }

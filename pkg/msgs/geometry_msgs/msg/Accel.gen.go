@@ -55,6 +55,18 @@ func (t *Accel) GetTypeSupport() types.MessageTypeSupport {
 	return AccelTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Accel) CheckBounds() error {
+	if err := types.CheckBounds(&t.Linear); err != nil {
+		return types.InField("linear", err)
+	}
+	if err := types.CheckBounds(&t.Angular); err != nil {
+		return types.InField("angular", err)
+	}
+	return nil
+}
+
 // AccelPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type AccelPublisher struct {

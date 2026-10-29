@@ -63,6 +63,15 @@ func (t *VisionInfo) GetTypeSupport() types.MessageTypeSupport {
 	return VisionInfoTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *VisionInfo) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // VisionInfoPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type VisionInfoPublisher struct {
@@ -170,6 +179,7 @@ type CVisionInfo__Sequence = C.vision_msgs__msg__VisionInfo__Sequence
 
 func VisionInfo__Sequence_to_Go(goSlice *[]VisionInfo, cSlice CVisionInfo__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]VisionInfo, cSlice.size)
@@ -179,13 +189,16 @@ func VisionInfo__Sequence_to_Go(goSlice *[]VisionInfo, cSlice CVisionInfo__Seque
 	}
 }
 func VisionInfo__Sequence_into_C(cSlice *CVisionInfo__Sequence, goSlice []VisionInfo) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__VisionInfo__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__VisionInfo)(C.malloc(C.sizeof_struct_vision_msgs__msg__VisionInfo * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__VisionInfo)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__VisionInfo))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
