@@ -53,14 +53,48 @@ type Config struct {
 	RclgoImportPath     string
 	MessageModulePrefix string
 	RootPaths           []string
-	DestPath            string
-	CGOFlagsPath        string
+	// EmbedRootPaths are glob patterns (path.Match syntax) selecting which of
+	// RootPaths are written into the #cgo directives of generated code. Other
+	// roots, such as workspace overlays, are still searched for interfaces,
+	// but their include and library directories must come from the build
+	// environment (CGO_CFLAGS/CGO_LDFLAGS, e.g. the file CGOFlagsPath names),
+	// so that generated code does not depend on the machine that generated it.
+	// Nil means DefaultEmbedRootPaths.
+	EmbedRootPaths []string
+	DestPath       string
+	CGOFlagsPath   string
 
 	RegexIncludes  RuleSet
 	ROSPkgIncludes []string
 	GoPkgIncludes  []string
 
 	LicenseHeader string
+}
+
+// DefaultEmbedRootPaths selects the roots that are the same on every machine:
+// the ROS 2 distribution installs (the Debian and RPM packages always install
+// to /opt/ros/<distro>) and the system prefix /usr.
+var DefaultEmbedRootPaths = []string{"/opt/ros/*", "/usr"}
+
+// EmbeddedRootPaths returns the root paths whose include and library
+// directories generated code embeds: those of RootPaths that match one of
+// EmbedRootPaths, in RootPaths order.
+func (c Config) EmbeddedRootPaths() []string {
+	patterns := c.EmbedRootPaths
+	if patterns == nil {
+		patterns = DefaultEmbedRootPaths
+	}
+	var out []string
+	for _, root := range c.RootPaths {
+		clean := filepath.Clean(root)
+		for _, p := range patterns {
+			if ok, _ := path.Match(p, clean); ok {
+				out = append(out, root)
+				break
+			}
+		}
+	}
+	return out
 }
 
 var DefaultConfig = Config{

@@ -91,11 +91,17 @@ type MultiArrayLayoutSubscriptionCallback func(msg *MultiArrayLayout, info *rclg
 
 // NewMultiArrayLayoutSubscription creates and returns a new subscription for the
 // MultiArrayLayout
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewMultiArrayLayoutSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback MultiArrayLayoutSubscriptionCallback) (*MultiArrayLayoutSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg MultiArrayLayout
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg MultiArrayLayout
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, MultiArrayLayoutTypeSupport, opts, callback)
 	if err != nil {

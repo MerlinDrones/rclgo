@@ -90,11 +90,17 @@ type Point32SubscriptionCallback func(msg *Point32, info *rclgo.MessageInfo, err
 
 // NewPoint32Subscription creates and returns a new subscription for the
 // Point32
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPoint32Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Point32SubscriptionCallback) (*Point32Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Point32
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Point32
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Point32TypeSupport, opts, callback)
 	if err != nil {

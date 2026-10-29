@@ -96,11 +96,17 @@ type RegionOfInterestSubscriptionCallback func(msg *RegionOfInterest, info *rclg
 
 // NewRegionOfInterestSubscription creates and returns a new subscription for the
 // RegionOfInterest
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewRegionOfInterestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback RegionOfInterestSubscriptionCallback) (*RegionOfInterestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg RegionOfInterest
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg RegionOfInterest
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, RegionOfInterestTypeSupport, opts, callback)
 	if err != nil {

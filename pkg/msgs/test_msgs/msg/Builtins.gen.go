@@ -88,11 +88,17 @@ type BuiltinsSubscriptionCallback func(msg *Builtins, info *rclgo.MessageInfo, e
 
 // NewBuiltinsSubscription creates and returns a new subscription for the
 // Builtins
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBuiltinsSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BuiltinsSubscriptionCallback) (*BuiltinsSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Builtins
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Builtins
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BuiltinsTypeSupport, opts, callback)
 	if err != nil {

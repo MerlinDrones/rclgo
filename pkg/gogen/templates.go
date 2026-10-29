@@ -38,7 +38,7 @@ var ros2PackageCommonTemplate = template.Must(
 package {{ .GoPackage }}
 
 /*
-{{range $dir := .Config.RootPaths -}}
+{{range $dir := .Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$dir}}/lib" "-Wl,-rpath={{$dir}}/lib"
 {{end}}
 #cgo LDFLAGS: -lrcl -lrosidl_runtime_c -lrosidl_typesupport_c -lrcutils -lrmw_implementation
@@ -47,7 +47,7 @@ package {{ .GoPackage }}
 #cgo LDFLAGS: -l{{$k}}__rosidl_typesupport_c -l{{$k}}__rosidl_generator_c
 {{""}}
 {{- end -}}
-{{range $dir := .Config.RootPaths}}
+{{range $dir := .Config.EmbeddedRootPaths}}
 #cgo CFLAGS: "-I{{$dir}}/include/action_msgs"
 #cgo CFLAGS: "-I{{$dir}}/include/builtin_interfaces"
 #cgo CFLAGS: "-I{{$dir}}/include/example_interfaces"
@@ -246,11 +246,17 @@ type {{$Md.Name}}SubscriptionCallback func(msg *{{$Md.Name}}, info *rclgo.Messag
 
 // New{{$Md.Name}}Subscription creates and returns a new subscription for the
 // {{$Md.Name}}
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func New{{$Md.Name}}Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback {{$Md.Name}}SubscriptionCallback) (*{{$Md.Name}}Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg {{$Md.Name}}
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg {{$Md.Name}}
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, {{$Md.Name}}TypeSupport, opts, callback)
 	if err != nil {
@@ -511,7 +517,7 @@ func (s _{{.Action.Name}}TypeSupport) NewSendGoalResponse(accepted bool, stamp t
 	msg := New{{.Action.Name}}_SendGoal_Response()
 	msg.Accepted = accepted
 	secs := stamp.Truncate(time.Second)
-	msg.Stamp.Sec = int32(secs)
+	msg.Stamp.Sec = int32(secs / time.Second)
 	msg.Stamp.Nanosec = uint32(stamp - secs)
 	return msg
 }
@@ -718,7 +724,7 @@ var primitiveTypes = template.Must(
 package primitives
 
 /*
-{{range $rootPath := $.Config.RootPaths -}}
+{{range $rootPath := $.Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$rootPath}}/lib" "-Wl,-rpath={{$rootPath}}/lib"
 #cgo CFLAGS: "-I{{$rootPath}}/include/rosidl_runtime_c"
 {{end}}
@@ -856,7 +862,7 @@ var rclgoFlags = template.Must(
 package rclgo
 
 /*
-{{range $rootPath := $.Config.RootPaths -}}
+{{range $rootPath := $.Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$rootPath}}/lib" "-Wl,-rpath={{$rootPath}}/lib"
 {{range $dep := $.ROSIncludes -}}
 #cgo CFLAGS: "-I{{$rootPath}}/include/{{$dep}}"
@@ -876,7 +882,7 @@ var gogenTestFlags = template.Must(
 package test
 
 /*
-{{range $rootPath := $.Config.RootPaths -}}
+{{range $rootPath := $.Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$rootPath}}/lib" "-Wl,-rpath={{$rootPath}}/lib"
 #cgo CFLAGS: "-I{{$rootPath}}/include/builtin_interfaces"
 #cgo CFLAGS: "-I{{$rootPath}}/include/rosidl_runtime_c"

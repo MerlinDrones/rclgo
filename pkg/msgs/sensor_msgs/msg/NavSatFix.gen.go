@@ -111,11 +111,17 @@ type NavSatFixSubscriptionCallback func(msg *NavSatFix, info *rclgo.MessageInfo,
 
 // NewNavSatFixSubscription creates and returns a new subscription for the
 // NavSatFix
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewNavSatFixSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback NavSatFixSubscriptionCallback) (*NavSatFixSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg NavSatFix
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg NavSatFix
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, NavSatFixTypeSupport, opts, callback)
 	if err != nil {

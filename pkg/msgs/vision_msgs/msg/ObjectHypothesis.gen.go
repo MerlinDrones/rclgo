@@ -88,11 +88,17 @@ type ObjectHypothesisSubscriptionCallback func(msg *ObjectHypothesis, info *rclg
 
 // NewObjectHypothesisSubscription creates and returns a new subscription for the
 // ObjectHypothesis
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewObjectHypothesisSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ObjectHypothesisSubscriptionCallback) (*ObjectHypothesisSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ObjectHypothesis
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ObjectHypothesis
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ObjectHypothesisTypeSupport, opts, callback)
 	if err != nil {

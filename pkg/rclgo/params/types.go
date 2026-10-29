@@ -104,22 +104,143 @@ type store struct {
 	vals map[string]Parameter
 	desc map[string]Descriptor
 	cb   OnSetCallback
+
+	// overridden holds the parameters that exist only because an override
+	// (parameter file, command line or environment) set them, and that code
+	// has not declared yet. Declaring one attaches the code's descriptor and
+	// type to the override's value.
+	overridden map[string]bool
 }
 
 func newStore() *store {
-	return &store{vals: map[string]Parameter{}, desc: map[string]Descriptor{}}
+	return &store{vals: map[string]Parameter{}, desc: map[string]Descriptor{}, overridden: map[string]bool{}}
 }
 
+// declare declares a parameter; see declareOrClaim.
 func (s *store) declare(name string, v Value, d Descriptor) (Parameter, error) {
+	p, _, err := s.declareOrClaim(name, v, d)
+	return p, err
+}
+
+// declareOrClaim declares a parameter. If an override already created it, the
+// override's value is kept, converted to the type of v and checked against d,
+// and claimed reports true.
+func (s *store) declareOrClaim(name string, v Value, d Descriptor) (p Parameter, claimed bool, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.vals[name]; exists {
-		return Parameter{}, fmt.Errorf("parameter %q already declared", name)
+		if !s.overridden[name] {
+			return Parameter{}, false, fmt.Errorf("parameter %q already declared", name)
+		}
+		override := s.vals[name].Value
+		val, ok := coerce(override, v.Kind)
+		if !ok {
+			return Parameter{}, false, fmt.Errorf("parameter %q: override of type %s cannot be used for a %s parameter",
+				name, kindName(override.Kind), kindName(v.Kind))
+		}
+		p = Parameter{Name: name, Value: val}
+		if res := validate(p, d); !res.Successful {
+			return Parameter{}, false, fmt.Errorf("parameter %q: override %v rejected: %s", name, override, res.Reason)
+		}
+		s.desc[name] = d
+		s.vals[name] = p
+		delete(s.overridden, name)
+		return p, true, nil
 	}
 	s.desc[name] = d
-	p := Parameter{Name: name, Value: v}
+	p = Parameter{Name: name, Value: v}
 	s.vals[name] = p
-	return p, nil
+	return p, false, nil
+}
+
+// applyOverride sets a parameter from an override. An undeclared parameter is
+// created with descriptor d and stays open to a later declaration (created
+// reports true). A declared parameter keeps its descriptor and type; read-only
+// does not stop an override, but the other constraints and the OnSet callback
+// apply.
+func (s *store) applyOverride(name string, v Value, d Descriptor) (p Parameter, created bool, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cur, exists := s.vals[name]
+	if !exists {
+		s.desc[name] = d
+		p = Parameter{Name: name, Value: v}
+		s.vals[name] = p
+		s.overridden[name] = true
+		return p, true, nil
+	}
+	if s.overridden[name] {
+		p = Parameter{Name: name, Value: v}
+		s.vals[name] = p
+		return p, false, nil
+	}
+	val, ok := coerce(v, cur.Value.Kind)
+	if !ok {
+		return Parameter{}, false, fmt.Errorf("parameter %q: override of type %s cannot be used for a %s parameter",
+			name, kindName(v.Kind), kindName(cur.Value.Kind))
+	}
+	p = Parameter{Name: name, Value: val}
+	if res := validate(p, s.desc[name]); !res.Successful {
+		return Parameter{}, false, fmt.Errorf("parameter %q: override %v rejected: %s", name, v, res.Reason)
+	}
+	if s.cb != nil {
+		if res := s.cb([]Parameter{p}); !res.Successful {
+			return Parameter{}, false, fmt.Errorf("parameter %q: override %v rejected: %s", name, v, res.Reason)
+		}
+	}
+	s.vals[name] = p
+	return p, false, nil
+}
+
+func (s *store) isOverrideOnly(name string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.overridden[name]
+}
+
+// coerce converts v to kind. Values of the same kind, and any value for
+// KindNotSet, are returned as they are; integers widen to doubles. Other
+// conversions fail.
+func coerce(v Value, kind uint8) (Value, bool) {
+	switch {
+	case kind == KindNotSet || v.Kind == kind:
+		return v, true
+	case kind == KindDouble && v.Kind == KindInt64:
+		return Value{Kind: KindDouble, Double: float64(v.Int64)}, true
+	case kind == KindDoubleArray && v.Kind == KindInt64Array:
+		ds := make([]float64, len(v.Int64s))
+		for i, x := range v.Int64s {
+			ds[i] = float64(x)
+		}
+		return Value{Kind: KindDoubleArray, Doubles: ds}, true
+	}
+	return v, false
+}
+
+func kindName(kind uint8) string {
+	switch kind {
+	case KindNotSet:
+		return "not set"
+	case KindBool:
+		return "bool"
+	case KindInt64:
+		return "integer"
+	case KindDouble:
+		return "double"
+	case KindString:
+		return "string"
+	case KindBytes:
+		return "byte array"
+	case KindBoolArray:
+		return "bool array"
+	case KindInt64Array:
+		return "integer array"
+	case KindDoubleArray:
+		return "double array"
+	case KindStringArray:
+		return "string array"
+	}
+	return fmt.Sprintf("kind %d", kind)
 }
 
 func (s *store) get(name string) (Parameter, bool) {
@@ -147,7 +268,10 @@ func (s *store) set(params []Parameter) (SetResult, []Parameter, []Parameter) {
 	newp := make([]Parameter, 0, len(params))
 
 	// descriptor / read-only validation
-	for _, np := range params {
+	// A parameter declared in code keeps its type; integers widen to
+	// doubles. Parameters that exist only through an override take any type.
+	coerced := make([]Parameter, len(params))
+	for i, np := range params {
 		d, ok := s.desc[np.Name]
 		if !ok {
 			return SetResult{false, "undeclared parameter: " + np.Name}, nil, nil
@@ -155,10 +279,21 @@ func (s *store) set(params []Parameter) (SetResult, []Parameter, []Parameter) {
 		if d.ReadOnly {
 			return SetResult{false, "parameter is read-only: " + np.Name}, nil, nil
 		}
+		if !s.overridden[np.Name] {
+			cur := s.vals[np.Name].Value
+			v, ok := coerce(np.Value, cur.Kind)
+			if !ok {
+				return SetResult{false, fmt.Sprintf("wrong type for %s: got %s, want %s",
+					np.Name, kindName(np.Value.Kind), kindName(cur.Kind))}, nil, nil
+			}
+			np.Value = v
+		}
 		if res := validate(np, d); !res.Successful {
 			return res, nil, nil
 		}
+		coerced[i] = np
 	}
+	params = coerced
 
 	// preview callback
 	if s.cb != nil {

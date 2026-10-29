@@ -40,7 +40,7 @@ func (s _FibonacciTypeSupport) NewSendGoalResponse(accepted bool, stamp time.Dur
 	msg := NewFibonacci_SendGoal_Response()
 	msg.Accepted = accepted
 	secs := stamp.Truncate(time.Second)
-	msg.Stamp.Sec = int32(secs)
+	msg.Stamp.Sec = int32(secs / time.Second)
 	msg.Stamp.Nanosec = uint32(stamp - secs)
 	return msg
 }

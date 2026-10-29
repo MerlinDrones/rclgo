@@ -91,11 +91,17 @@ type BoundingBox2DArraySubscriptionCallback func(msg *BoundingBox2DArray, info *
 
 // NewBoundingBox2DArraySubscription creates and returns a new subscription for the
 // BoundingBox2DArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBoundingBox2DArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BoundingBox2DArraySubscriptionCallback) (*BoundingBox2DArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BoundingBox2DArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BoundingBox2DArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BoundingBox2DArrayTypeSupport, opts, callback)
 	if err != nil {

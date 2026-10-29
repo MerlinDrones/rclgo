@@ -94,15 +94,9 @@ func ApplyOverrides(m *Manager, nodeName string, args *rclgo.Args) error {
 			return fmt.Errorf("unsupported parameter type for %s", paramName)
 		}
 
-		// If parameter already exists, set it. Otherwise declare it.
-		if _, exists := m.Get(paramName); exists {
-			if _, err := m.SetValue(paramName, val); err != nil {
-				return fmt.Errorf("failed to set override for %s: %w", paramName, err)
-			}
-		} else {
-			if _, err := m.Declare(paramName, val, Descriptor{}); err != nil {
-				return fmt.Errorf("failed to declare override for %s: %w", paramName, err)
-			}
+		// A later Declare in code attaches its descriptor to this value.
+		if err := m.applyOverride(paramName, val, Descriptor{}); err != nil {
+			return fmt.Errorf("failed to apply override for %s: %w", paramName, err)
 		}
 	}
 

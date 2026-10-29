@@ -91,11 +91,17 @@ type MultiArrayDimensionSubscriptionCallback func(msg *MultiArrayDimension, info
 
 // NewMultiArrayDimensionSubscription creates and returns a new subscription for the
 // MultiArrayDimension
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewMultiArrayDimensionSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback MultiArrayDimensionSubscriptionCallback) (*MultiArrayDimensionSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg MultiArrayDimension
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg MultiArrayDimension
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, MultiArrayDimensionTypeSupport, opts, callback)
 	if err != nil {

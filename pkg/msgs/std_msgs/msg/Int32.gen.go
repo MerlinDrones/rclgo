@@ -84,11 +84,17 @@ type Int32SubscriptionCallback func(msg *Int32, info *rclgo.MessageInfo, err err
 
 // NewInt32Subscription creates and returns a new subscription for the
 // Int32
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewInt32Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Int32SubscriptionCallback) (*Int32Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Int32
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Int32
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Int32TypeSupport, opts, callback)
 	if err != nil {

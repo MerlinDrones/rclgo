@@ -87,11 +87,17 @@ type Point2DSubscriptionCallback func(msg *Point2D, info *rclgo.MessageInfo, err
 
 // NewPoint2DSubscription creates and returns a new subscription for the
 // Point2D
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPoint2DSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Point2DSubscriptionCallback) (*Point2DSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Point2D
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Point2D
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Point2DTypeSupport, opts, callback)
 	if err != nil {

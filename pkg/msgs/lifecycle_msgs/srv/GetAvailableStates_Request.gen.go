@@ -81,11 +81,17 @@ type GetAvailableStates_RequestSubscriptionCallback func(msg *GetAvailableStates
 
 // NewGetAvailableStates_RequestSubscription creates and returns a new subscription for the
 // GetAvailableStates_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewGetAvailableStates_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback GetAvailableStates_RequestSubscriptionCallback) (*GetAvailableStates_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg GetAvailableStates_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg GetAvailableStates_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, GetAvailableStates_RequestTypeSupport, opts, callback)
 	if err != nil {

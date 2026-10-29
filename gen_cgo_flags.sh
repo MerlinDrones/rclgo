@@ -13,6 +13,9 @@
 
 set -e
 
+# ROS 2 distribution to generate for: the sourced one, else jazzy.
+ROS_DISTRO="${ROS_DISTRO:-jazzy}"
+
 # Check if ROS_WS environment variable is set
 if [ -z "$ROS_WS" ]; then
     echo "ERROR: ROS_WS environment variable is not set!"
@@ -56,7 +59,7 @@ echo "Configuration:"
 echo "  - Workspace: ${ROS_WS}"
 echo "  - Output file: ${ROS_WS}/cgo-flags.env"
 echo "  - Root paths:"
-echo "      1. /opt/ros/jazzy (base ROS 2)"
+echo "      1. /opt/ros/${ROS_DISTRO} (base ROS 2)"
 echo "      2. ${ROS_WS}/install (workspace overlay)"
 if [ -n "$PACKAGES" ]; then
     echo "  - Custom packages to scan: ${PACKAGES}"
@@ -87,7 +90,7 @@ esac
 
 # Build the command with --include-package flags for each package
 CMD="go run ./cmd/rclgo-gen generate-cgo-flags \
-  --root-path /opt/ros/jazzy \
+  --root-path /opt/ros/${ROS_DISTRO} \
   --root-path ${ROS_WS}/install \
   --output ${ROS_WS}/cgo-flags.env"
 

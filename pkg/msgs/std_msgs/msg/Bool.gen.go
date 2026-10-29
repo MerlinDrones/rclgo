@@ -84,11 +84,17 @@ type BoolSubscriptionCallback func(msg *Bool, info *rclgo.MessageInfo, err error
 
 // NewBoolSubscription creates and returns a new subscription for the
 // Bool
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBoolSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BoolSubscriptionCallback) (*BoolSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Bool
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Bool
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BoolTypeSupport, opts, callback)
 	if err != nil {

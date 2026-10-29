@@ -81,11 +81,17 @@ type Empty_ResponseSubscriptionCallback func(msg *Empty_Response, info *rclgo.Me
 
 // NewEmpty_ResponseSubscription creates and returns a new subscription for the
 // Empty_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewEmpty_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Empty_ResponseSubscriptionCallback) (*Empty_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Empty_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Empty_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Empty_ResponseTypeSupport, opts, callback)
 	if err != nil {
