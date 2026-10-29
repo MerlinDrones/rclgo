@@ -37,8 +37,10 @@ import (
 // process able to create and use new contexts.
 //
 // The full sweep runs with `make test-faults`; RCLGO_FAULT_CALLS sets how many
-// calls of each function are made to fail (default 2), and RCLGO_FAULT_EXCLUDE
-// lists functions not to fail (comma-separated), for investigating.
+// calls of each function are made to fail (default 2), RCLGO_FAULT_RETS the
+// codes they fail with (comma-separated: error, timeout, bad_alloc; default
+// error), and RCLGO_FAULT_EXCLUDE lists functions not to fail
+// (comma-separated), for investigating.
 
 // errs collects errors from the scenario and its callbacks.
 type errs struct {
@@ -420,6 +422,24 @@ func maxCalls() int {
 	return 2
 }
 
+// retCodes returns the codes named by RCLGO_FAULT_RETS.
+func retCodes(t *testing.T) map[string]int {
+	known := map[string]int{"error": faultinject.RetError, "timeout": faultinject.RetTimeout, "bad_alloc": faultinject.RetBadAlloc}
+	names := os.Getenv("RCLGO_FAULT_RETS")
+	if names == "" {
+		names = "error"
+	}
+	rets := map[string]int{}
+	for _, n := range strings.Split(names, ",") {
+		ret, ok := known[strings.TrimSpace(n)]
+		if !ok {
+			t.Fatalf("RCLGO_FAULT_RETS: unknown code %q", n)
+		}
+		rets[strings.TrimSpace(n)] = ret
+	}
+	return rets
+}
+
 func TestFaultSweep(t *testing.T) {
 	if os.Getenv("RCLGO_FAULT_SWEEP") == "" {
 		t.Skip("set RCLGO_FAULT_SWEEP=1 (make test-faults) to run")
@@ -439,19 +459,26 @@ func TestFaultSweep(t *testing.T) {
 		{"timer", scenarioTimer},
 		{"action", scenarioAction},
 		{"params", scenarioParams},
+		{"graph", scenarioGraph},
+		{"logging", scenarioLogging},
+		{"clock", scenarioClock},
+		{"serialization", scenarioSerialization},
+		{"guard", scenarioGuard},
 	} {
-		t.Run(sc.name, func(t *testing.T) {
-			faultinject.Sweep(t, maxCalls(), faultinject.RetError, sc.run, func(t *testing.T, r faultinject.Run) {
-				switch {
-				case !r.Hit:
-				case r.Reported():
-				case r.Logged != "":
-					t.Logf("logged: %s", r.Logged)
-				default:
-					t.Errorf("%s failed, but the failure was neither returned nor logged; errors: %v", r, r.Errs)
-				}
-				healthy(t, r)
+		for retName, ret := range retCodes(t) {
+			t.Run(sc.name+"/"+retName, func(t *testing.T) {
+				faultinject.Sweep(t, maxCalls(), ret, sc.run, func(t *testing.T, r faultinject.Run) {
+					switch {
+					case !r.Hit:
+					case r.Reported():
+					case r.Logged != "":
+						t.Logf("logged: %s", r.Logged)
+					default:
+						t.Errorf("%s failed, but the failure was neither returned nor logged; errors: %v", r, r.Errs)
+					}
+					healthy(t, r)
+				})
 			})
-		})
+		}
 	}
 }

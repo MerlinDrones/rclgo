@@ -24,7 +24,7 @@ type sinkSender struct {
 func (s *sinkSender) SendResponse(m types.Message) error { s.last = m; return nil }
 
 func TestEnableUseSimTimeHook_TogglesOnSet(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 
 	var toggles []bool
 	m.EnableUseSimTimeHook(func(enabled bool) {

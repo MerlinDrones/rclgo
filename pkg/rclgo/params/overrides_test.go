@@ -38,7 +38,7 @@ func TestApplyOverrides_ScalarTypes(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare parameters with defaults
 	_, _ = mgr.Declare("bool_param", Value{Kind: KindBool, Bool: false}, Descriptor{})
@@ -107,7 +107,7 @@ func TestApplyOverrides_ArrayTypes(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare array parameters with empty defaults
 	_, _ = mgr.Declare("bool_array", Value{Kind: KindBoolArray, Bools: []bool{}}, Descriptor{})
@@ -184,7 +184,7 @@ func TestApplyOverrides_WildcardNode(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare a parameter
 	_, _ = mgr.Declare("wildcard_param", Value{Kind: KindInt64, Int64: 0}, Descriptor{})
@@ -227,7 +227,7 @@ func TestApplyOverrides_WithYAML(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Create temporary YAML file
 	tmpDir := t.TempDir()
@@ -301,7 +301,7 @@ func TestApplyOverrides_NoArgs(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare a parameter
 	_, _ = mgr.Declare("test_param", Value{Kind: KindInt64, Int64: 100}, Descriptor{})
@@ -346,7 +346,7 @@ func TestApplyOverrides_UndeclaredParam(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// DO NOT declare the parameter first
 
@@ -370,5 +370,72 @@ func TestApplyOverrides_UndeclaredParam(t *testing.T) {
 		t.Error("new_param should have been declared")
 	} else if p.Value.Kind != KindInt64 || p.Value.Int64 != 123 {
 		t.Errorf("new_param: got %+v, want 123", p.Value)
+	}
+}
+
+// Every section that matches the node applies, as in rclcpp: -p values (in the
+// "/**" section) and node, wildcard and "/**" sections of a parameter file
+// merge, and a later section overrides an earlier one.
+func TestApplyOverrides_MergesAllMatchingSections(t *testing.T) {
+	if err := rclgo.Init(nil); err != nil {
+		t.Fatalf("rclgo.Init: %v", err)
+	}
+	defer rclgo.Uninit()
+	n, err := rclgo.NewNode("merge_test", "/ns")
+	if err != nil {
+		t.Fatalf("NewNode: %v", err)
+	}
+	defer n.Close()
+	mgr := newBareManagerFor(n)
+
+	yamlPath := filepath.Join(t.TempDir(), "params.yaml")
+	yamlContent := `/ns/merge_test:
+  ros__parameters:
+    from_file: 1
+    shared: 1
+/**:
+  ros__parameters:
+    wild: 7
+/*/merge_test:
+  ros__parameters:
+    star: 5
+/other:
+  ros__parameters:
+    nope: 1
+`
+	if err := os.WriteFile(yamlPath, []byte(yamlContent), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	args, err := buildTestArgs([]string{
+		"--ros-args", "--params-file", yamlPath,
+		"-p", "shared:=2", "-p", "from_cli:=3",
+		"--",
+	})
+	if err != nil {
+		t.Fatalf("buildTestArgs: %v", err)
+	}
+	if err := ApplyOverrides(mgr, "merge_test", args); err != nil {
+		t.Fatalf("ApplyOverrides: %v", err)
+	}
+	want := map[string]int64{"from_file": 1, "from_cli": 3, "wild": 7, "star": 5, "shared": 2}
+	for name, v := range want {
+		if p, ok := mgr.Get(name); !ok || p.Value.Int64 != v {
+			t.Errorf("%s: got %+v (present %v), want %d", name, p.Value, ok, v)
+		}
+	}
+	if _, ok := mgr.Get("nope"); ok {
+		t.Error("a section for another node was applied")
+	}
+}
+
+func TestSectionMatches(t *testing.T) {
+	names := []string{"/ns/sub/node"}
+	for section, want := range map[string]bool{
+		"/**": true, "/ns/sub/node": true, "ns/sub/node": true, "/ns/**": true, "/**/node": true,
+		"/*/*/node": true, "/*/node": false, "/node": false, "/ns/sub/other": false, "/ns/sub/nodes": false,
+	} {
+		if got := sectionMatches(section, names); got != want {
+			t.Errorf("sectionMatches(%q, %v) = %v, want %v", section, names, got, want)
+		}
 	}
 }

@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/merlindrones/rclgo/pkg/rclgo"
 )
 
 // writeTemp creates a temp file with the given contents and returns its path.
@@ -42,7 +44,7 @@ ros__parameters:
 `
 	path := writeTemp(t, td, "params.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 
 	if err := LoadYAML(m, "ignored_node", path); err != nil {
 		t.Fatalf("LoadYAML: %v", err)
@@ -92,7 +94,7 @@ param_demo:
 `
 	path := writeTemp(t, td, "node_params.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 
 	if err := LoadYAML(m, "param_demo", path); err != nil {
 		t.Fatalf("LoadYAML: %v", err)
@@ -114,7 +116,7 @@ some_other_key:
 `
 	path := writeTemp(t, td, "bad.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	err := LoadYAML(m, "param_demo", path)
 	if err == nil || !strings.Contains(err.Error(), "no ros__parameters block") {
 		t.Fatalf("expected missing block error, got: %v", err)
@@ -123,14 +125,15 @@ some_other_key:
 
 func TestLoadYAML_UnsupportedType(t *testing.T) {
 	td := t.TempDir()
-	// map value under ros__parameters should be rejected by valueFromYAML
+	// A list of maps has no parameter type and must be rejected. (Nested maps
+	// are flattened into dotted names; see TestLoadYAMLNestedMaps.)
 	yaml := `
 ros__parameters:
-  complex: { a: 1, b: 2 }
+  complex: [{ a: 1 }, { b: 2 }]
 `
 	path := writeTemp(t, td, "unsupported.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	err := LoadYAML(m, "node", path)
 	if err == nil || !strings.Contains(err.Error(), "unsupported YAML type for complex") {
 		t.Fatalf("expected unsupported type error, got: %v", err)
@@ -145,7 +148,7 @@ ros__parameters:
 `
 	path := writeTemp(t, td, "override.yaml", yaml)
 
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	// Pre-declare with different value
 	_, _ = m.Declare("k", Value{Kind: KindInt64, Int64: 0}, Descriptor{})
 
@@ -160,5 +163,125 @@ ros__parameters:
 		t.Fatal("parameter k not found")
 	} else if p.Value.Int64 != 10 {
 		t.Errorf("k: got %d, want 10 (YAML should override declared value)", p.Value.Int64)
+	}
+}
+
+// Like rcl's --params-file: every section matching the node applies in file
+// order ("/**", the fully qualified name, nested namespace keys, wildcards),
+// a later one overriding an earlier one; other nodes' sections are ignored.
+func TestLoadYAML_AllMatchingSectionsInOrder(t *testing.T) {
+	td := t.TempDir()
+	path := writeTemp(t, td, "params.yaml", `
+/**:
+  ros__parameters:
+    use_sim_time: true
+    shared: 1
+robot:
+  camera:
+    ros__parameters:
+      shared: 2
+      fps: 30
+/robot/other:
+  ros__parameters:
+    nope: 1
+/*/camera:
+  ros__parameters:
+    star: 5
+    cam: {a: 1}
+    cam.a: 2
+`)
+	m := newBareManager()
+	if err := LoadYAML(m, "/robot/camera", path); err != nil {
+		t.Fatalf("LoadYAML: %v", err)
+	}
+	for name, want := range map[string]Value{
+		"use_sim_time": {Kind: KindBool, Bool: true},
+		"shared":       {Kind: KindInt64, Int64: 2},
+		"fps":          {Kind: KindInt64, Int64: 30},
+		"star":         {Kind: KindInt64, Int64: 5},
+		"cam.a":        {Kind: KindInt64, Int64: 2}, // the later spelling wins
+	} {
+		p, ok := m.Get(name)
+		if !ok || p.Value.Kind != want.Kind || p.Value.Bool != want.Bool || p.Value.Int64 != want.Int64 {
+			t.Errorf("%s: got %+v (present %v), want %+v", name, p.Value, ok, want)
+		}
+	}
+	if _, ok := m.Get("nope"); ok {
+		t.Error("a section for another node was applied")
+	}
+}
+
+// Values are read as rcl reads them: unquoted yes/on/Y are booleans (YAML
+// 1.1), quoted ones strings, also inside sequences.
+func TestLoadYAML_RCLBoolSpellings(t *testing.T) {
+	path := writeTemp(t, t.TempDir(), "params.yaml", `
+node:
+  ros__parameters:
+    a: yes
+    b: Off
+    c: "yes"
+    d: [on, n, Y]
+`)
+	m := newBareManager()
+	if err := LoadYAML(m, "node", path); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]Value{
+		"a": {Kind: KindBool, Bool: true},
+		"b": {Kind: KindBool, Bool: false},
+		"c": {Kind: KindString, Str: "yes"},
+	} {
+		if p, _ := m.Get(name); p.Value.Kind != want.Kind || p.Value.Bool != want.Bool || p.Value.Str != want.Str {
+			t.Errorf("%s = %+v, want %+v", name, p.Value, want)
+		}
+	}
+	if p, _ := m.Get("d"); p.Value.Kind != KindBoolArray || len(p.Value.Bools) != 3 || !p.Value.Bools[0] || p.Value.Bools[1] || !p.Value.Bools[2] {
+		t.Errorf("d = %+v", p.Value)
+	}
+}
+
+// A section names a node by its fully qualified name, as in rcl: "/mavlink",
+// "mavlink" and "/*" apply to a root-namespace node only, not to
+// /drone1/mavlink, also when the node name is passed to LoadYAML.
+func TestLoadYAML_SectionsRespectNamespace(t *testing.T) {
+	if err := rclgo.Init(nil); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	t.Cleanup(func() { rclgo.Uninit() }) //nolint:errcheck
+	n, err := rclgo.NewNode("mavlink", "/drone1")
+	if err != nil {
+		t.Fatalf("NewNode: %v", err)
+	}
+	t.Cleanup(func() { n.Close() }) //nolint:errcheck
+	path := writeTemp(t, t.TempDir(), "params.yaml", `
+/mavlink:
+  ros__parameters:
+    root_only: 1
+mavlink:
+  ros__parameters:
+    root_only_too: 1
+/*:
+  ros__parameters:
+    one_token: 1
+/drone1/mavlink:
+  ros__parameters:
+    mine: 1
+/drone1/*:
+  ros__parameters:
+    mine_too: 1
+`)
+	m := newBareManagerFor(n)
+	if err := LoadYAML(m, "mavlink", path); err != nil {
+		t.Fatalf("LoadYAML: %v", err)
+	}
+	for _, name := range []string{"mine", "mine_too"} {
+		if _, ok := m.Get(name); !ok {
+			t.Errorf("%s: the node's own section was not applied", name)
+		}
+	}
+	for _, name := range []string{"root_only", "root_only_too", "one_token"} {
+		if _, ok := m.Get(name); ok {
+			t.Errorf("%s: a root-namespace section was applied to /drone1/mavlink", name)
+		}
 	}
 }

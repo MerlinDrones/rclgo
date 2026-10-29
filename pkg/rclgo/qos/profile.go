@@ -68,9 +68,13 @@ const (
 )
 
 // DurationToRMW splits d into the seconds and nanoseconds of an rmw_time_t
-// (nanoseconds below one second). Negative durations are treated as zero.
+// (nanoseconds below one second). A negative duration is infinite, as
+// rmw_time_from_nsec has it.
 func DurationToRMW(d time.Duration) (sec, nsec uint64) {
-	if d <= 0 {
+	if d < 0 {
+		d = DurationInfinite
+	}
+	if d == 0 {
 		return 0, 0
 	}
 	return uint64(d / time.Second), uint64(d % time.Second)

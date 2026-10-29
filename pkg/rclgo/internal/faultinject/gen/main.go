@@ -153,6 +153,15 @@ func main() {
 		if strings.HasSuffix(p.ret, "*") {
 			failValue = "NULL"
 		}
+		if strings.HasSuffix(n, "_fini") && !strings.HasSuffix(p.ret, "*") {
+			// rcl's fini functions release everything even when they fail
+			// (rcl_timer_fini, for example, still removes its clock jump
+			// callback and frees the timer), so a failing fini is modelled
+			// as the real call followed by the error.
+			fmt.Fprintf(&c, "  %s real = __real_%s(%s);\n", p.ret, n, strings.Join(argNames, ", "))
+			fmt.Fprintf(&c, "  int ret;\n  if (rclgo_fi_should_fail(\"%s\", &ret)) {\n    return %s;\n  }\n  return real;\n}\n", n, failValue)
+			continue
+		}
 		fmt.Fprintf(&c, "  int ret;\n  if (rclgo_fi_should_fail(\"%s\", &ret)) {\n    (void)ret;\n    return %s;\n  }\n", n, failValue)
 		fmt.Fprintf(&c, "  return __real_%s(%s);\n}\n", n, strings.Join(argNames, ", "))
 	}

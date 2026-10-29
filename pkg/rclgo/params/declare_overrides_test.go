@@ -22,7 +22,7 @@ import (
 func managerWithYAML(t *testing.T, body string) *Manager {
 	t.Helper()
 	path := writeTemp(t, t.TempDir(), "params.yaml", "ros__parameters:\n"+body)
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	if err := LoadYAML(m, "node", path); err != nil {
 		t.Fatalf("LoadYAML: %v", err)
 	}
@@ -64,6 +64,17 @@ func TestDeclareRejectsOverrideOutsideConstraints(t *testing.T) {
 	if !strings.Contains(err.Error(), "rate") || !strings.Contains(err.Error(), "above max") {
 		t.Errorf("error does not name the parameter and the violated constraint: %v", err)
 	}
+	// As in rclcpp, the parameter stays undeclared: not readable, and not
+	// settable to an arbitrary value with no descriptor.
+	if p, ok := m.Get("rate"); ok {
+		t.Errorf("the rejected parameter is still present: %+v", p)
+	}
+	if _, err := m.SetValue("rate", Value{Kind: KindString, Str: "anything"}); err == nil {
+		t.Error("the rejected parameter can still be set")
+	}
+	if _, err := m.Declare("rate", Value{Kind: KindInt64, Int64: 10}, Descriptor{MaxInt: i64(100)}); err != nil {
+		t.Errorf("a later declaration failed: %v", err)
+	}
 }
 
 // An override reaches a read-only parameter whichever comes first, the
@@ -82,7 +93,7 @@ func TestOverrideOfReadOnlyParameter(t *testing.T) {
 		}
 	})
 	t.Run("declaration first", func(t *testing.T) {
-		m := &Manager{st: newStore()}
+		m := newBareManager()
 		if _, err := m.Declare("frame", Value{Kind: KindString, Str: "odom"}, Descriptor{ReadOnly: true}); err != nil {
 			t.Fatalf("Declare: %v", err)
 		}
@@ -119,7 +130,7 @@ func TestOverrideTypeIsCheckedAgainstDeclaration(t *testing.T) {
 
 // A parameter declared in code keeps its type on set.
 func TestSetKeepsDeclaredType(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	if _, err := m.Declare("gain", Value{Kind: KindDouble, Double: 0.5}, Descriptor{}); err != nil {
 		t.Fatalf("Declare: %v", err)
 	}
@@ -142,7 +153,7 @@ func TestSetKeepsDeclaredType(t *testing.T) {
 func TestDeclareAfterEnvAndCLIOverrides(t *testing.T) {
 	t.Run("environment", func(t *testing.T) {
 		t.Setenv("RCL_PARAM_rate", "500")
-		m := &Manager{st: newStore()}
+		m := newBareManager()
 		if err := ApplyEnvVars(m); err != nil {
 			t.Fatalf("ApplyEnvVars: %v", err)
 		}
@@ -164,7 +175,7 @@ func TestDeclareAfterEnvAndCLIOverrides(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ParseArgs: %v", err)
 		}
-		m := &Manager{st: newStore(), n: n}
+		m := newBareManagerFor(n)
 		if err := ApplyOverrides(m, "cli_node", args); err != nil {
 			t.Fatalf("ApplyOverrides: %v", err)
 		}
@@ -181,7 +192,7 @@ func TestDeclareAfterEnvAndCLIOverrides(t *testing.T) {
 // new_parameters is for declarations only.
 func TestParameterEventFields(t *testing.T) {
 	var events []*rcl_interfaces_msg.ParameterEvent
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 	m.eventSink = func(e *rcl_interfaces_msg.ParameterEvent) { events = append(events, e) }
 
 	if _, err := m.Declare("gain", Value{Kind: KindDouble, Double: 0.5}, Descriptor{}); err != nil {

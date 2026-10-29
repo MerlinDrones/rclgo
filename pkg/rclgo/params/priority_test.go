@@ -40,7 +40,7 @@ func TestParameterSourcePriority(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// STEP 1: Declare with default value (lowest priority)
 	_, _ = mgr.Declare("test_param", Value{Kind: KindInt64, Int64: 100}, Descriptor{
@@ -126,7 +126,7 @@ func TestParameterSourcePriority_PartialOverrides(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare 4 parameters with defaults
 	_, _ = mgr.Declare("param1", Value{Kind: KindString, Str: "default1"}, Descriptor{})
@@ -216,7 +216,7 @@ func TestParameterSourcePriority_AllSources(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// 1. Declare defaults
 	_, _ = mgr.Declare("fps", Value{Kind: KindInt64, Int64: 15}, Descriptor{
