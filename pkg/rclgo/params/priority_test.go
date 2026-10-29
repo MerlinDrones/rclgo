@@ -24,8 +24,7 @@ import (
 // CLI override takes final precedence.
 func TestParameterSourcePriority(t *testing.T) {
 	// Set environment variable
-	os.Setenv("RCL_PARAM_test_param", "200")
-	defer os.Unsetenv("RCL_PARAM_test_param")
+	t.Setenv("RCL_PARAM_test_param", "200")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -106,12 +105,8 @@ func TestParameterSourcePriority(t *testing.T) {
 // can override different parameters independently.
 func TestParameterSourcePriority_PartialOverrides(t *testing.T) {
 	// Set env vars for param2 and param3
-	os.Setenv("RCL_PARAM_param2", "env_value2")
-	os.Setenv("RCL_PARAM_param3", "env_value3")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_param2")
-		os.Unsetenv("RCL_PARAM_param3")
-	}()
+	t.Setenv("RCL_PARAM_param2", "env_value2")
+	t.Setenv("RCL_PARAM_param3", "env_value3")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -196,12 +191,8 @@ func TestParameterSourcePriority_PartialOverrides(t *testing.T) {
 // usage pattern with all four sources.
 func TestParameterSourcePriority_AllSources(t *testing.T) {
 	// Set up environment
-	os.Setenv("RCL_PARAM_fps", "60")
-	os.Setenv("RCL_PARAM_resolution", "1080")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_fps")
-		os.Unsetenv("RCL_PARAM_resolution")
-	}()
+	t.Setenv("RCL_PARAM_fps", "60")
+	t.Setenv("RCL_PARAM_resolution", "1080")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {

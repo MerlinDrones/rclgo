@@ -96,10 +96,6 @@ func (t *ROS2Field) GoPkgReference() string {
 	return t.GoPkgName + "."
 }
 
-func (t *ROS2Field) IsSingleComplex() bool {
-	return t.TypeArray == "" && t.PkgName != ""
-}
-
 type ROS2Service struct {
 	*Metadata
 	Request  *ROS2Message

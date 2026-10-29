@@ -15,7 +15,6 @@ package rclgotest
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"os"
 	"os/exec"
 	"slices"
@@ -30,13 +29,18 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
 
-// Timeout bounds every wait in these helpers.
+// Timeout bounds every wait in these helpers, except the ros2 CLI's.
 const Timeout = 10 * time.Second
+
+// CLITimeout bounds the retries of a ros2 command. Every run is a new Python
+// process that discovers the graph from scratch, which takes seconds on a
+// loaded machine.
+const CLITimeout = 30 * time.Second
 
 // UseIsolatedDomain isolates the tests from other ROS traffic: it limits
 // discovery to this machine (ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST, unless
 // the environment sets another range) and moves the process to the domain in
-// RCLGO_TEST_DOMAIN_ID, or else to a random one. Call it from TestMain before
+// RCLGO_TEST_DOMAIN_ID, or else to one reserved for it. Call it from TestMain before
 // any context is created; subprocesses started with ROS2 inherit both.
 func UseIsolatedDomain() {
 	os.Setenv("ROS_DOMAIN_ID", strconv.Itoa(TestDomainID())) //nolint:errcheck
@@ -45,13 +49,14 @@ func UseIsolatedDomain() {
 	}
 }
 
-// TestDomainID returns the domain pinned with RCLGO_TEST_DOMAIN_ID, or a
-// random one in 1-101 (valid on Linux; 0 is avoided, as most systems use it).
+// TestDomainID returns the domain pinned with RCLGO_TEST_DOMAIN_ID, or else a
+// domain in 1-101 (valid on Linux; 0 is avoided, as most systems use it) that
+// no other test process on this machine uses (see ReserveDomain).
 func TestDomainID() int {
 	if id, err := strconv.Atoi(os.Getenv("RCLGO_TEST_DOMAIN_ID")); err == nil {
 		return id
 	}
-	return 1 + rand.Intn(101) //nolint:gosec
+	return ReserveDomain(nil)
 }
 
 // Context returns a new context that is closed when the test ends.
@@ -143,8 +148,19 @@ func RequireROS2(t testing.TB) {
 		t.Skip("ros2 CLI tests are skipped with -short")
 	}
 	if _, err := exec.LookPath("ros2"); err != nil {
-		t.Skip("ros2 command-line tools not found; source a ROS 2 setup.bash")
+		Unavailable(t, "ros2 command-line tools not found; source a ROS 2 setup.bash")
 	}
+}
+
+// Unavailable skips the test because something it needs (the ros2 tools, a
+// ROS package, rclpy) is missing, or fails it if RCLGO_REQUIRE_ROS2 is set,
+// so that a run meant to cover interoperability can't pass by skipping it.
+func Unavailable(t testing.TB, format string, args ...any) {
+	t.Helper()
+	if os.Getenv("RCLGO_REQUIRE_ROS2") != "" {
+		t.Fatalf("RCLGO_REQUIRE_ROS2 is set: "+format, args...)
+	}
+	t.Skipf(format, args...)
 }
 
 // ROS2 runs the ros2 command-line tool with args and returns its combined
@@ -153,7 +169,7 @@ func RequireROS2(t testing.TB) {
 // retries until Timeout.
 func ROS2(t testing.TB, args ...string) (string, error) {
 	t.Helper()
-	deadline := time.Now().Add(Timeout)
+	deadline := time.Now().Add(CLITimeout)
 	for {
 		out, err := ros2Once(t, args...)
 		notYet := strings.Contains(out, "Node not found") || strings.Contains(out, "Wait for service timed out")
@@ -208,19 +224,19 @@ func ros2Once(t testing.TB, args ...string) (string, error) {
 // contains want; ros2 needs to discover the node first.
 func EventuallyROS2(t testing.TB, want string, args ...string) string {
 	t.Helper()
-	var out string
-	Eventually(t, "ros2 "+strings.Join(args, " "), func() error {
-		var err error
-		out, err = ROS2(t, args...)
-		if err != nil {
-			return errors.New(err.Error() + ": " + out)
+	deadline := time.Now().Add(CLITimeout)
+	for {
+		out, err := ros2Once(t, args...)
+		switch {
+		case err == nil && strings.Contains(out, want):
+			return out
+		case time.Now().After(deadline) && err != nil:
+			t.Fatalf("ros2 %s: %v: %s", strings.Join(args, " "), err, out)
+		case time.Now().After(deadline):
+			t.Fatalf("ros2 %s: output does not contain %q: %s", strings.Join(args, " "), want, out)
 		}
-		if !strings.Contains(out, want) {
-			return errors.New("output does not contain " + strconv.Quote(want) + ": " + out)
-		}
-		return nil
-	})
-	return out
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 
 // Process is a program started by Start, typically a ROS node in another
@@ -304,11 +320,11 @@ func RunROS2Node(t testing.TB, pkg, executable string, args ...string) *Process 
 	RequireROS2(t)
 	out, err := exec.Command("ros2", "pkg", "prefix", pkg).CombinedOutput()
 	if err != nil {
-		t.Skipf("ROS package %s not installed: %s", pkg, out)
+		Unavailable(t, "ROS package %s not installed: %s", pkg, out)
 	}
 	path := strings.TrimSpace(string(out)) + "/lib/" + pkg + "/" + executable
 	if _, err := os.Stat(path); err != nil {
-		t.Skipf("executable %s not found: %v", path, err)
+		Unavailable(t, "executable %s not found: %v", path, err)
 	}
 	return Start(t, path, args...)
 }
@@ -319,7 +335,7 @@ func Python(t testing.TB, script string, args ...string) *Process {
 	t.Helper()
 	RequireROS2(t)
 	if out, err := exec.Command("python3", "-P", "-c", "import rclpy").CombinedOutput(); err != nil {
-		t.Skipf("rclpy not importable: %s", out)
+		Unavailable(t, "rclpy not importable: %s", out)
 	}
 	return Start(t, "python3", append([]string{"-P", script}, args...)...)
 }

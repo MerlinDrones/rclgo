@@ -19,14 +19,26 @@ install:
 .PHONY: test
 test:
 	export LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH
-	go test -count=1 ./...
+	RCLGO_REQUIRE_ROS2=1 go test -count=1 -shuffle=on -timeout 30m ./...
 
+# Tests run in a random order (-shuffle=on prints the seed; rerun a failure
+# with -shuffle=<seed>) so that they cannot depend on each other's state. A
+# test fails instead of skipping when the ROS 2 tools, a ROS package or rclpy
+# it needs is missing (RCLGO_REQUIRE_ROS2).
+#
 # The race detector is the main defence against the concurrency defects this
 # library has had; CI runs this target.
 .PHONY: test-race
 test-race:
 	LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH \
-		go test -race -count=1 ./...
+		RCLGO_REQUIRE_ROS2=1 go test -race -count=1 -shuffle=on -timeout 45m ./...
+
+# Runs every test three times with GOMAXPROCS 1 and 4: catches tests that
+# depend on state left by an earlier run or on parallelism.
+.PHONY: test-repeat
+test-repeat:
+	LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH \
+		RCLGO_REQUIRE_ROS2=1 go test -count=3 -cpu=1,4 -shuffle=on -timeout 90m ./...
 
 # Runs the suite once per installed RMW (Fast DDS, Cyclone DDS, Zenoh, ...).
 .PHONY: test-rmw
@@ -39,7 +51,8 @@ test-rmw:
 # (error, timeout, bad_alloc; default error).
 .PHONY: test-faults
 test-faults:
-	RCLGO_FAULT_SWEEP=1 go test -count=1 -timeout 90m -run TestFaultSweep -v ./pkg/rclgo/internal/faultinject/
+	LD_LIBRARY_PATH=/opt/ros/$(ROS_DISTRO)/lib/x86_64-linux-gnu:/opt/ros/$(ROS_DISTRO)/lib:$$LD_LIBRARY_PATH \
+		RCLGO_FAULT_SWEEP=1 go test -count=1 -timeout 90m -run TestFaultSweep -v ./pkg/rclgo/internal/faultinject/
 
 # Fails if the suite covers less than COVERAGE_MIN percent of rclgo's own
 # code; writes coverage.out.

@@ -9,21 +9,28 @@ is covered, how to run it, and what is not covered yet.
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-go test -count=1 ./...          # what CI runs (make test)
-go test -race -count=1 ./...    # make test-race; what CI runs. Most defects found were concurrency defects
-make test-faults                # every rcl call made to fail in turn; what CI runs (about 5 minutes)
-make cover                      # coverage of rclgo's own code; CI fails below the minimum
+go test -count=1 ./...          # make test (shuffled)
+go test -race -count=1 ./...    # make test-race. Most defects found were concurrency defects
+make test-faults                # every rcl call made to fail in turn (about 6 minutes)
+make cover                      # coverage of rclgo's own code; fails below the minimum
+make test-repeat                # every test 3 times with GOMAXPROCS 1 and 4
 ```
 
 - With a Go workspace (`go.work`) that does not contain rclgo, set `GOWORK=off`.
 - Every test package's `TestMain` isolates it from other ROS traffic: discovery is limited to this machine
   (`ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, unless the environment sets a range), and the test binary moves to a
-  random DDS domain in 1-101 (`pkg/rclgo` uses a new one for some tests), or to the domain in `RCLGO_TEST_DOMAIN_ID`
-  if set. Pin the domain when random ones could collide with a ROS system on the same machine.
+  DDS domain in 1-101 that no other test process on the machine holds (reserved with a lock file in
+  `$TMPDIR/rclgo-test-domains/`; `pkg/rclgo` moves to a new one for some tests), or to the domain in
+  `RCLGO_TEST_DOMAIN_ID` if set. Pin the domain when one could collide with a ROS system on the same machine.
+- Tests that run a `ros2` command which starts a `ros2 daemon` stop it when they end. A daemon left running from
+  an interrupted run (`pgrep -fa ros2cli.daemon.daemonize`) shows up in the graph of later runs on its domain;
+  stop it with `ros2 daemon stop` on that domain. Crashed processes can also leave Fast DDS shared-memory
+  segments behind; `fastdds shm clean` removes the unused ones.
 - `examples/` builds and runs the example programs (`go generate`, `colcon build`), so it needs `colcon`.
 - The interop and `ros2` CLI tests start rclcpp/rclpy programs (`demo_nodes_cpp`, `demo_nodes_py`,
   `action_tutorials_cpp`, rclpy scripts in `pkg/rclgo/testdata/interop/`) as separate processes. They skip when the
-  `ros2` tools, a package or rclpy is missing, and with `-short`.
+  `ros2` tools, a package or rclpy is missing, and with `-short`; with `RCLGO_REQUIRE_ROS2` set (as `make test` and
+  `make test-race` do) a missing dependency fails them instead.
 - Memory errors in cgo code often go unnoticed because freed memory still holds the old bytes. To make use-after-free
   visible, run a compiled test binary under glibc's checks:
 
@@ -55,15 +62,19 @@ in graph queries, and matching (and counting) endpoints whose durability is inco
 rclcpp tests its error paths by making individual rcl calls fail (mimick and rcutils fault injection). The binary
 rcl packages are built without fault injection, so rclgo wraps the rcl calls instead:
 `pkg/rclgo/internal/faultinject` routes every call rclgo makes to an rcl, rcl_action, rmw or rcutils function that
-can fail (119 functions; `go generate` there regenerates the wrappers from the headers) through a wrapper, using the
+can fail (120 functions; `go generate` there regenerates the wrappers from the headers) through a wrapper, using the
 linker's `--wrap`. Only test binaries that import the package are wrapped. A wrapper passes the call through unless
 it is the one chosen with `faultinject.Arm`, which returns an error code (or NULL) and sets the rcl error message
 "injected fault in <function>".
 
-`TestFaultSweep` (`make test-faults`; `RCLGO_FAULT_CALLS` sets how many calls of each function fail, default 2) runs
-six scenarios: a node with graph queries and logging, publish/subscribe, a service call, a timer, an action goal with
-feedback and cancellation, and parameter services. It records the calls each scenario makes, then reruns it once for
-each call, making that call fail, as rclcpp's `RCUTILS_FAULT_INJECTION_TEST` does. Every run must:
+`TestFaultSweep` (`make test-faults`; `RCLGO_FAULT_CALLS` sets how many calls of each function fail, default 2;
+`RCLGO_FAULT_RETS` the codes they fail with: `error`, `timeout`, `bad_alloc`, default `error`) runs eleven
+scenarios: a node with graph queries and logging, publish/subscribe, a service call, a timer, an action goal with
+feedback and cancellation, parameter services, graph queries by node and topic, logging configuration and logger
+levels, clocks and the ROS time override, serialization and serialized publish/take, and timers added while Spin
+waits. It records the calls each scenario makes, then reruns it once for each call, making that call fail, as
+rclcpp's `RCUTILS_FAULT_INJECTION_TEST` does. A failing `*_fini` function first runs the real one, because rcl's
+fini functions release everything even when they report an error. Every run must:
 
 - neither crash nor hang;
 - return the failure to the caller or log it with the node's logger;
@@ -84,7 +95,10 @@ middleware's liveliness lease expires.
 ## Coverage
 
 `make cover` (`tools/coverage.sh`) runs the suite with coverage of rclgo's own packages (generated message packages
-and internal test helpers excluded), writes `coverage.out`, and fails below `COVERAGE_MIN` percent. View it with
+and internal test helpers excluded), writes `coverage.out`, and fails below `COVERAGE_MIN` percent. The command tests
+run a built `rclgo-gen`; under `make cover` it is built with `-cover` (`GOCOVERDIR`) and its coverage is merged in.
+`make test`, `make test-race`, `make test-repeat`, `make test-rmw` and `make cover` set `RCLGO_REQUIRE_ROS2`, so a test
+whose ROS 2 tools, packages or rclpy are missing fails instead of skipping. View it with
 `go tool cover -html=coverage.out`.
 
 ## Go-specific checks
@@ -120,17 +134,17 @@ memory cap, for example
 | Spin: entities created while spinning, poll-only subscriptions, one Spin per entity | `spin_test.go`, `spin_owner_test.go` | rclcpp `test_executors`, rclpy `test_create_while_spinning`, `test_executor` |
 | Publishers, subscriptions, invalid names | `pubsub_test.go`, `messages_test.go` | `test_publisher`, `test_subscription`, `test_publisher.py`, `test_subscription.py` |
 | Message fidelity: every `test_msgs` type, serialization and publish/subscribe | `messages_test.go` | `test_serialized_message`, `test_serialization.py`, system_tests `test_communication` |
-| Services and clients: concurrent, deferred responses, cancellation, Close during a call | `services_test.go`, `service_test.go` | `test_service`, `test_client`, `test_service.py`, `test_client.py` |
+| Services and clients: concurrent, deferred responses, cancellation, Close during a call; two clients, reordered, late and duplicate responses | `services_test.go`, `service_test.go`, `services_corners_test.go` | `test_service`, `test_client`, `test_service.py`, `test_client.py` |
 | Calls racing Close (`TakeMessage`, `Publish`, responses) | `services_test.go` | rclpy handle tests (`test_destruction`) |
 | Timers: period kept under load, accessors, concurrent timers on one clock | `timer_test.go`, `services_test.go`, `shutdown_test.go` | `test_timer`, `test_timer.py` |
 | Graph: node names, per-node names and types, endpoint info, name expansion | `graph_test.go`, `node_test.go` | `test_node_graph`, `test_expand_topic_or_service_name` |
 | QoS: profiles, validation, C round trip, durations | `qos/`, `qos_durations_test.go` | `test_qos`, `test_qos.py` |
-| Action server: accept/reject, abort, cancel, expiry, Close, concurrency | `action_server_test.go`, `action_internal_test.go` | rclcpp_action `test_server`, `test_action_server.py` |
+| Action server: accept/reject, abort, cancel (all, by stamp, finished goals), expiry, Close, concurrency | `action_server_test.go`, `action_internal_test.go`, `action_corners_test.go` | rclcpp_action `test_server`, `test_action_server.py` |
 | Action client: feedback, status, results, cancellation | `action_client_test.go` | rclcpp_action `test_client`, `test_action_client.py` |
 | Parameters: declare, overrides (YAML, CLI, environment), constraints, types, events, services | `params/` | `test_parameter`, `test_node_parameters`, `test_parameter_service`, rcl_yaml_param_parser tests |
-| Logging, `/rosout` | `logging_test.go`, `node_test.go` | `test_logging`, `test_rosout_subscription`, `test_logging_rosout.py` |
+| Logging, `/rosout`; logging from many goroutines while levels change; a panicking output handler | `logging_test.go`, `logging_concurrency_test.go`, `node_test.go` | `test_logging`, `test_rosout_subscription`, `test_logging_rosout.py` |
 | ROS time, clock, rate | `rostime/` | `test_time_source`, `test_rate`, `test_clock` |
-| Error handling (rcl error state) | `error_internal_test.go`, `misc_test.go` | rcl `test_common` |
+| Error handling (rcl error state, return-code mapping, nil and wrong-type messages, closed entities) | `error_internal_test.go`, `errorcast_table_test.go`, `invalid_message_test.go`, `errclosed_test.go`, `misc_test.go` | rcl `test_common` |
 | **Signals**: SIGINT/SIGTERM while spinning, in a service call, with an action goal | `signal_test.go` | system_tests `test_sigint_handler` |
 | **Error paths**: every rcl call failing in turn | `internal/faultinject/` | rclcpp's mimick and `RCUTILS_FAULT_INJECTION_TEST` tests |
 | **Code generator**: output is deterministic and matches the committed `pkg/msgs`; every installed interface package generates and compiles; a custom package (every field kind, defaults, bounds, constants, nested and cross-package types, services, actions) round-trips with rclpy; invalid definitions are rejected as rosidl rejects them, with the file and line; `rclgo-gen` exit codes and messages | `pkg/gogen/` (`golden_test.go`, `validation_test.go`, `e2e_test.go`), `cmd/rclgo-gen/cmd/cli_test.go` | rosidl_adapter and rosidl_generator_* tests |

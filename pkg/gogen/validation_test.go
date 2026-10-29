@@ -196,7 +196,7 @@ func TestGenerateAllInstalledPackages(t *testing.T) {
 	distro := os.Getenv("ROS_DISTRO")
 	root := "/opt/ros/" + distro
 	if _, err := os.Stat(filepath.Join(root, "share", "std_msgs")); distro == "" || err != nil {
-		t.Skip("needs a sourced ROS 2 installation")
+		unavailable(t, "needs a sourced ROS 2 installation")
 	}
 	repo, err := filepath.Abs("../..")
 	if err != nil {

@@ -281,26 +281,26 @@ func TestRos2ParamCLI(t *testing.T) {
 	rclgotest.RequireROS2(t)
 	m, _, _ := newParamNode(t, "cli")
 	node := "/params_test/cli"
-	rclgotest.EventuallyROS2(t, "camera.fps", "param", "list", "--no-daemon", node)
-	out := rclgotest.EventuallyROS2(t, "15", "param", "get", "--no-daemon", node, "camera.fps")
+	rclgotest.EventuallyROS2(t, "camera.fps", "param", "list", "--no-daemon", "--spin-time", "3", node)
+	out := rclgotest.EventuallyROS2(t, "15", "param", "get", "--no-daemon", "--spin-time", "3", node, "camera.fps")
 	require.Contains(t, out, "Integer value is: 15")
 
-	out, err := rclgotest.ROS2(t, "param", "set", "--no-daemon", node, "camera.fps", "42")
+	out, err := rclgotest.ROS2(t, "param", "set", "--no-daemon", "--spin-time", "3", node, "camera.fps", "42")
 	require.NoError(t, err, out)
 	require.Contains(t, out, "Set parameter successful")
 	p, _ := m.Get("camera.fps")
 	require.EqualValues(t, 42, p.Value.Int64)
 
-	out, _ = rclgotest.ROS2(t, "param", "set", "--no-daemon", node, "camera.fps", "500")
+	out, _ = rclgotest.ROS2(t, "param", "set", "--no-daemon", "--spin-time", "3", node, "camera.fps", "500")
 	require.True(t, strings.Contains(out, "Setting parameter failed"), "out-of-range set via ros2: %s", out)
 
-	out, err = rclgotest.ROS2(t, "param", "describe", "--no-daemon", node, "camera.fps")
+	out, err = rclgotest.ROS2(t, "param", "describe", "--no-daemon", "--spin-time", "3", node, "camera.fps")
 	require.NoError(t, err, out)
 	require.Contains(t, out, "Type: integer")
 	require.Contains(t, out, "Min value: 1")
 	require.Contains(t, out, "Max value: 60")
 
-	out, err = rclgotest.ROS2(t, "param", "dump", "--no-daemon", node)
+	out, err = rclgotest.ROS2(t, "param", "dump", "--no-daemon", "--spin-time", "3", node)
 	require.NoError(t, err, out)
 	require.Contains(t, out, "ros__parameters")
 	require.Contains(t, out, "fps: 42")

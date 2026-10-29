@@ -26,7 +26,7 @@ func TestGenerateRclgoMatchesCommittedCode(t *testing.T) {
 	distro := os.Getenv("ROS_DISTRO")
 	root := "/opt/ros/" + distro
 	if _, err := os.Stat(filepath.Join(root, "include", "rcl")); distro == "" || err != nil {
-		t.Skip("needs a sourced ROS 2 installation")
+		unavailable(t, "needs a sourced ROS 2 installation")
 	}
 	for run := 1; run <= 2; run++ {
 		t.Run(fmt.Sprintf("run %d", run), func(t *testing.T) { checkGeneratedRclgo(t, root) })
