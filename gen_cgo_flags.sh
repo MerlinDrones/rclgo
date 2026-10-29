@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# This file is part of rclgo
+#
+# Copyright © 2025 Merlin Drones
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+#     http://www.apache.org/licenses/LICENSE-2.0
 
 # This script generates cgo-flags.env for ROS 2 WORKSPACE development.
 # Use this when building ROS 2 nodes that need both base ROS 2 and workspace overlay packages.

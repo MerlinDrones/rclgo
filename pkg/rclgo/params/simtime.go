@@ -1,3 +1,12 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package params
 
 // Hook for `/use_sim_time`. Calls apply(enabled) whenever toggled.

@@ -18,6 +18,7 @@ scripts/
 cmd/rclgo-gen/rclgo-gen
 cmd/rclgo/rclgo
 cmd/ros2ctest/roslogging
+examples/param_demo/rclgo_param_demo_pkg
 
 #go tool cgo output
 _obj

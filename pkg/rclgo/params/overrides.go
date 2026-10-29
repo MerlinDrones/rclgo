@@ -1,7 +1,19 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package params
 
 /*
-#cgo LDFLAGS: -lrcl_yaml_param_parser
+#cgo CFLAGS: -I/opt/ros/jazzy/include/rcl -I/opt/ros/jazzy/include/rcl_yaml_param_parser -I/opt/ros/jazzy/include/rcutils -I/opt/ros/jazzy/include/rmw
+#cgo CFLAGS: -I/opt/ros/jazzy/include/rosidl_runtime_c -I/opt/ros/jazzy/include/rosidl_typesupport_interface -I/opt/ros/jazzy/include/rosidl_dynamic_typesupport
+#cgo CFLAGS: -I/opt/ros/jazzy/include/type_description_interfaces -I/opt/ros/jazzy/include/service_msgs -I/opt/ros/jazzy/include/builtin_interfaces
+#cgo LDFLAGS: -L/opt/ros/jazzy/lib -Wl,-rpath,/opt/ros/jazzy/lib -lrcl_yaml_param_parser
 #include <rcl/arguments.h>
 #include <rcl_yaml_param_parser/parser.h>
 
