@@ -146,7 +146,7 @@ func (t _TimeReferenceTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Messa
 	mem := (*C.sensor_msgs__msg__TimeReference)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.time_ref), &m.TimeRef)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.source), m.Source)
+	primitives.StringIntoC(unsafe.Pointer(&mem.source), m.Source)
 }
 
 func (t _TimeReferenceTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,6 +166,7 @@ type CTimeReference__Sequence = C.sensor_msgs__msg__TimeReference__Sequence
 
 func TimeReference__Sequence_to_Go(goSlice *[]TimeReference, cSlice CTimeReference__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]TimeReference, cSlice.size)
@@ -174,14 +175,17 @@ func TimeReference__Sequence_to_Go(goSlice *[]TimeReference, cSlice CTimeReferen
 		TimeReferenceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TimeReference__Sequence_to_C(cSlice *CTimeReference__Sequence, goSlice []TimeReference) {
+func TimeReference__Sequence_into_C(cSlice *CTimeReference__Sequence, goSlice []TimeReference) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__TimeReference__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__TimeReference)(C.malloc(C.sizeof_struct_sensor_msgs__msg__TimeReference * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__TimeReference)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__TimeReference))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -194,7 +198,7 @@ func TimeReference__Array_to_Go(goSlice []TimeReference, cSlice []CTimeReference
 		TimeReferenceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TimeReference__Array_to_C(cSlice []CTimeReference, goSlice []TimeReference) {
+func TimeReference__Array_into_C(cSlice []CTimeReference, goSlice []TimeReference) {
 	for i := 0; i < len(goSlice); i++ {
 		TimeReferenceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

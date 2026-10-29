@@ -161,10 +161,10 @@ func (t _ImageTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	mem.height = C.uint32_t(m.Height)
 	mem.width = C.uint32_t(m.Width)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.encoding), m.Encoding)
+	primitives.StringIntoC(unsafe.Pointer(&mem.encoding), m.Encoding)
 	mem.is_bigendian = C.uint8_t(m.IsBigendian)
 	mem.step = C.uint32_t(m.Step)
-	primitives.Uint8__Sequence_to_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Uint8__Sequence_into_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _ImageTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -188,6 +188,7 @@ type CImage__Sequence = C.sensor_msgs__msg__Image__Sequence
 
 func Image__Sequence_to_Go(goSlice *[]Image, cSlice CImage__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Image, cSlice.size)
@@ -196,14 +197,17 @@ func Image__Sequence_to_Go(goSlice *[]Image, cSlice CImage__Sequence) {
 		ImageTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Image__Sequence_to_C(cSlice *CImage__Sequence, goSlice []Image) {
+func Image__Sequence_into_C(cSlice *CImage__Sequence, goSlice []Image) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__Image__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__Image)(C.malloc(C.sizeof_struct_sensor_msgs__msg__Image * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__Image)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__Image))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -216,7 +220,7 @@ func Image__Array_to_Go(goSlice []Image, cSlice []CImage) {
 		ImageTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Image__Array_to_C(cSlice []CImage, goSlice []Image) {
+func Image__Array_into_C(cSlice []CImage, goSlice []Image) {
 	for i := 0; i < len(goSlice); i++ {
 		ImageTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

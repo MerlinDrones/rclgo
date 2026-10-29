@@ -141,7 +141,7 @@ func (t _PoseWithCovarianceTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.
 	mem := (*C.geometry_msgs__msg__PoseWithCovariance)(dst)
 	PoseTypeSupport.AsCStruct(unsafe.Pointer(&mem.pose), &m.Pose)
 	cSlice_covariance := mem.covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_covariance)), m.Covariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_covariance)), m.Covariance[:])
 }
 
 func (t _PoseWithCovarianceTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -161,6 +161,7 @@ type CPoseWithCovariance__Sequence = C.geometry_msgs__msg__PoseWithCovariance__S
 
 func PoseWithCovariance__Sequence_to_Go(goSlice *[]PoseWithCovariance, cSlice CPoseWithCovariance__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]PoseWithCovariance, cSlice.size)
@@ -169,14 +170,17 @@ func PoseWithCovariance__Sequence_to_Go(goSlice *[]PoseWithCovariance, cSlice CP
 		PoseWithCovarianceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PoseWithCovariance__Sequence_to_C(cSlice *CPoseWithCovariance__Sequence, goSlice []PoseWithCovariance) {
+func PoseWithCovariance__Sequence_into_C(cSlice *CPoseWithCovariance__Sequence, goSlice []PoseWithCovariance) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__PoseWithCovariance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__PoseWithCovariance)(C.malloc(C.sizeof_struct_geometry_msgs__msg__PoseWithCovariance * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__PoseWithCovariance)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__PoseWithCovariance))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -189,7 +193,7 @@ func PoseWithCovariance__Array_to_Go(goSlice []PoseWithCovariance, cSlice []CPos
 		PoseWithCovarianceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PoseWithCovariance__Array_to_C(cSlice []CPoseWithCovariance, goSlice []PoseWithCovariance) {
+func PoseWithCovariance__Array_into_C(cSlice []CPoseWithCovariance, goSlice []PoseWithCovariance) {
 	for i := 0; i < len(goSlice); i++ {
 		PoseWithCovarianceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

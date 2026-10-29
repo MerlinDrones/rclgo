@@ -173,14 +173,14 @@ func (t _CameraInfoTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	mem.height = C.uint32_t(m.Height)
 	mem.width = C.uint32_t(m.Width)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.distortion_model), m.DistortionModel)
-	primitives.Float64__Sequence_to_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.d)), m.D)
+	primitives.StringIntoC(unsafe.Pointer(&mem.distortion_model), m.DistortionModel)
+	primitives.Float64__Sequence_into_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.d)), m.D)
 	cSlice_k := mem.k[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_k)), m.K[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_k)), m.K[:])
 	cSlice_r := mem.r[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_r)), m.R[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_r)), m.R[:])
 	cSlice_p := mem.p[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_p)), m.P[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_p)), m.P[:])
 	mem.binning_x = C.uint32_t(m.BinningX)
 	mem.binning_y = C.uint32_t(m.BinningY)
 	RegionOfInterestTypeSupport.AsCStruct(unsafe.Pointer(&mem.roi), &m.Roi)
@@ -214,6 +214,7 @@ type CCameraInfo__Sequence = C.sensor_msgs__msg__CameraInfo__Sequence
 
 func CameraInfo__Sequence_to_Go(goSlice *[]CameraInfo, cSlice CCameraInfo__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]CameraInfo, cSlice.size)
@@ -222,14 +223,17 @@ func CameraInfo__Sequence_to_Go(goSlice *[]CameraInfo, cSlice CCameraInfo__Seque
 		CameraInfoTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func CameraInfo__Sequence_to_C(cSlice *CCameraInfo__Sequence, goSlice []CameraInfo) {
+func CameraInfo__Sequence_into_C(cSlice *CCameraInfo__Sequence, goSlice []CameraInfo) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__CameraInfo__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__CameraInfo)(C.malloc(C.sizeof_struct_sensor_msgs__msg__CameraInfo * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__CameraInfo)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__CameraInfo))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -242,7 +246,7 @@ func CameraInfo__Array_to_Go(goSlice []CameraInfo, cSlice []CCameraInfo) {
 		CameraInfoTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func CameraInfo__Array_to_C(cSlice []CCameraInfo, goSlice []CameraInfo) {
+func CameraInfo__Array_into_C(cSlice []CCameraInfo, goSlice []CameraInfo) {
 	for i := 0; i < len(goSlice); i++ {
 		CameraInfoTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

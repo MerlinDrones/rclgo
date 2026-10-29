@@ -19,7 +19,9 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -63,6 +65,34 @@ const (
 	GoalAborted                     // Aborted
 )
 
+// GoalFailedError is returned by ActionClient.WatchGoal, together with the
+// result, when the goal ended in a state other than GoalSucceeded (aborted,
+// canceled, or unknown to the server, e.g. because its result expired).
+type GoalFailedError struct {
+	Status GoalStatus
+}
+
+func (e *GoalFailedError) Error() string {
+	return "goal did not succeed: " + e.Status.String()
+}
+
+// resultStatus returns the Status field of a GetResult response. Every
+// generated <Action>_GetResult_Response has one.
+func resultStatus(resp types.Message) (GoalStatus, bool) {
+	v := reflect.ValueOf(resp)
+	if v.Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return 0, false
+	}
+	f := v.FieldByName("Status")
+	if !f.IsValid() || f.Kind() != reflect.Int8 {
+		return 0, false
+	}
+	return GoalStatus(f.Int()), true
+}
+
 type FeedbackSender struct{ goal *GoalHandle }
 
 func (s *FeedbackSender) Send(msg types.Message) error {
@@ -104,6 +134,8 @@ func (g *GoalHandle) Logger() *Logger       { return g.server.node.logger }
 
 // status returns the state of the goal. g.resultCond.L must be held.
 func (g *GoalHandle) status() (GoalStatus, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if g.handle == nil {
 		return GoalUnknown, nil
 	}
@@ -122,6 +154,8 @@ func (g *GoalHandle) status() (GoalStatus, error) {
 // setState applies event to the goal and publishes the new statuses.
 // g.resultCond.L must be held.
 func (g *GoalHandle) setState(event C.rcl_action_goal_event_t) error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	s := g.server
 	s.rclServerMu.Lock()
 	defer s.rclServerMu.Unlock()
@@ -223,6 +257,11 @@ func (a *action) ExecuteGoal(ctx context.Context, goal *GoalHandle) (types.Messa
 }
 func (a *action) TypeSupport() types.ActionTypeSupport { return a.typeSupport }
 
+// ActionServerOptions configures an action server. Zero fields take the
+// defaults of NewDefaultActionServerOptions (as rclcpp starts from
+// rcl_action_server_get_default_options): a zero (system default) QoS
+// profile is replaced by that slot's default, and a zero ResultTimeout by
+// 15 minutes.
 type ActionServerOptions struct {
 	GoalServiceQos   qos.Profile
 	CancelServiceQos qos.Profile
@@ -233,6 +272,29 @@ type ActionServerOptions struct {
 	// clients to fetch. Goals are expired while the server is spinning.
 	ResultTimeout time.Duration
 	Clock         *Clock
+}
+
+// withDefaults returns a copy of o (or the defaults for nil) with its zero
+// fields set to the defaults.
+func (o *ActionServerOptions) withDefaults() *ActionServerOptions {
+	d := NewDefaultActionServerOptions()
+	if o == nil {
+		return d
+	}
+	c := *o
+	for _, f := range []struct{ v, def *qos.Profile }{
+		{&c.GoalServiceQos, &d.GoalServiceQos}, {&c.CancelServiceQos, &d.CancelServiceQos},
+		{&c.ResultServiceQos, &d.ResultServiceQos}, {&c.FeedbackTopicQos, &d.FeedbackTopicQos},
+		{&c.StatusTopicQos, &d.StatusTopicQos},
+	} {
+		if *f.v == (qos.Profile{}) {
+			*f.v = *f.def
+		}
+	}
+	if c.ResultTimeout == 0 {
+		c.ResultTimeout = d.ResultTimeout
+	}
+	return &c
 }
 
 func NewDefaultActionServerOptions() *ActionServerOptions {
@@ -263,6 +325,8 @@ type ActionServer struct {
 	action      Action
 	typeSupport types.ActionTypeSupport
 	clock       *Clock
+	// holdsClock is set while the server holds clock's lifetime.
+	holdsClock bool
 
 	// goalCtx is the parent of every goal's context. It is canceled when
 	// the server is closed.
@@ -280,9 +344,14 @@ type ActionServer struct {
 }
 
 func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOptions) (*ActionServer, error) {
-	if opts == nil {
-		opts = NewDefaultActionServerOptions()
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	// The node must stay usable while the entity is created on it.
+	if !n.life.acquire() {
+		return nil, closedErr("node")
 	}
+	defer n.life.release()
+	opts = opts.withDefaults()
 	s := &ActionServer{
 		node:        n,
 		action:      action,
@@ -294,6 +363,11 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 	if s.clock == nil {
 		s.clock = n.context.Clock()
 	}
+	// The server uses the clock (for goal expiry) until it is finalized.
+	if !s.clock.life.acquire() {
+		return nil, closedErr("clock")
+	}
+	s.holdsClock = true
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 	rclOpts := C.rcl_action_server_options_t{
@@ -302,12 +376,19 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 			nanoseconds: C.int64_t(opts.ResultTimeout),
 		},
 	}
-	qosToC(opts.GoalServiceQos, &rclOpts.goal_service_qos)
-	qosToC(opts.CancelServiceQos, &rclOpts.cancel_service_qos)
-	qosToC(opts.ResultServiceQos, &rclOpts.result_service_qos)
-	qosToC(opts.FeedbackTopicQos, &rclOpts.feedback_topic_qos)
-	qosToC(opts.StatusTopicQos, &rclOpts.status_topic_qos)
+	if err := errors.Join(
+		qosToC(opts.GoalServiceQos, &rclOpts.goal_service_qos),
+		qosToC(opts.CancelServiceQos, &rclOpts.cancel_service_qos),
+		qosToC(opts.ResultServiceQos, &rclOpts.result_service_qos),
+		qosToC(opts.FeedbackTopicQos, &rclOpts.feedback_topic_qos),
+		qosToC(opts.StatusTopicQos, &rclOpts.status_topic_qos),
+	); err != nil {
+		s.holdsClock = false
+		s.clock.life.release()
+		return nil, err
+	}
 	s.clock.jumpMu.Lock()
+	n.entityMu.Lock()
 	rc := C.rcl_action_server_init(
 		&s.rclServer,
 		n.rcl_node_t,
@@ -316,12 +397,18 @@ func (n *Node) NewActionServer(name string, action Action, opts *ActionServerOpt
 		cname,
 		&rclOpts,
 	)
+	n.entityMu.Unlock()
 	s.clock.jumpMu.Unlock()
 	if rc != C.RCL_RET_OK {
+		s.holdsClock = false
+		s.clock.life.release()
 		return nil, errorsCastC(rc, "failed to create action server")
 	}
 	s.goalCtx, s.cancelGoal = context.WithCancel(context.Background())
-	n.addResource(s)
+	if !n.addResource(s) {
+		s.Close() //nolint:errcheck // refused before it was added
+		return nil, closedErr("node")
+	}
 	return s, nil
 }
 
@@ -340,10 +427,20 @@ func (s *ActionServer) Close() error {
 }
 
 func (s *ActionServer) fini() (err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	defer func() {
+		if s.holdsClock {
+			s.holdsClock = false
+			s.clock.life.release()
+		}
+	}()
 	s.rclServerMu.Lock()
 	defer s.rclServerMu.Unlock()
 	s.clock.jumpMu.Lock()
+	s.node.entityMu.Lock()
 	rc := C.rcl_action_server_fini(&s.rclServer, s.node.rcl_node_t)
+	s.node.entityMu.Unlock()
 	s.clock.jumpMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errorsCastC(rc, "failed to finalize action server")
@@ -374,6 +471,8 @@ func (s *ActionServer) takeGoalRequest(goal *GoalHandle) error {
 	reqBuf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(reqBuf)
 	err := s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_take_goal_request(&s.rclServer, &goal.requestID, reqBuf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to take goal request")
@@ -395,6 +494,8 @@ func (s *ActionServer) takeGoalRequest(goal *GoalHandle) error {
 func (s *ActionServer) acceptGoal(goal *GoalHandle) error {
 	goal.info.goal_id.uuid = *(*[types.GoalIDLen]C.uchar)(unsafe.Pointer(&goal.ID))
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		s.goalsMu.Lock()
 		defer s.goalsMu.Unlock()
 		if s.goals[goal.ID] != nil {
@@ -442,6 +543,8 @@ func (s *ActionServer) sendGoalResponse(goal *GoalHandle, accepted bool) error {
 	defer ts.ReleaseMemory(buf)
 	ts.AsCStruct(buf, resp)
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_send_goal_response(&s.rclServer, &goal.requestID, buf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to send goal response")
@@ -526,6 +629,8 @@ func (s *ActionServer) finishGoal(goal *GoalHandle, result types.Message, execEr
 	}
 	goal.result = result
 	err = s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		if rc := C.rcl_action_notify_goal_done(&s.rclServer); rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to notify that goal is done")
 		}
@@ -541,6 +646,8 @@ func (s *ActionServer) expireGoals() error {
 	var numExpired C.size_t
 	expiredGoals := make([]C.rcl_action_goal_info_t, 10)
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		s.goalsMu.Lock()
 		defer s.goalsMu.Unlock()
 		for {
@@ -568,6 +675,8 @@ func (s *ActionServer) takeResultRequest(header *C.rmw_request_id_t) (goalIDMess
 	reqBuf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(reqBuf)
 	err := s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_take_result_request(&s.rclServer, header, reqBuf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to take result request")
@@ -595,6 +704,8 @@ func (s *ActionServer) sendResultResponse(status GoalStatus, result types.Messag
 	defer ts.ReleaseMemory(buf)
 	ts.AsCStruct(buf, resp)
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_send_result_response(&s.rclServer, header, buf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to send result response")
@@ -632,6 +743,8 @@ func (s *ActionServer) handleCancelRequest() {
 	reqBuf := ts.Request().PrepareMemory()
 	var header C.rmw_request_id_t
 	err := s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_take_cancel_request(&s.rclServer, &header, reqBuf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to take cancel request")
@@ -648,8 +761,16 @@ func (s *ActionServer) handleCancelRequest() {
 	go func() {
 		defer ts.Request().ReleaseMemory(reqBuf)
 		respBuf := C.rcl_action_get_zero_initialized_cancel_response()
-		defer C.rcl_action_cancel_response_fini(&respBuf)
+		defer func() {
+			runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+			defer runtime.UnlockOSThread()
+			if rc := C.rcl_action_cancel_response_fini(&respBuf); rc != C.RCL_RET_OK {
+				s.node.Logger().Error(errorsCastC(rc, "failed to finalize cancel response")) //nolint:errcheck
+			}
+		}()
 		err := s.withServer(func() error {
+			runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+			defer runtime.UnlockOSThread()
 			rc := C.rcl_action_process_cancel_request(
 				&s.rclServer,
 				(*C.rcl_action_cancel_request_t)(reqBuf),
@@ -686,6 +807,8 @@ func (s *ActionServer) handleCancelRequest() {
 			}
 		}
 		err = s.withServer(func() error {
+			runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+			defer runtime.UnlockOSThread()
 			rc := C.rcl_action_send_cancel_response(&s.rclServer, &header, unsafe.Pointer(&respBuf.msg))
 			if rc != C.RCL_RET_OK {
 				return errorsCastC(rc, "failed to send cancel response")
@@ -705,6 +828,8 @@ func (s *ActionServer) sendFeedback(goal *GoalHandle, fb types.Message) error {
 	defer ts.ReleaseMemory(buf)
 	ts.AsCStruct(buf, msg)
 	return s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_publish_feedback(&s.rclServer, buf)
 		if rc != C.RCL_RET_OK {
 			return errorsCastC(rc, "failed to send feedback")
@@ -716,8 +841,14 @@ func (s *ActionServer) sendFeedback(goal *GoalHandle, fb types.Message) error {
 // publishStatusesLocked publishes the status of every goal. rclServerMu must be
 // held and the server must not be closed.
 func (s *ActionServer) publishStatusesLocked() {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	statuses := C.rcl_action_get_zero_initialized_goal_status_array()
-	defer C.rcl_action_goal_status_array_fini(&statuses)
+	defer func() {
+		if rc := C.rcl_action_goal_status_array_fini(&statuses); rc != C.RCL_RET_OK {
+			s.node.Logger().Error(errorsCastC(rc, "failed to finalize status array")) //nolint:errcheck
+		}
+	}()
 	rc := C.rcl_action_get_goal_status_array(&s.rclServer, &statuses)
 	if rc != C.RCL_RET_OK {
 		s.node.Logger().Error("failed to get status array: ", errorsCast(rc))
@@ -732,6 +863,8 @@ func (s *ActionServer) publishStatusesLocked() {
 func (s *ActionServer) handleReadyEntities(ws *WaitSet) {
 	var goalReq, cancelReq, resultReq, expired C.bool
 	err := s.withServer(func() error {
+		runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+		defer runtime.UnlockOSThread()
 		rc := C.rcl_action_server_wait_set_get_entities_ready(
 			&ws.rcl_wait_set_t,
 			&s.rclServer,
@@ -791,12 +924,35 @@ func goalLogMessage(id *types.GoalID, a ...interface{}) string {
 type FeedbackHandler func(context.Context, types.Message)
 type StatusHandler func(context.Context, types.Message)
 
+// ActionClientOptions configures an action client. A zero (system default)
+// QoS profile is replaced by that slot's NewDefaultActionClientOptions
+// profile.
 type ActionClientOptions struct {
 	GoalServiceQos   qos.Profile
 	CancelServiceQos qos.Profile
 	ResultServiceQos qos.Profile
 	FeedbackTopicQos qos.Profile
 	StatusTopicQos   qos.Profile
+}
+
+// withDefaults returns a copy of o (or the defaults for nil) with its zero
+// profiles set to the defaults.
+func (o *ActionClientOptions) withDefaults() *ActionClientOptions {
+	d := NewDefaultActionClientOptions()
+	if o == nil {
+		return d
+	}
+	c := *o
+	for _, f := range []struct{ v, def *qos.Profile }{
+		{&c.GoalServiceQos, &d.GoalServiceQos}, {&c.CancelServiceQos, &d.CancelServiceQos},
+		{&c.ResultServiceQos, &d.ResultServiceQos}, {&c.FeedbackTopicQos, &d.FeedbackTopicQos},
+		{&c.StatusTopicQos, &d.StatusTopicQos},
+	} {
+		if *f.v == (qos.Profile{}) {
+			*f.v = *f.def
+		}
+	}
+	return &c
 }
 
 func NewDefaultActionClientOptions() *ActionClientOptions {
@@ -821,17 +977,76 @@ func NewDefaultActionClientOptions() *ActionClientOptions {
 
 type actionClientHandler = func(context.Context, types.Message)
 
-type actionClientHandlerMapEntry struct {
+// handlerQueue delivers messages to one feedback or status handler in the
+// order they arrived, from at most one goroutine at a time, as rclcpp and rclpy
+// deliver them in order on their executor. It stops delivering when stopped or
+// when its context ends; a handler call already running is not interrupted.
+type handlerQueue struct {
 	ctx     context.Context //nolint:containedctx // track lifetimes
 	handler actionClientHandler
+	logger  *Logger
+
+	mu      sync.Mutex
+	pending []types.Message
+	running bool
+	stopped bool
 }
 
-type actionClientHandlerMap map[uint64]actionClientHandlerMapEntry
+func (q *handlerQueue) push(msg types.Message) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.stopped || q.ctx.Err() != nil {
+		return
+	}
+	q.pending = append(q.pending, msg)
+	if !q.running {
+		q.running = true
+		go q.drain()
+	}
+}
+
+func (q *handlerQueue) drain() {
+	for {
+		q.mu.Lock()
+		if q.stopped || q.ctx.Err() != nil || len(q.pending) == 0 {
+			q.running = false
+			if q.stopped || q.ctx.Err() != nil {
+				q.pending = nil
+			}
+			q.mu.Unlock()
+			return
+		}
+		msg := q.pending[0]
+		q.pending[0] = nil
+		q.pending = q.pending[1:]
+		q.mu.Unlock()
+		q.deliver(msg)
+	}
+}
+
+// deliver calls the handler. A panicking handler is logged instead of ending
+// the process, since it runs on a goroutine of rclgo's.
+func (q *handlerQueue) deliver(msg types.Message) {
+	defer func() {
+		if r := recover(); r != nil {
+			q.logger.Errorf("action client handler panicked: %v\n%s", r, debug.Stack()) //nolint:errcheck
+		}
+	}()
+	q.handler(q.ctx, msg)
+}
+
+func (q *handlerQueue) stop() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.stopped = true
+	q.pending = nil
+}
+
+type actionClientHandlerMap map[uint64]*handlerQueue
 
 func (m actionClientHandlerMap) call(msg types.Message) {
-	for _, entry := range m {
-		entry := entry
-		go func() { entry.handler(entry.ctx, msg.CloneMsg()) }()
+	for _, q := range m {
+		q.push(msg.CloneMsg())
 	}
 }
 
@@ -871,9 +1086,14 @@ type ActionClient struct {
 }
 
 func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *ActionClientOptions) (*ActionClient, error) {
-	if opts == nil {
-		opts = NewDefaultActionClientOptions()
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	// The node must stay usable while the entity is created on it.
+	if !n.life.acquire() {
+		return nil, closedErr("node")
 	}
+	defer n.life.release()
+	opts = opts.withDefaults()
 	c := &ActionClient{
 		node:         n,
 		typeSupport:  ts,
@@ -905,11 +1125,16 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 	rclOpts := C.rcl_action_client_options_t{
 		allocator: *n.context.rcl_allocator_t,
 	}
-	qosToC(opts.GoalServiceQos, &rclOpts.goal_service_qos)
-	qosToC(opts.CancelServiceQos, &rclOpts.cancel_service_qos)
-	qosToC(opts.ResultServiceQos, &rclOpts.result_service_qos)
-	qosToC(opts.FeedbackTopicQos, &rclOpts.feedback_topic_qos)
-	qosToC(opts.StatusTopicQos, &rclOpts.status_topic_qos)
+	if err := errors.Join(
+		qosToC(opts.GoalServiceQos, &rclOpts.goal_service_qos),
+		qosToC(opts.CancelServiceQos, &rclOpts.cancel_service_qos),
+		qosToC(opts.ResultServiceQos, &rclOpts.result_service_qos),
+		qosToC(opts.FeedbackTopicQos, &rclOpts.feedback_topic_qos),
+		qosToC(opts.StatusTopicQos, &rclOpts.status_topic_qos),
+	); err != nil {
+		return nil, err
+	}
+	n.entityMu.Lock()
 	rc := C.rcl_action_client_init(
 		&c.rclClient,
 		n.rcl_node_t,
@@ -917,10 +1142,14 @@ func (n *Node) NewActionClient(name string, ts types.ActionTypeSupport, opts *Ac
 		cname,
 		&rclOpts,
 	)
+	n.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to create action client")
 	}
-	n.addResource(c)
+	if !n.addResource(c) {
+		c.Close() //nolint:errcheck // refused before it was added
+		return nil, closedErr("node")
+	}
 	return c, nil
 }
 
@@ -935,19 +1164,28 @@ func (c *ActionClient) Close() error {
 }
 
 func (c *ActionClient) fini() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var err error
 	c.rclClientMu.Lock()
 	defer c.rclClientMu.Unlock()
+	c.node.entityMu.Lock()
 	rc := C.rcl_action_client_fini(&c.rclClient, c.node.rcl_node_t)
+	c.node.entityMu.Unlock()
 	if rc != C.RCL_RET_OK {
 		err = errors.Join(err, errorsCastC(rc, "failed to finalize action client"))
 	}
-	c.typeSupport = nil
+	// typeSupport stays set: methods called after Close use it to build their
+	// request before the rcl call reports ErrClosed.
 	return err
 }
 
 func (c *ActionClient) Node() *Node { return c.node }
 
+// WatchGoal sends goal, calls onFeedback (if not nil) with its feedback, in
+// order, and waits for its result. If the goal is rejected it returns an error;
+// if it ends in a state other than GoalSucceeded it returns the result and a
+// *GoalFailedError with the final status.
 func (c *ActionClient) WatchGoal(ctx context.Context, goal types.Message, onFeedback FeedbackHandler) (result types.Message, goalID *types.GoalID, retErr error) {
 	req, err := c.newSendGoalRequest(goal)
 	if err != nil {
@@ -963,15 +1201,14 @@ func (c *ActionClient) WatchGoal(ctx context.Context, goal types.Message, onFeed
 	// Registered before the goal is sent: if ctx ends while the goal request
 	// is in flight, the server may already have accepted the goal, and it
 	// must not be left running. Canceling a goal the server never accepted
-	// is harmless.
+	// is harmless. The cancel request is sent without waiting for its
+	// response (like rclcpp's async_cancel_goal): Spin may have stopped with
+	// the same ctx, and then no response would be taken.
 	defer func() {
 		if ctx.Err() != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
 			cancelReq := c.typeSupport.CancelGoal().Request().New()
 			cancelReq.(goalIDMessage).SetGoalID(req.GetGoalID())
-			_, err := c.CancelGoal(ctx, cancelReq) //nolint:contextcheck
-			if err != nil {
+			if err := c.cancelSender.sendNoWait(cancelReq); err != nil && !errors.Is(err, ErrClosed) {
 				retErr = errors.Join(err, retErr)
 			}
 		}
@@ -984,7 +1221,13 @@ func (c *ActionClient) WatchGoal(ctx context.Context, goal types.Message, onFeed
 		return nil, req.GetGoalID(), errors.New("goal was rejected")
 	}
 	result, err = c.GetResult(ctx, req.GetGoalID())
-	return result, req.GetGoalID(), err
+	if err != nil {
+		return result, req.GetGoalID(), err
+	}
+	if status, ok := resultStatus(result); ok && status != GoalSucceeded {
+		return result, req.GetGoalID(), &GoalFailedError{Status: status}
+	}
+	return result, req.GetGoalID(), nil
 }
 
 func (c *ActionClient) SendGoal(ctx context.Context, goal types.Message) (types.Message, *types.GoalID, error) {
@@ -1012,6 +1255,8 @@ func (c *ActionClient) SendGoalRequest(ctx context.Context, request types.Messag
 }
 
 func (c *ActionClient) sendGoalRequest(req unsafe.Pointer) (C.int64_t, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !c.life.acquire() {
 		return 0, closedErr("action client")
 	}
@@ -1025,6 +1270,8 @@ func (c *ActionClient) sendGoalRequest(req unsafe.Pointer) (C.int64_t, error) {
 }
 
 func (c *ActionClient) takeGoalResponse(resp unsafe.Pointer) (C.int64_t, interface{}, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var header C.rmw_request_id_t
 	switch rc := C.rcl_action_take_goal_response(&c.rclClient, &header, resp); rc {
 	case C.RCL_RET_OK:
@@ -1044,6 +1291,8 @@ func (c *ActionClient) GetResult(ctx context.Context, goalID *types.GoalID) (typ
 }
 
 func (c *ActionClient) sendResultRequest(req unsafe.Pointer) (C.int64_t, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !c.life.acquire() {
 		return 0, closedErr("action client")
 	}
@@ -1057,6 +1306,8 @@ func (c *ActionClient) sendResultRequest(req unsafe.Pointer) (C.int64_t, error) 
 }
 
 func (c *ActionClient) takeResultResponse(resp unsafe.Pointer) (C.int64_t, interface{}, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var header C.rmw_request_id_t
 	switch rc := C.rcl_action_take_result_response(&c.rclClient, &header, resp); rc {
 	case C.RCL_RET_OK:
@@ -1074,6 +1325,8 @@ func (c *ActionClient) CancelGoal(ctx context.Context, request types.Message) (t
 }
 
 func (c *ActionClient) sendCancelRequest(req unsafe.Pointer) (C.int64_t, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if !c.life.acquire() {
 		return 0, closedErr("action client")
 	}
@@ -1087,6 +1340,8 @@ func (c *ActionClient) sendCancelRequest(req unsafe.Pointer) (C.int64_t, error) 
 }
 
 func (c *ActionClient) takeCancelResponse(resp unsafe.Pointer) (C.int64_t, interface{}, error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var header C.rmw_request_id_t
 	switch rc := C.rcl_action_take_cancel_response(&c.rclClient, &header, resp); rc {
 	case C.RCL_RET_OK:
@@ -1112,21 +1367,22 @@ func (c *ActionClient) WatchFeedback(ctx context.Context, goalID *types.GoalID, 
 func (c *ActionClient) subscribe(ctx context.Context, subs *actionClientSubs, id *types.GoalID, handler actionClientHandler) (unsubscribe func()) {
 	c.rclClientMu.Lock()
 	defer c.rclClientMu.Unlock()
+	q := &handlerQueue{ctx: ctx, handler: handler, logger: c.node.Logger()}
 	// A status watcher first gets the latest known status, so that it also
 	// learns the state of goals whose status does not change again.
 	if subs == &c.statusSubs {
 		for goalID, status := range c.lastStatus {
 			if id == nil || goalID == *id {
-				status := status.CloneMsg()
-				go handler(ctx, status)
+				q.push(status.CloneMsg())
 			}
 		}
 	}
 	if id == nil {
 		subID := c.nextSubscriberID
 		c.nextSubscriberID++
-		subs.allGoals[subID] = actionClientHandlerMapEntry{ctx: ctx, handler: handler}
+		subs.allGoals[subID] = q
 		return func() {
+			q.stop()
 			c.rclClientMu.Lock()
 			defer c.rclClientMu.Unlock()
 			delete(subs.allGoals, subID)
@@ -1140,8 +1396,9 @@ func (c *ActionClient) subscribe(ctx context.Context, subs *actionClientSubs, id
 	}
 	subID := c.nextSubscriberID
 	c.nextSubscriberID++
-	handlers[subID] = actionClientHandlerMapEntry{ctx: ctx, handler: handler}
+	handlers[subID] = q
 	return func() {
+		q.stop()
 		c.rclClientMu.Lock()
 		defer c.rclClientMu.Unlock()
 		if handlers := subs.perGoal[goalID]; handlers != nil {
@@ -1156,6 +1413,8 @@ func (c *ActionClient) subscribe(ctx context.Context, subs *actionClientSubs, id
 }
 
 func (c *ActionClient) handleFeedback() {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	ts := c.typeSupport.FeedbackMessage()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)
@@ -1183,6 +1442,8 @@ func (c *ActionClient) WatchStatus(ctx context.Context, goalID *types.GoalID, ha
 }
 
 func (c *ActionClient) handleStatus() {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	ts := c.typeSupport.GoalStatusArray()
 	buf := ts.PrepareMemory()
 	defer ts.ReleaseMemory(buf)
@@ -1205,6 +1466,8 @@ func (c *ActionClient) handleStatus() {
 }
 
 func (c *ActionClient) handleReadyEntities(ws *WaitSet) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	var feedback, status, goalResp, cancelResp, resultResp C.bool
 	c.rclClientMu.Lock()
 	defer c.rclClientMu.Unlock()

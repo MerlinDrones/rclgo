@@ -164,6 +164,7 @@ type CTemperature__Sequence = C.sensor_msgs__msg__Temperature__Sequence
 
 func Temperature__Sequence_to_Go(goSlice *[]Temperature, cSlice CTemperature__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Temperature, cSlice.size)
@@ -172,14 +173,17 @@ func Temperature__Sequence_to_Go(goSlice *[]Temperature, cSlice CTemperature__Se
 		TemperatureTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Temperature__Sequence_to_C(cSlice *CTemperature__Sequence, goSlice []Temperature) {
+func Temperature__Sequence_into_C(cSlice *CTemperature__Sequence, goSlice []Temperature) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__Temperature__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__Temperature)(C.malloc(C.sizeof_struct_sensor_msgs__msg__Temperature * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__Temperature)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__Temperature))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -192,7 +196,7 @@ func Temperature__Array_to_Go(goSlice []Temperature, cSlice []CTemperature) {
 		TemperatureTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Temperature__Array_to_C(cSlice []CTemperature, goSlice []Temperature) {
+func Temperature__Array_into_C(cSlice []CTemperature, goSlice []Temperature) {
 	for i := 0; i < len(goSlice); i++ {
 		TemperatureTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

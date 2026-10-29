@@ -153,6 +153,7 @@ type CChar__Sequence = C.std_msgs__msg__Char__Sequence
 
 func Char__Sequence_to_Go(goSlice *[]Char, cSlice CChar__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Char, cSlice.size)
@@ -161,14 +162,17 @@ func Char__Sequence_to_Go(goSlice *[]Char, cSlice CChar__Sequence) {
 		CharTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Char__Sequence_to_C(cSlice *CChar__Sequence, goSlice []Char) {
+func Char__Sequence_into_C(cSlice *CChar__Sequence, goSlice []Char) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Char__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Char)(C.malloc(C.sizeof_struct_std_msgs__msg__Char * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Char)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Char))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +185,7 @@ func Char__Array_to_Go(goSlice []Char, cSlice []CChar) {
 		CharTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Char__Array_to_C(cSlice []CChar, goSlice []Char) {
+func Char__Array_into_C(cSlice []CChar, goSlice []Char) {
 	for i := 0; i < len(goSlice); i++ {
 		CharTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

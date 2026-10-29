@@ -9,15 +9,19 @@ Licensed under the Apache License, Version 2.0 (the "License");
 
 package primitives
 
+// #include <stdlib.h>
 // #include "rosidl_runtime_c/string.h"
+// #include "rosidl_runtime_c/string_functions.h"
 import "C"
 import (
 	"strings"
 	"unsafe"
 )
 
-func StringAsCStruct(dst unsafe.Pointer, m string) {
+func StringIntoC(dst unsafe.Pointer, m string) {
 	mem := (*C.rosidl_runtime_c__String)(dst) // TODO add this to template generator
+	// dst comes from __init (or zeroed memory): free the buffer it holds.
+	C.free(unsafe.Pointer(mem.data))
 	mem.data = (*C.char)(C.malloc(C.sizeof_char * C.size_t(len(m)+1)))
 	mem.size = C.size_t(len(m))
 	mem.capacity = C.size_t(len(m) + 1)
@@ -39,6 +43,7 @@ type CString__Sequence = C.rosidl_runtime_c__String__Sequence
 
 func String__Sequence_to_Go(goSlice *[]string, cSlice CString__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]string, int64(cSlice.size))
@@ -48,19 +53,22 @@ func String__Sequence_to_Go(goSlice *[]string, cSlice CString__Sequence) {
 	}
 }
 
-func String__Sequence_to_C(cSlice *CString__Sequence, goSlice []string) {
+func String__Sequence_into_C(cSlice *CString__Sequence, goSlice []string) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__String__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rosidl_runtime_c__String)(C.malloc((C.size_t)(C.sizeof_struct_rosidl_runtime_c__String * uintptr(len(goSlice)))))
+	// Zeroed, so that StringIntoC frees nothing.
+	cSlice.data = (*C.rosidl_runtime_c__String)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rosidl_runtime_c__String))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
 	for i := range goSlice {
-		StringAsCStruct(unsafe.Pointer(&dst[i]), goSlice[i])
+		StringIntoC(unsafe.Pointer(&dst[i]), goSlice[i])
 	}
 }
 
@@ -70,8 +78,8 @@ func String__Array_to_Go(goSlice []string, cSlice []CString) {
 	}
 }
 
-func String__Array_to_C(cSlice []CString, goSlice []string) {
+func String__Array_into_C(cSlice []CString, goSlice []string) {
 	for i := 0; i < len(goSlice); i++ {
-		StringAsCStruct(unsafe.Pointer(&cSlice[i]), goSlice[i])
+		StringIntoC(unsafe.Pointer(&cSlice[i]), goSlice[i])
 	}
 }

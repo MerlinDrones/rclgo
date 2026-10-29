@@ -139,7 +139,7 @@ func (t _GetLoggerLevels_RequestTypeSupport) ReleaseMemory(pointer_to_free unsaf
 func (t _GetLoggerLevels_RequestTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*GetLoggerLevels_Request)
 	mem := (*C.rcl_interfaces__srv__GetLoggerLevels_Request)(dst)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.names)), m.Names)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.names)), m.Names)
 }
 
 func (t _GetLoggerLevels_RequestTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -157,6 +157,7 @@ type CGetLoggerLevels_Request__Sequence = C.rcl_interfaces__srv__GetLoggerLevels
 
 func GetLoggerLevels_Request__Sequence_to_Go(goSlice *[]GetLoggerLevels_Request, cSlice CGetLoggerLevels_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]GetLoggerLevels_Request, cSlice.size)
@@ -165,14 +166,17 @@ func GetLoggerLevels_Request__Sequence_to_Go(goSlice *[]GetLoggerLevels_Request,
 		GetLoggerLevels_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetLoggerLevels_Request__Sequence_to_C(cSlice *CGetLoggerLevels_Request__Sequence, goSlice []GetLoggerLevels_Request) {
+func GetLoggerLevels_Request__Sequence_into_C(cSlice *CGetLoggerLevels_Request__Sequence, goSlice []GetLoggerLevels_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__srv__GetLoggerLevels_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__srv__GetLoggerLevels_Request)(C.malloc(C.sizeof_struct_rcl_interfaces__srv__GetLoggerLevels_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__srv__GetLoggerLevels_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__srv__GetLoggerLevels_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -185,7 +189,7 @@ func GetLoggerLevels_Request__Array_to_Go(goSlice []GetLoggerLevels_Request, cSl
 		GetLoggerLevels_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetLoggerLevels_Request__Array_to_C(cSlice []CGetLoggerLevels_Request, goSlice []GetLoggerLevels_Request) {
+func GetLoggerLevels_Request__Array_into_C(cSlice []CGetLoggerLevels_Request, goSlice []GetLoggerLevels_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		GetLoggerLevels_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

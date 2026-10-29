@@ -170,11 +170,11 @@ func (t _PointCloud2TypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	mem.height = C.uint32_t(m.Height)
 	mem.width = C.uint32_t(m.Width)
-	PointField__Sequence_to_C(&mem.fields, m.Fields)
+	PointField__Sequence_into_C(&mem.fields, m.Fields)
 	mem.is_bigendian = C.bool(m.IsBigendian)
 	mem.point_step = C.uint32_t(m.PointStep)
 	mem.row_step = C.uint32_t(m.RowStep)
-	primitives.Uint8__Sequence_to_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Uint8__Sequence_into_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 	mem.is_dense = C.bool(m.IsDense)
 }
 
@@ -201,6 +201,7 @@ type CPointCloud2__Sequence = C.sensor_msgs__msg__PointCloud2__Sequence
 
 func PointCloud2__Sequence_to_Go(goSlice *[]PointCloud2, cSlice CPointCloud2__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]PointCloud2, cSlice.size)
@@ -209,14 +210,17 @@ func PointCloud2__Sequence_to_Go(goSlice *[]PointCloud2, cSlice CPointCloud2__Se
 		PointCloud2TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PointCloud2__Sequence_to_C(cSlice *CPointCloud2__Sequence, goSlice []PointCloud2) {
+func PointCloud2__Sequence_into_C(cSlice *CPointCloud2__Sequence, goSlice []PointCloud2) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__PointCloud2__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__PointCloud2)(C.malloc(C.sizeof_struct_sensor_msgs__msg__PointCloud2 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__PointCloud2)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__PointCloud2))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -229,7 +233,7 @@ func PointCloud2__Array_to_Go(goSlice []PointCloud2, cSlice []CPointCloud2) {
 		PointCloud2TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PointCloud2__Array_to_C(cSlice []CPointCloud2, goSlice []PointCloud2) {
+func PointCloud2__Array_into_C(cSlice []CPointCloud2, goSlice []PointCloud2) {
 	for i := 0; i < len(goSlice); i++ {
 		PointCloud2TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

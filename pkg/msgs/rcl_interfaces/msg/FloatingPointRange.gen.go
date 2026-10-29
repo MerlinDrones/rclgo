@@ -163,6 +163,7 @@ type CFloatingPointRange__Sequence = C.rcl_interfaces__msg__FloatingPointRange__
 
 func FloatingPointRange__Sequence_to_Go(goSlice *[]FloatingPointRange, cSlice CFloatingPointRange__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]FloatingPointRange, cSlice.size)
@@ -171,14 +172,17 @@ func FloatingPointRange__Sequence_to_Go(goSlice *[]FloatingPointRange, cSlice CF
 		FloatingPointRangeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func FloatingPointRange__Sequence_to_C(cSlice *CFloatingPointRange__Sequence, goSlice []FloatingPointRange) {
+func FloatingPointRange__Sequence_into_C(cSlice *CFloatingPointRange__Sequence, goSlice []FloatingPointRange) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__FloatingPointRange__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__FloatingPointRange)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__FloatingPointRange * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__FloatingPointRange)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__FloatingPointRange))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -191,7 +195,7 @@ func FloatingPointRange__Array_to_Go(goSlice []FloatingPointRange, cSlice []CFlo
 		FloatingPointRangeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func FloatingPointRange__Array_to_C(cSlice []CFloatingPointRange, goSlice []FloatingPointRange) {
+func FloatingPointRange__Array_into_C(cSlice []CFloatingPointRange, goSlice []FloatingPointRange) {
 	for i := 0; i < len(goSlice); i++ {
 		FloatingPointRangeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

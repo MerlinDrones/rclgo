@@ -13,9 +13,9 @@ type ClockSubscriptionCallback = pub.ClockSubscriptionCallback
 
 var ClockTypeSupport = pub.ClockTypeSupport
 
-var Clock__Array_to_C = pub.Clock__Array_to_C
+var Clock__Array_into_C = pub.Clock__Array_into_C
 var Clock__Array_to_Go = pub.Clock__Array_to_Go
-var Clock__Sequence_to_C = pub.Clock__Sequence_to_C
+var Clock__Sequence_into_C = pub.Clock__Sequence_into_C
 var Clock__Sequence_to_Go = pub.Clock__Sequence_to_Go
 var CloneClockSlice = pub.CloneClockSlice
 var NewClock = pub.NewClock

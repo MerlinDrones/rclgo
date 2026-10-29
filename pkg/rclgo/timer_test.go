@@ -49,7 +49,16 @@ func TestTimerKeepsPeriodUnderCallbackLoad(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	require.Greater(t, len(ticks), 10, "timer barely fired")
-	avg := ticks[len(ticks)-1].Sub(ticks[0]) / time.Duration(len(ticks)-1)
+	// The least-squares slope of tick time against tick number: accumulated
+	// drift shows in it, while the scheduling jitter of single ticks (large
+	// under -race or load) averages out, unlike in last-minus-first.
+	var sumI, sumT, sumII, sumIT float64
+	for i, tick := range ticks {
+		x, y := float64(i), float64(tick.Sub(ticks[0]))
+		sumI, sumT, sumII, sumIT = sumI+x, sumT+y, sumII+x*x, sumIT+x*y
+	}
+	n := float64(len(ticks))
+	avg := time.Duration((n*sumIT - sumI*sumT) / (n*sumII - sumI*sumI))
 	t.Logf("%d ticks, average interval %v (period %v)", len(ticks), avg, period)
 	require.InDelta(t, float64(period), float64(avg), float64(period)/400,
 		"average interval %v drifts from the period %v", avg, period)

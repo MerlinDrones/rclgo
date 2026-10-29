@@ -153,6 +153,7 @@ type CByte__Sequence = C.std_msgs__msg__Byte__Sequence
 
 func Byte__Sequence_to_Go(goSlice *[]Byte, cSlice CByte__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Byte, cSlice.size)
@@ -161,14 +162,17 @@ func Byte__Sequence_to_Go(goSlice *[]Byte, cSlice CByte__Sequence) {
 		ByteTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Byte__Sequence_to_C(cSlice *CByte__Sequence, goSlice []Byte) {
+func Byte__Sequence_into_C(cSlice *CByte__Sequence, goSlice []Byte) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Byte__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Byte)(C.malloc(C.sizeof_struct_std_msgs__msg__Byte * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Byte)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Byte))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +185,7 @@ func Byte__Array_to_Go(goSlice []Byte, cSlice []CByte) {
 		ByteTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Byte__Array_to_C(cSlice []CByte, goSlice []Byte) {
+func Byte__Array_into_C(cSlice []CByte, goSlice []Byte) {
 	for i := 0; i < len(goSlice); i++ {
 		ByteTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

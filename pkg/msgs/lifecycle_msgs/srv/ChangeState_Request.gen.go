@@ -154,6 +154,7 @@ type CChangeState_Request__Sequence = C.lifecycle_msgs__srv__ChangeState_Request
 
 func ChangeState_Request__Sequence_to_Go(goSlice *[]ChangeState_Request, cSlice CChangeState_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ChangeState_Request, cSlice.size)
@@ -162,14 +163,17 @@ func ChangeState_Request__Sequence_to_Go(goSlice *[]ChangeState_Request, cSlice 
 		ChangeState_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ChangeState_Request__Sequence_to_C(cSlice *CChangeState_Request__Sequence, goSlice []ChangeState_Request) {
+func ChangeState_Request__Sequence_into_C(cSlice *CChangeState_Request__Sequence, goSlice []ChangeState_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__srv__ChangeState_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__srv__ChangeState_Request)(C.malloc(C.sizeof_struct_lifecycle_msgs__srv__ChangeState_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__srv__ChangeState_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__srv__ChangeState_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -182,7 +186,7 @@ func ChangeState_Request__Array_to_Go(goSlice []ChangeState_Request, cSlice []CC
 		ChangeState_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ChangeState_Request__Array_to_C(cSlice []CChangeState_Request, goSlice []ChangeState_Request) {
+func ChangeState_Request__Array_into_C(cSlice []CChangeState_Request, goSlice []ChangeState_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		ChangeState_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

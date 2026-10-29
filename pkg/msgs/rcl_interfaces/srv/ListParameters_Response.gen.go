@@ -154,6 +154,7 @@ type CListParameters_Response__Sequence = C.rcl_interfaces__srv__ListParameters_
 
 func ListParameters_Response__Sequence_to_Go(goSlice *[]ListParameters_Response, cSlice CListParameters_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ListParameters_Response, cSlice.size)
@@ -162,14 +163,17 @@ func ListParameters_Response__Sequence_to_Go(goSlice *[]ListParameters_Response,
 		ListParameters_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ListParameters_Response__Sequence_to_C(cSlice *CListParameters_Response__Sequence, goSlice []ListParameters_Response) {
+func ListParameters_Response__Sequence_into_C(cSlice *CListParameters_Response__Sequence, goSlice []ListParameters_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__srv__ListParameters_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__srv__ListParameters_Response)(C.malloc(C.sizeof_struct_rcl_interfaces__srv__ListParameters_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__srv__ListParameters_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__srv__ListParameters_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -182,7 +186,7 @@ func ListParameters_Response__Array_to_Go(goSlice []ListParameters_Response, cSl
 		ListParameters_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ListParameters_Response__Array_to_C(cSlice []CListParameters_Response, goSlice []ListParameters_Response) {
+func ListParameters_Response__Array_into_C(cSlice []CListParameters_Response, goSlice []ListParameters_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		ListParameters_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

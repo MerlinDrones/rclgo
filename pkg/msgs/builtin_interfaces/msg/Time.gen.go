@@ -158,6 +158,7 @@ type CTime__Sequence = C.builtin_interfaces__msg__Time__Sequence
 
 func Time__Sequence_to_Go(goSlice *[]Time, cSlice CTime__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Time, cSlice.size)
@@ -166,14 +167,17 @@ func Time__Sequence_to_Go(goSlice *[]Time, cSlice CTime__Sequence) {
 		TimeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Time__Sequence_to_C(cSlice *CTime__Sequence, goSlice []Time) {
+func Time__Sequence_into_C(cSlice *CTime__Sequence, goSlice []Time) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.builtin_interfaces__msg__Time__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.builtin_interfaces__msg__Time)(C.malloc(C.sizeof_struct_builtin_interfaces__msg__Time * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.builtin_interfaces__msg__Time)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_builtin_interfaces__msg__Time))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -186,7 +190,7 @@ func Time__Array_to_Go(goSlice []Time, cSlice []CTime) {
 		TimeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Time__Array_to_C(cSlice []CTime, goSlice []Time) {
+func Time__Array_into_C(cSlice []CTime, goSlice []Time) {
 	for i := 0; i < len(goSlice); i++ {
 		TimeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

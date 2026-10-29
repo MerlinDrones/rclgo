@@ -69,3 +69,4 @@ log.txt
 test.log
 VERSION
 .gitflow-release
+coverage.out

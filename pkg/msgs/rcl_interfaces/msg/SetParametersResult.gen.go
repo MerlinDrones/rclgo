@@ -140,7 +140,7 @@ func (t _SetParametersResultTypeSupport) AsCStruct(dst unsafe.Pointer, msg types
 	m := msg.(*SetParametersResult)
 	mem := (*C.rcl_interfaces__msg__SetParametersResult)(dst)
 	mem.successful = C.bool(m.Successful)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.reason), m.Reason)
+	primitives.StringIntoC(unsafe.Pointer(&mem.reason), m.Reason)
 }
 
 func (t _SetParametersResultTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -159,6 +159,7 @@ type CSetParametersResult__Sequence = C.rcl_interfaces__msg__SetParametersResult
 
 func SetParametersResult__Sequence_to_Go(goSlice *[]SetParametersResult, cSlice CSetParametersResult__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetParametersResult, cSlice.size)
@@ -167,14 +168,17 @@ func SetParametersResult__Sequence_to_Go(goSlice *[]SetParametersResult, cSlice 
 		SetParametersResultTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetParametersResult__Sequence_to_C(cSlice *CSetParametersResult__Sequence, goSlice []SetParametersResult) {
+func SetParametersResult__Sequence_into_C(cSlice *CSetParametersResult__Sequence, goSlice []SetParametersResult) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__SetParametersResult__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__SetParametersResult)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__SetParametersResult * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__SetParametersResult)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__SetParametersResult))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +191,7 @@ func SetParametersResult__Array_to_Go(goSlice []SetParametersResult, cSlice []CS
 		SetParametersResultTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetParametersResult__Array_to_C(cSlice []CSetParametersResult, goSlice []SetParametersResult) {
+func SetParametersResult__Array_into_C(cSlice []CSetParametersResult, goSlice []SetParametersResult) {
 	for i := 0; i < len(goSlice); i++ {
 		SetParametersResultTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

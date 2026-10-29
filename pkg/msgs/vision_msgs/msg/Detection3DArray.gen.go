@@ -143,7 +143,7 @@ func (t _Detection3DArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*Detection3DArray)
 	mem := (*C.vision_msgs__msg__Detection3DArray)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	Detection3D__Sequence_to_C(&mem.detections, m.Detections)
+	Detection3D__Sequence_into_C(&mem.detections, m.Detections)
 }
 
 func (t _Detection3DArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -170,7 +170,7 @@ func Detection3DArray__Sequence_to_Go(goSlice *[]Detection3DArray, cSlice CDetec
 		Detection3DArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Detection3DArray__Sequence_to_C(cSlice *CDetection3DArray__Sequence, goSlice []Detection3DArray) {
+func Detection3DArray__Sequence_into_C(cSlice *CDetection3DArray__Sequence, goSlice []Detection3DArray) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -190,7 +190,7 @@ func Detection3DArray__Array_to_Go(goSlice []Detection3DArray, cSlice []CDetecti
 		Detection3DArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Detection3DArray__Array_to_C(cSlice []CDetection3DArray, goSlice []Detection3DArray) {
+func Detection3DArray__Array_into_C(cSlice []CDetection3DArray, goSlice []Detection3DArray) {
 	for i := 0; i < len(goSlice); i++ {
 		Detection3DArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

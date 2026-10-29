@@ -142,8 +142,8 @@ func (t _ChannelFloat32TypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer
 func (t _ChannelFloat32TypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ChannelFloat32)
 	mem := (*C.sensor_msgs__msg__ChannelFloat32)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.values)), m.Values)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.values)), m.Values)
 }
 
 func (t _ChannelFloat32TypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -162,6 +162,7 @@ type CChannelFloat32__Sequence = C.sensor_msgs__msg__ChannelFloat32__Sequence
 
 func ChannelFloat32__Sequence_to_Go(goSlice *[]ChannelFloat32, cSlice CChannelFloat32__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ChannelFloat32, cSlice.size)
@@ -170,14 +171,17 @@ func ChannelFloat32__Sequence_to_Go(goSlice *[]ChannelFloat32, cSlice CChannelFl
 		ChannelFloat32TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ChannelFloat32__Sequence_to_C(cSlice *CChannelFloat32__Sequence, goSlice []ChannelFloat32) {
+func ChannelFloat32__Sequence_into_C(cSlice *CChannelFloat32__Sequence, goSlice []ChannelFloat32) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__ChannelFloat32__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__ChannelFloat32)(C.malloc(C.sizeof_struct_sensor_msgs__msg__ChannelFloat32 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__ChannelFloat32)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__ChannelFloat32))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +194,7 @@ func ChannelFloat32__Array_to_Go(goSlice []ChannelFloat32, cSlice []CChannelFloa
 		ChannelFloat32TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ChannelFloat32__Array_to_C(cSlice []CChannelFloat32, goSlice []ChannelFloat32) {
+func ChannelFloat32__Array_into_C(cSlice []CChannelFloat32, goSlice []ChannelFloat32) {
 	for i := 0; i < len(goSlice); i++ {
 		ChannelFloat32TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

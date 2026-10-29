@@ -159,6 +159,7 @@ type CQuaternionStamped__Sequence = C.geometry_msgs__msg__QuaternionStamped__Seq
 
 func QuaternionStamped__Sequence_to_Go(goSlice *[]QuaternionStamped, cSlice CQuaternionStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]QuaternionStamped, cSlice.size)
@@ -167,14 +168,17 @@ func QuaternionStamped__Sequence_to_Go(goSlice *[]QuaternionStamped, cSlice CQua
 		QuaternionStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func QuaternionStamped__Sequence_to_C(cSlice *CQuaternionStamped__Sequence, goSlice []QuaternionStamped) {
+func QuaternionStamped__Sequence_into_C(cSlice *CQuaternionStamped__Sequence, goSlice []QuaternionStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__QuaternionStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__QuaternionStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__QuaternionStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__QuaternionStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__QuaternionStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +191,7 @@ func QuaternionStamped__Array_to_Go(goSlice []QuaternionStamped, cSlice []CQuate
 		QuaternionStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func QuaternionStamped__Array_to_C(cSlice []CQuaternionStamped, goSlice []QuaternionStamped) {
+func QuaternionStamped__Array_into_C(cSlice []CQuaternionStamped, goSlice []QuaternionStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		QuaternionStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

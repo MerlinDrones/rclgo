@@ -146,6 +146,7 @@ type CTrigger_Request__Sequence = C.example_interfaces__srv__Trigger_Request__Se
 
 func Trigger_Request__Sequence_to_Go(goSlice *[]Trigger_Request, cSlice CTrigger_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Trigger_Request, cSlice.size)
@@ -154,14 +155,17 @@ func Trigger_Request__Sequence_to_Go(goSlice *[]Trigger_Request, cSlice CTrigger
 		Trigger_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Trigger_Request__Sequence_to_C(cSlice *CTrigger_Request__Sequence, goSlice []Trigger_Request) {
+func Trigger_Request__Sequence_into_C(cSlice *CTrigger_Request__Sequence, goSlice []Trigger_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__srv__Trigger_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__srv__Trigger_Request)(C.malloc(C.sizeof_struct_example_interfaces__srv__Trigger_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__srv__Trigger_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__srv__Trigger_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -174,7 +178,7 @@ func Trigger_Request__Array_to_Go(goSlice []Trigger_Request, cSlice []CTrigger_R
 		Trigger_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Trigger_Request__Array_to_C(cSlice []CTrigger_Request, goSlice []Trigger_Request) {
+func Trigger_Request__Array_into_C(cSlice []CTrigger_Request, goSlice []Trigger_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		Trigger_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

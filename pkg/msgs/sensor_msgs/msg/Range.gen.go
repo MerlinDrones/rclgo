@@ -189,6 +189,7 @@ type CRange__Sequence = C.sensor_msgs__msg__Range__Sequence
 
 func Range__Sequence_to_Go(goSlice *[]Range, cSlice CRange__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Range, cSlice.size)
@@ -197,14 +198,17 @@ func Range__Sequence_to_Go(goSlice *[]Range, cSlice CRange__Sequence) {
 		RangeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Range__Sequence_to_C(cSlice *CRange__Sequence, goSlice []Range) {
+func Range__Sequence_into_C(cSlice *CRange__Sequence, goSlice []Range) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__Range__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__Range)(C.malloc(C.sizeof_struct_sensor_msgs__msg__Range * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__Range)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__Range))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -217,7 +221,7 @@ func Range__Array_to_Go(goSlice []Range, cSlice []CRange) {
 		RangeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Range__Array_to_C(cSlice []CRange, goSlice []Range) {
+func Range__Array_into_C(cSlice []CRange, goSlice []Range) {
 	for i := 0; i < len(goSlice); i++ {
 		RangeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

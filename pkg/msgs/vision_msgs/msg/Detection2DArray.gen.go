@@ -143,7 +143,7 @@ func (t _Detection2DArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*Detection2DArray)
 	mem := (*C.vision_msgs__msg__Detection2DArray)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	Detection2D__Sequence_to_C(&mem.detections, m.Detections)
+	Detection2D__Sequence_into_C(&mem.detections, m.Detections)
 }
 
 func (t _Detection2DArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -170,7 +170,7 @@ func Detection2DArray__Sequence_to_Go(goSlice *[]Detection2DArray, cSlice CDetec
 		Detection2DArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Detection2DArray__Sequence_to_C(cSlice *CDetection2DArray__Sequence, goSlice []Detection2DArray) {
+func Detection2DArray__Sequence_into_C(cSlice *CDetection2DArray__Sequence, goSlice []Detection2DArray) {
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -190,7 +190,7 @@ func Detection2DArray__Array_to_Go(goSlice []Detection2DArray, cSlice []CDetecti
 		Detection2DArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Detection2DArray__Array_to_C(cSlice []CDetection2DArray, goSlice []Detection2DArray) {
+func Detection2DArray__Array_into_C(cSlice []CDetection2DArray, goSlice []Detection2DArray) {
 	for i := 0; i < len(goSlice); i++ {
 		Detection2DArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

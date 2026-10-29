@@ -154,6 +154,7 @@ type CClock__Sequence = C.rosgraph_msgs__msg__Clock__Sequence
 
 func Clock__Sequence_to_Go(goSlice *[]Clock, cSlice CClock__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Clock, cSlice.size)
@@ -162,14 +163,17 @@ func Clock__Sequence_to_Go(goSlice *[]Clock, cSlice CClock__Sequence) {
 		ClockTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Clock__Sequence_to_C(cSlice *CClock__Sequence, goSlice []Clock) {
+func Clock__Sequence_into_C(cSlice *CClock__Sequence, goSlice []Clock) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosgraph_msgs__msg__Clock__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rosgraph_msgs__msg__Clock)(C.malloc(C.sizeof_struct_rosgraph_msgs__msg__Clock * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rosgraph_msgs__msg__Clock)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rosgraph_msgs__msg__Clock))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -182,7 +186,7 @@ func Clock__Array_to_Go(goSlice []Clock, cSlice []CClock) {
 		ClockTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Clock__Array_to_C(cSlice []CClock, goSlice []Clock) {
+func Clock__Array_into_C(cSlice []CClock, goSlice []Clock) {
 	for i := 0; i < len(goSlice); i++ {
 		ClockTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

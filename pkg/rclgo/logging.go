@@ -30,13 +30,102 @@ void rcutils_log_wrapper(
     rcutils_log(location, severity, name, format, msg);
 }
 
-void loggingOutputHandler(
-    const rcutils_log_location_t* location,
-    int severity,
-    const char* name,
-    const char* format,
-    va_list* args
-);
+#include <pthread.h>
+#include <rcl/logging_rosout.h>
+#include <rcl/node.h>
+
+// The Go output handler (logginghandler.go).
+extern void loggingOutputHandler(rcutils_log_location_t* location, int severity, char* name,
+    rcutils_time_point_value_t timestamp, char* format, va_list* args);
+
+// rcl's and rcutils' logging state (the output handler, logger levels and the
+// process-wide table of /rosout publishers) is not thread-safe. Like rclcpp's
+// global logging mutex, this mutex serializes every use of it. It is recursive
+// because rcl logs from inside these calls, on the same thread, which re-enters
+// the output handler.
+static pthread_mutex_t rclgo_logging_mutex;
+static pthread_once_t rclgo_logging_mutex_once = PTHREAD_ONCE_INIT;
+
+static void rclgo_logging_mutex_init(void) {
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&rclgo_logging_mutex, &attr);
+    pthread_mutexattr_destroy(&attr);
+}
+
+static void rclgo_logging_lock(void) {
+    pthread_once(&rclgo_logging_mutex_once, rclgo_logging_mutex_init);
+    pthread_mutex_lock(&rclgo_logging_mutex);
+}
+
+static void rclgo_logging_unlock(void) {
+    pthread_mutex_unlock(&rclgo_logging_mutex);
+}
+
+static void rclgo_output_handler(const rcutils_log_location_t* location, int severity, const char* name,
+    rcutils_time_point_value_t timestamp, const char* format, va_list* args) {
+    rclgo_logging_lock();
+    loggingOutputHandler((rcutils_log_location_t*)location, severity, (char*)name, timestamp, (char*)format, args);
+    rclgo_logging_unlock();
+}
+
+static rcl_ret_t rclgo_logging_configure(const rcl_arguments_t* args, rcl_allocator_t allocator) {
+    rclgo_logging_lock();
+    rcl_ret_t rc = rcl_logging_configure(args, &allocator);
+    if (rc == RCL_RET_OK) {
+        rcutils_logging_set_output_handler(rclgo_output_handler);
+    }
+    rclgo_logging_unlock();
+    return rc;
+}
+
+static rcl_ret_t rclgo_logging_fini(void) {
+    rclgo_logging_lock();
+    rcl_ret_t rc = rcl_logging_fini();
+    rclgo_logging_unlock();
+    return rc;
+}
+
+static rcutils_ret_t rclgo_set_logger_level(const char* name, int level) {
+    rclgo_logging_lock();
+    rcutils_ret_t rc = rcutils_logging_set_logger_level(name, level);
+    rclgo_logging_unlock();
+    return rc;
+}
+
+// Used by rcl.go when nodes are created and closed. rcl_node_init and
+// rcl_node_fini also take the mutex, as rclcpp's NodeBase holds its logging
+// mutex around them: creating and finalizing nodes on several threads at once
+// crashed in rcl_node_fini without it.
+rcl_ret_t rclgo_node_init(rcl_node_t* node, const char* name, const char* namespace_,
+    rcl_context_t* context, const rcl_node_options_t* options) {
+    rclgo_logging_lock();
+    rcl_ret_t rc = rcl_node_init(node, name, namespace_, context, options);
+    rclgo_logging_unlock();
+    return rc;
+}
+
+rcl_ret_t rclgo_node_fini(rcl_node_t* node) {
+    rclgo_logging_lock();
+    rcl_ret_t rc = rcl_node_fini(node);
+    rclgo_logging_unlock();
+    return rc;
+}
+
+rcl_ret_t rclgo_rosout_init_publisher_for_node(rcl_node_t* node) {
+    rclgo_logging_lock();
+    rcl_ret_t rc = rcl_logging_rosout_init_publisher_for_node(node);
+    rclgo_logging_unlock();
+    return rc;
+}
+
+rcl_ret_t rclgo_rosout_fini_publisher_for_node(rcl_node_t* node) {
+    rclgo_logging_lock();
+    rcl_ret_t rc = rcl_logging_rosout_fini_publisher_for_node(node);
+    rclgo_logging_unlock();
+    return rc;
+}
 */
 import "C"
 import (
@@ -47,6 +136,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -98,20 +188,37 @@ func InitLogging(args *Args) error {
 }
 
 var (
-	loggingMutex                sync.Mutex
-	currentLoggingOutputHandler = DefaultLoggingOutputHandler
-	loggingInitialized          = false
-	loggingAllocator            = func() *C.rcl_allocator_t {
+	loggingMutex sync.Mutex
+	// currentLoggingOutputHandler is read by every log call, from the
+	// output handler, which must not take loggingMutex (rcl logs from inside
+	// calls made with loggingMutex held).
+	currentLoggingOutputHandler = func() *atomic.Pointer[LoggingOutputHandler] {
+		var p atomic.Pointer[LoggingOutputHandler]
+		h := LoggingOutputHandler(DefaultLoggingOutputHandler)
+		p.Store(&h)
+		return &p
+	}()
+	loggingInitialized = false
+	// rosoutPublishers counts the nodes whose /rosout publisher is not
+	// finalized yet, and finiPending records a FiniLogging deferred until it
+	// reaches zero: a node whose finalization is deferred (a running wait set
+	// still holds one of its entities) finalizes its publisher in rcl's
+	// logging state after Uninit. Both are guarded by loggingMutex.
+	rosoutPublishers int
+	finiPending      bool
+	loggingAllocator = func() *C.rcl_allocator_t {
 		alloc := (*C.rcl_allocator_t)(C.malloc(C.sizeof_rcl_allocator_t))
 		*alloc = C.rcl_get_default_allocator()
 		return alloc
 	}()
 	// realtimeLogging enables unbuffered, immediate flush logging when true.
 	// Set via RCLGO_REALTIME_LOGGING=1 environment variable.
-	realtimeLogging = false
+	realtimeLogging atomic.Bool
 )
 
 func rclInitLogging(rclArgs *Args, update bool) error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	if rclArgs == nil {
 		var err error
 		if rclArgs, _, err = ParseArgs(nil); err != nil {
@@ -120,6 +227,7 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 	}
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
+	finiPending = false
 	if loggingInitialized && !update {
 		return nil
 	}
@@ -127,7 +235,7 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 
 	// Check environment variable for realtime logging mode
 	if os.Getenv("RCLGO_REALTIME_LOGGING") == "1" {
-		realtimeLogging = true
+		realtimeLogging.Store(true)
 
 		// Also set RCUTILS_LOGGING_BUFFERED_STREAM=0 if not already set
 		// This ensures both rclgo's stdout/stderr flushing AND rcutils console
@@ -141,18 +249,14 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 	// to ensure proper initialization of the logging backend (including filesystem logging).
 	// The default output handler will automatically call rcl_logging_multiple_output_handler,
 	// which handles both console and filesystem output.
-	rc := C.rcl_logging_configure(
-		&rclArgs.parsed,
-		loggingAllocator,
-	)
+	//
+	// The output handler is rclgo's, which allows for Go-level customization
+	// while still delegating to the default rcl handler that writes to files.
+	rc := C.rclgo_logging_configure(&rclArgs.parsed, *loggingAllocator)
 	runtime.KeepAlive(rclArgs)
 	if rc != C.RCL_RET_OK {
 		return errorsCastC(rc, "rclInitLogging -> rcl_logging_configure()")
 	}
-
-	// Now set our custom output handler wrapper which allows for Go-level customization
-	// while still delegating to the default RCL handler that writes to files.
-	C.rcutils_logging_set_output_handler((*[0]byte)(C.loggingOutputHandler))
 
 	return nil
 }
@@ -160,12 +264,25 @@ func rclInitLogging(rclArgs *Args, update bool) error {
 // FiniLogging finalizes the logging system and flushes all buffered log messages.
 // This should be called before program termination to ensure all logs are written.
 func FiniLogging() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
 	if !loggingInitialized {
 		return nil
 	}
-	rc := C.rcl_logging_fini()
+	if rosoutPublishers > 0 {
+		// Finalized when the last node's /rosout publisher is.
+		finiPending = true
+		return nil
+	}
+	return finiLoggingLocked()
+}
+
+// finiLoggingLocked finalizes the logging system; loggingMutex must be held
+// and the OS thread pinned.
+func finiLoggingLocked() error {
+	rc := C.rclgo_logging_fini()
 	if rc != C.RCL_RET_OK {
 		return errorsCastC(rc, "rcl_logging_fini()")
 	}
@@ -173,11 +290,33 @@ func FiniLogging() error {
 	return nil
 }
 
+// rosoutPublisherAdded records a node's new /rosout publisher.
+func rosoutPublisherAdded() {
+	loggingMutex.Lock()
+	defer loggingMutex.Unlock()
+	rosoutPublishers++
+}
+
+// rosoutPublisherRemoved records that a node's /rosout publisher was
+// finalized, and runs a FiniLogging that was waiting for it.
+func rosoutPublisherRemoved() error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	loggingMutex.Lock()
+	defer loggingMutex.Unlock()
+	rosoutPublishers--
+	if rosoutPublishers == 0 && finiPending {
+		finiPending = false
+		return finiLoggingLocked()
+	}
+	return nil
+}
+
 // IsRealtimeLogging returns true if realtime (unbuffered) logging is enabled.
 func IsRealtimeLogging() bool {
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
-	return realtimeLogging
+	return realtimeLogging.Load()
 }
 
 var rcutilsLogFormat = C.CString("%s")
@@ -275,21 +414,25 @@ func (l *Logger) Child(name string) *Logger {
 // Level returns the logging level of l. Note that this is not necessarily the
 // same as EffectiveLevel.
 func (l *Logger) Level() (LogSeverity, error) {
+	runtime.LockOSThread() // rcutils error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
 	level := C.rcutils_logging_get_logger_level(l.cname)
 	runtime.KeepAlive(l)
 	if level < 0 {
-		return 0, errors.New("failed to get log level")
+		return 0, errors.New("failed to get log level: " + errorString())
 	}
 	return LogSeverity(level), nil
 }
 
 // SetLevel sets the logging level of l.
 func (l *Logger) SetLevel(level LogSeverity) error {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
-	ret := C.rcutils_logging_set_logger_level(l.cname, C.int(level))
+	ret := C.rclgo_set_logger_level(l.cname, C.int(level))
 	runtime.KeepAlive(l)
 	if ret != C.RCL_RET_OK {
 		return errorsCastC(ret, "SetLoggerLevel")
@@ -311,12 +454,14 @@ func (l *Logger) IsEnabledFor(level LogSeverity) bool {
 // logging levels of l's ancestors as well as the logging level of l itself.
 // Note that this is not necessarily the same as Level.
 func (l *Logger) EffectiveLevel() (LogSeverity, error) {
+	runtime.LockOSThread() // rcutils error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
 	loggingMutex.Lock()
 	defer loggingMutex.Unlock()
 	level := C.rcutils_logging_get_logger_effective_level(l.cname)
 	runtime.KeepAlive(l)
 	if level < 0 {
-		return 0, errors.New("failed to get effective log level")
+		return 0, errors.New("failed to get effective log level: " + errorString())
 	}
 	return LogSeverity(level), nil
 }

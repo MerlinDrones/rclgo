@@ -169,6 +169,7 @@ type CJoyFeedback__Sequence = C.sensor_msgs__msg__JoyFeedback__Sequence
 
 func JoyFeedback__Sequence_to_Go(goSlice *[]JoyFeedback, cSlice CJoyFeedback__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]JoyFeedback, cSlice.size)
@@ -177,14 +178,17 @@ func JoyFeedback__Sequence_to_Go(goSlice *[]JoyFeedback, cSlice CJoyFeedback__Se
 		JoyFeedbackTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func JoyFeedback__Sequence_to_C(cSlice *CJoyFeedback__Sequence, goSlice []JoyFeedback) {
+func JoyFeedback__Sequence_into_C(cSlice *CJoyFeedback__Sequence, goSlice []JoyFeedback) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__JoyFeedback__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__JoyFeedback)(C.malloc(C.sizeof_struct_sensor_msgs__msg__JoyFeedback * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__JoyFeedback)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__JoyFeedback))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -197,7 +201,7 @@ func JoyFeedback__Array_to_Go(goSlice []JoyFeedback, cSlice []CJoyFeedback) {
 		JoyFeedbackTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func JoyFeedback__Array_to_C(cSlice []CJoyFeedback, goSlice []JoyFeedback) {
+func JoyFeedback__Array_into_C(cSlice []CJoyFeedback, goSlice []JoyFeedback) {
 	for i := 0; i < len(goSlice); i++ {
 		JoyFeedbackTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

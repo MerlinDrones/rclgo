@@ -162,6 +162,7 @@ type CConstants__Sequence = C.test_msgs__msg__Constants__Sequence
 
 func Constants__Sequence_to_Go(goSlice *[]Constants, cSlice CConstants__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Constants, cSlice.size)
@@ -170,14 +171,17 @@ func Constants__Sequence_to_Go(goSlice *[]Constants, cSlice CConstants__Sequence
 		ConstantsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Constants__Sequence_to_C(cSlice *CConstants__Sequence, goSlice []Constants) {
+func Constants__Sequence_into_C(cSlice *CConstants__Sequence, goSlice []Constants) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__Constants__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__Constants)(C.malloc(C.sizeof_struct_test_msgs__msg__Constants * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__Constants)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__Constants))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +194,7 @@ func Constants__Array_to_Go(goSlice []Constants, cSlice []CConstants) {
 		ConstantsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Constants__Array_to_C(cSlice []CConstants, goSlice []Constants) {
+func Constants__Array_into_C(cSlice []CConstants, goSlice []Constants) {
 	for i := 0; i < len(goSlice); i++ {
 		ConstantsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

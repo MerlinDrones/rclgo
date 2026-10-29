@@ -165,6 +165,7 @@ type CNestedMessage_Goal__Sequence = C.test_msgs__action__NestedMessage_Goal__Se
 
 func NestedMessage_Goal__Sequence_to_Go(goSlice *[]NestedMessage_Goal, cSlice CNestedMessage_Goal__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]NestedMessage_Goal, cSlice.size)
@@ -173,14 +174,17 @@ func NestedMessage_Goal__Sequence_to_Go(goSlice *[]NestedMessage_Goal, cSlice CN
 		NestedMessage_GoalTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NestedMessage_Goal__Sequence_to_C(cSlice *CNestedMessage_Goal__Sequence, goSlice []NestedMessage_Goal) {
+func NestedMessage_Goal__Sequence_into_C(cSlice *CNestedMessage_Goal__Sequence, goSlice []NestedMessage_Goal) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__NestedMessage_Goal__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__NestedMessage_Goal)(C.malloc(C.sizeof_struct_test_msgs__action__NestedMessage_Goal * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__NestedMessage_Goal)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__NestedMessage_Goal))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -193,7 +197,7 @@ func NestedMessage_Goal__Array_to_Go(goSlice []NestedMessage_Goal, cSlice []CNes
 		NestedMessage_GoalTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NestedMessage_Goal__Array_to_C(cSlice []CNestedMessage_Goal, goSlice []NestedMessage_Goal) {
+func NestedMessage_Goal__Array_into_C(cSlice []CNestedMessage_Goal, goSlice []NestedMessage_Goal) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedMessage_GoalTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

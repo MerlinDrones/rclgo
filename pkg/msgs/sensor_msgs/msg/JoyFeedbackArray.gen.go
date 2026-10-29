@@ -138,7 +138,7 @@ func (t _JoyFeedbackArrayTypeSupport) ReleaseMemory(pointer_to_free unsafe.Point
 func (t _JoyFeedbackArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*JoyFeedbackArray)
 	mem := (*C.sensor_msgs__msg__JoyFeedbackArray)(dst)
-	JoyFeedback__Sequence_to_C(&mem.array, m.Array)
+	JoyFeedback__Sequence_into_C(&mem.array, m.Array)
 }
 
 func (t _JoyFeedbackArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +156,7 @@ type CJoyFeedbackArray__Sequence = C.sensor_msgs__msg__JoyFeedbackArray__Sequenc
 
 func JoyFeedbackArray__Sequence_to_Go(goSlice *[]JoyFeedbackArray, cSlice CJoyFeedbackArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]JoyFeedbackArray, cSlice.size)
@@ -164,14 +165,17 @@ func JoyFeedbackArray__Sequence_to_Go(goSlice *[]JoyFeedbackArray, cSlice CJoyFe
 		JoyFeedbackArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func JoyFeedbackArray__Sequence_to_C(cSlice *CJoyFeedbackArray__Sequence, goSlice []JoyFeedbackArray) {
+func JoyFeedbackArray__Sequence_into_C(cSlice *CJoyFeedbackArray__Sequence, goSlice []JoyFeedbackArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__JoyFeedbackArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__JoyFeedbackArray)(C.malloc(C.sizeof_struct_sensor_msgs__msg__JoyFeedbackArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__JoyFeedbackArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__JoyFeedbackArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +188,7 @@ func JoyFeedbackArray__Array_to_Go(goSlice []JoyFeedbackArray, cSlice []CJoyFeed
 		JoyFeedbackArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func JoyFeedbackArray__Array_to_C(cSlice []CJoyFeedbackArray, goSlice []JoyFeedbackArray) {
+func JoyFeedbackArray__Array_into_C(cSlice []CJoyFeedbackArray, goSlice []JoyFeedbackArray) {
 	for i := 0; i < len(goSlice); i++ {
 		JoyFeedbackArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

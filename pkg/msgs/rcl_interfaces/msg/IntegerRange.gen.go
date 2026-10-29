@@ -163,6 +163,7 @@ type CIntegerRange__Sequence = C.rcl_interfaces__msg__IntegerRange__Sequence
 
 func IntegerRange__Sequence_to_Go(goSlice *[]IntegerRange, cSlice CIntegerRange__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]IntegerRange, cSlice.size)
@@ -171,14 +172,17 @@ func IntegerRange__Sequence_to_Go(goSlice *[]IntegerRange, cSlice CIntegerRange_
 		IntegerRangeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func IntegerRange__Sequence_to_C(cSlice *CIntegerRange__Sequence, goSlice []IntegerRange) {
+func IntegerRange__Sequence_into_C(cSlice *CIntegerRange__Sequence, goSlice []IntegerRange) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__IntegerRange__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__IntegerRange)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__IntegerRange * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__IntegerRange)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__IntegerRange))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -191,7 +195,7 @@ func IntegerRange__Array_to_Go(goSlice []IntegerRange, cSlice []CIntegerRange) {
 		IntegerRangeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func IntegerRange__Array_to_C(cSlice []CIntegerRange, goSlice []IntegerRange) {
+func IntegerRange__Array_into_C(cSlice []CIntegerRange, goSlice []IntegerRange) {
 	for i := 0; i < len(goSlice); i++ {
 		IntegerRangeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

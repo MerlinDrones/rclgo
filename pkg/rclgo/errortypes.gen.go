@@ -13,108 +13,116 @@ import (
 )
 
 func errorsCastC(rcl_ret_t C.rcl_ret_t, context string) error {
-	stackTraceBuffer := make([]byte, 2048)
-	runtime.Stack(stackTraceBuffer, false) // Get stack trace of the current running thread only
+	// A take that finds no data is routine (subscriptions are polled), so it
+	// gets no stack trace; other errors get the calling goroutine's stack.
+	var stackTrace string
+	switch rcl_ret_t {
+	case C.RCL_RET_SUBSCRIPTION_TAKE_FAILED, C.RCL_RET_CLIENT_TAKE_FAILED, C.RCL_RET_SERVICE_TAKE_FAILED,
+		C.RCL_RET_ACTION_CLIENT_TAKE_FAILED, C.RCL_RET_ACTION_SERVER_TAKE_FAILED, C.RCL_RET_EVENT_TAKE_FAILED:
+	default:
+		buf := make([]byte, 2048)
+		stackTrace = string(buf[:runtime.Stack(buf, false)])
+	}
 
 	// https://stackoverflow.com/questions/9928221/table-of-functions-vs-switch-in-golang
 	// switch-case is faster thanks to compiler optimization than a dispatcher?
 	switch rcl_ret_t {
 	case C.RCL_RET_ALREADY_INIT:
-		return &AlreadyInit{rclError: rclError{rclRetCode: 100, trace: string(stackTraceBuffer), context: errorsBuildContext(&AlreadyInit{}, context, string(stackTraceBuffer))}}
+		return &AlreadyInit{rclError: rclError{rclRetCode: 100, trace: stackTrace, context: errorsBuildContext(&AlreadyInit{}, context, stackTrace)}}
 	case C.RCL_RET_NOT_INIT:
-		return &NotInit{rclError: rclError{rclRetCode: 101, trace: string(stackTraceBuffer), context: errorsBuildContext(&NotInit{}, context, string(stackTraceBuffer))}}
+		return &NotInit{rclError: rclError{rclRetCode: 101, trace: stackTrace, context: errorsBuildContext(&NotInit{}, context, stackTrace)}}
 	case C.RCL_RET_MISMATCHED_RMW_ID:
-		return &MismatchedRmwId{rclError: rclError{rclRetCode: 102, trace: string(stackTraceBuffer), context: errorsBuildContext(&MismatchedRmwId{}, context, string(stackTraceBuffer))}}
+		return &MismatchedRmwId{rclError: rclError{rclRetCode: 102, trace: stackTrace, context: errorsBuildContext(&MismatchedRmwId{}, context, stackTrace)}}
 	case C.RCL_RET_TOPIC_NAME_INVALID:
-		return &TopicNameInvalid{rclError: rclError{rclRetCode: 103, trace: string(stackTraceBuffer), context: errorsBuildContext(&TopicNameInvalid{}, context, string(stackTraceBuffer))}}
+		return &TopicNameInvalid{rclError: rclError{rclRetCode: 103, trace: stackTrace, context: errorsBuildContext(&TopicNameInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_SERVICE_NAME_INVALID:
-		return &ServiceNameInvalid{rclError: rclError{rclRetCode: 104, trace: string(stackTraceBuffer), context: errorsBuildContext(&ServiceNameInvalid{}, context, string(stackTraceBuffer))}}
+		return &ServiceNameInvalid{rclError: rclError{rclRetCode: 104, trace: stackTrace, context: errorsBuildContext(&ServiceNameInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_UNKNOWN_SUBSTITUTION:
-		return &UnknownSubstitution{rclError: rclError{rclRetCode: 105, trace: string(stackTraceBuffer), context: errorsBuildContext(&UnknownSubstitution{}, context, string(stackTraceBuffer))}}
+		return &UnknownSubstitution{rclError: rclError{rclRetCode: 105, trace: stackTrace, context: errorsBuildContext(&UnknownSubstitution{}, context, stackTrace)}}
 	case C.RCL_RET_ALREADY_SHUTDOWN:
-		return &AlreadyShutdown{rclError: rclError{rclRetCode: 106, trace: string(stackTraceBuffer), context: errorsBuildContext(&AlreadyShutdown{}, context, string(stackTraceBuffer))}}
+		return &AlreadyShutdown{rclError: rclError{rclRetCode: 106, trace: stackTrace, context: errorsBuildContext(&AlreadyShutdown{}, context, stackTrace)}}
 	case C.RCL_RET_NOT_FOUND:
-		return &NotFound{rclError: rclError{rclRetCode: 107, trace: string(stackTraceBuffer), context: errorsBuildContext(&NotFound{}, context, string(stackTraceBuffer))}}
+		return &NotFound{rclError: rclError{rclRetCode: 107, trace: stackTrace, context: errorsBuildContext(&NotFound{}, context, stackTrace)}}
 	case C.RCL_RET_NODE_INVALID:
-		return &NodeInvalid{rclError: rclError{rclRetCode: 200, trace: string(stackTraceBuffer), context: errorsBuildContext(&NodeInvalid{}, context, string(stackTraceBuffer))}}
+		return &NodeInvalid{rclError: rclError{rclRetCode: 200, trace: stackTrace, context: errorsBuildContext(&NodeInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_NODE_INVALID_NAME:
-		return &NodeInvalidName{rclError: rclError{rclRetCode: 201, trace: string(stackTraceBuffer), context: errorsBuildContext(&NodeInvalidName{}, context, string(stackTraceBuffer))}}
+		return &NodeInvalidName{rclError: rclError{rclRetCode: 201, trace: stackTrace, context: errorsBuildContext(&NodeInvalidName{}, context, stackTrace)}}
 	case C.RCL_RET_NODE_INVALID_NAMESPACE:
-		return &NodeInvalidNamespace{rclError: rclError{rclRetCode: 202, trace: string(stackTraceBuffer), context: errorsBuildContext(&NodeInvalidNamespace{}, context, string(stackTraceBuffer))}}
+		return &NodeInvalidNamespace{rclError: rclError{rclRetCode: 202, trace: stackTrace, context: errorsBuildContext(&NodeInvalidNamespace{}, context, stackTrace)}}
 	case C.RCL_RET_NODE_NAME_NON_EXISTENT:
-		return &NodeNameNonExistent{rclError: rclError{rclRetCode: 203, trace: string(stackTraceBuffer), context: errorsBuildContext(&NodeNameNonExistent{}, context, string(stackTraceBuffer))}}
+		return &NodeNameNonExistent{rclError: rclError{rclRetCode: 203, trace: stackTrace, context: errorsBuildContext(&NodeNameNonExistent{}, context, stackTrace)}}
 	case C.RCL_RET_PUBLISHER_INVALID:
-		return &PublisherInvalid{rclError: rclError{rclRetCode: 300, trace: string(stackTraceBuffer), context: errorsBuildContext(&PublisherInvalid{}, context, string(stackTraceBuffer))}}
+		return &PublisherInvalid{rclError: rclError{rclRetCode: 300, trace: stackTrace, context: errorsBuildContext(&PublisherInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_SUBSCRIPTION_INVALID:
-		return &SubscriptionInvalid{rclError: rclError{rclRetCode: 400, trace: string(stackTraceBuffer), context: errorsBuildContext(&SubscriptionInvalid{}, context, string(stackTraceBuffer))}}
+		return &SubscriptionInvalid{rclError: rclError{rclRetCode: 400, trace: stackTrace, context: errorsBuildContext(&SubscriptionInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_SUBSCRIPTION_TAKE_FAILED:
-		return &SubscriptionTakeFailed{rclError: rclError{rclRetCode: 401, trace: string(stackTraceBuffer), context: errorsBuildContext(&SubscriptionTakeFailed{}, context, string(stackTraceBuffer))}}
+		return &SubscriptionTakeFailed{rclError: rclError{rclRetCode: 401, trace: stackTrace, context: errorsBuildContext(&SubscriptionTakeFailed{}, context, stackTrace)}}
 	case C.RCL_RET_CLIENT_INVALID:
-		return &ClientInvalid{rclError: rclError{rclRetCode: 500, trace: string(stackTraceBuffer), context: errorsBuildContext(&ClientInvalid{}, context, string(stackTraceBuffer))}}
+		return &ClientInvalid{rclError: rclError{rclRetCode: 500, trace: stackTrace, context: errorsBuildContext(&ClientInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_CLIENT_TAKE_FAILED:
-		return &ClientTakeFailed{rclError: rclError{rclRetCode: 501, trace: string(stackTraceBuffer), context: errorsBuildContext(&ClientTakeFailed{}, context, string(stackTraceBuffer))}}
+		return &ClientTakeFailed{rclError: rclError{rclRetCode: 501, trace: stackTrace, context: errorsBuildContext(&ClientTakeFailed{}, context, stackTrace)}}
 	case C.RCL_RET_SERVICE_INVALID:
-		return &ServiceInvalid{rclError: rclError{rclRetCode: 600, trace: string(stackTraceBuffer), context: errorsBuildContext(&ServiceInvalid{}, context, string(stackTraceBuffer))}}
+		return &ServiceInvalid{rclError: rclError{rclRetCode: 600, trace: stackTrace, context: errorsBuildContext(&ServiceInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_SERVICE_TAKE_FAILED:
-		return &ServiceTakeFailed{rclError: rclError{rclRetCode: 601, trace: string(stackTraceBuffer), context: errorsBuildContext(&ServiceTakeFailed{}, context, string(stackTraceBuffer))}}
+		return &ServiceTakeFailed{rclError: rclError{rclRetCode: 601, trace: stackTrace, context: errorsBuildContext(&ServiceTakeFailed{}, context, stackTrace)}}
 	case C.RCL_RET_TIMER_INVALID:
-		return &TimerInvalid{rclError: rclError{rclRetCode: 800, trace: string(stackTraceBuffer), context: errorsBuildContext(&TimerInvalid{}, context, string(stackTraceBuffer))}}
+		return &TimerInvalid{rclError: rclError{rclRetCode: 800, trace: stackTrace, context: errorsBuildContext(&TimerInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_TIMER_CANCELED:
-		return &TimerCanceled{rclError: rclError{rclRetCode: 801, trace: string(stackTraceBuffer), context: errorsBuildContext(&TimerCanceled{}, context, string(stackTraceBuffer))}}
+		return &TimerCanceled{rclError: rclError{rclRetCode: 801, trace: stackTrace, context: errorsBuildContext(&TimerCanceled{}, context, stackTrace)}}
 	case C.RCL_RET_WAIT_SET_INVALID:
-		return &WaitSetInvalid{rclError: rclError{rclRetCode: 900, trace: string(stackTraceBuffer), context: errorsBuildContext(&WaitSetInvalid{}, context, string(stackTraceBuffer))}}
+		return &WaitSetInvalid{rclError: rclError{rclRetCode: 900, trace: stackTrace, context: errorsBuildContext(&WaitSetInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_WAIT_SET_EMPTY:
-		return &WaitSetEmpty{rclError: rclError{rclRetCode: 901, trace: string(stackTraceBuffer), context: errorsBuildContext(&WaitSetEmpty{}, context, string(stackTraceBuffer))}}
+		return &WaitSetEmpty{rclError: rclError{rclRetCode: 901, trace: stackTrace, context: errorsBuildContext(&WaitSetEmpty{}, context, stackTrace)}}
 	case C.RCL_RET_WAIT_SET_FULL:
-		return &WaitSetFull{rclError: rclError{rclRetCode: 902, trace: string(stackTraceBuffer), context: errorsBuildContext(&WaitSetFull{}, context, string(stackTraceBuffer))}}
+		return &WaitSetFull{rclError: rclError{rclRetCode: 902, trace: stackTrace, context: errorsBuildContext(&WaitSetFull{}, context, stackTrace)}}
 	case C.RCL_RET_INVALID_REMAP_RULE:
-		return &InvalidRemapRule{rclError: rclError{rclRetCode: 1001, trace: string(stackTraceBuffer), context: errorsBuildContext(&InvalidRemapRule{}, context, string(stackTraceBuffer))}}
+		return &InvalidRemapRule{rclError: rclError{rclRetCode: 1001, trace: stackTrace, context: errorsBuildContext(&InvalidRemapRule{}, context, stackTrace)}}
 	case C.RCL_RET_WRONG_LEXEME:
-		return &WrongLexeme{rclError: rclError{rclRetCode: 1002, trace: string(stackTraceBuffer), context: errorsBuildContext(&WrongLexeme{}, context, string(stackTraceBuffer))}}
+		return &WrongLexeme{rclError: rclError{rclRetCode: 1002, trace: stackTrace, context: errorsBuildContext(&WrongLexeme{}, context, stackTrace)}}
 	case C.RCL_RET_INVALID_ROS_ARGS:
-		return &InvalidRosArgs{rclError: rclError{rclRetCode: 1003, trace: string(stackTraceBuffer), context: errorsBuildContext(&InvalidRosArgs{}, context, string(stackTraceBuffer))}}
+		return &InvalidRosArgs{rclError: rclError{rclRetCode: 1003, trace: stackTrace, context: errorsBuildContext(&InvalidRosArgs{}, context, stackTrace)}}
 	case C.RCL_RET_INVALID_PARAM_RULE:
-		return &InvalidParamRule{rclError: rclError{rclRetCode: 1010, trace: string(stackTraceBuffer), context: errorsBuildContext(&InvalidParamRule{}, context, string(stackTraceBuffer))}}
+		return &InvalidParamRule{rclError: rclError{rclRetCode: 1010, trace: stackTrace, context: errorsBuildContext(&InvalidParamRule{}, context, stackTrace)}}
 	case C.RCL_RET_INVALID_LOG_LEVEL_RULE:
-		return &InvalidLogLevelRule{rclError: rclError{rclRetCode: 1020, trace: string(stackTraceBuffer), context: errorsBuildContext(&InvalidLogLevelRule{}, context, string(stackTraceBuffer))}}
+		return &InvalidLogLevelRule{rclError: rclError{rclRetCode: 1020, trace: stackTrace, context: errorsBuildContext(&InvalidLogLevelRule{}, context, stackTrace)}}
 	case C.RCL_RET_EVENT_INVALID:
-		return &EventInvalid{rclError: rclError{rclRetCode: 2000, trace: string(stackTraceBuffer), context: errorsBuildContext(&EventInvalid{}, context, string(stackTraceBuffer))}}
+		return &EventInvalid{rclError: rclError{rclRetCode: 2000, trace: stackTrace, context: errorsBuildContext(&EventInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_EVENT_TAKE_FAILED:
-		return &EventTakeFailed{rclError: rclError{rclRetCode: 2001, trace: string(stackTraceBuffer), context: errorsBuildContext(&EventTakeFailed{}, context, string(stackTraceBuffer))}}
+		return &EventTakeFailed{rclError: rclError{rclRetCode: 2001, trace: stackTrace, context: errorsBuildContext(&EventTakeFailed{}, context, stackTrace)}}
 	case C.RCL_RET_LIFECYCLE_STATE_REGISTERED:
-		return &LifecycleStateRegistered{rclError: rclError{rclRetCode: 3000, trace: string(stackTraceBuffer), context: errorsBuildContext(&LifecycleStateRegistered{}, context, string(stackTraceBuffer))}}
+		return &LifecycleStateRegistered{rclError: rclError{rclRetCode: 3000, trace: stackTrace, context: errorsBuildContext(&LifecycleStateRegistered{}, context, stackTrace)}}
 	case C.RCL_RET_LIFECYCLE_STATE_NOT_REGISTERED:
-		return &LifecycleStateNotRegistered{rclError: rclError{rclRetCode: 3001, trace: string(stackTraceBuffer), context: errorsBuildContext(&LifecycleStateNotRegistered{}, context, string(stackTraceBuffer))}}
+		return &LifecycleStateNotRegistered{rclError: rclError{rclRetCode: 3001, trace: stackTrace, context: errorsBuildContext(&LifecycleStateNotRegistered{}, context, stackTrace)}}
 	case C.RCL_RET_ACTION_GOAL_ACCEPTED:
-		return &ActionGoalAccepted{rclError: rclError{rclRetCode: 2100, trace: string(stackTraceBuffer), context: errorsBuildContext(&ActionGoalAccepted{}, context, string(stackTraceBuffer))}}
+		return &ActionGoalAccepted{rclError: rclError{rclRetCode: 2100, trace: stackTrace, context: errorsBuildContext(&ActionGoalAccepted{}, context, stackTrace)}}
 	case C.RCL_RET_ACTION_GOAL_REJECTED:
-		return &ActionGoalRejected{rclError: rclError{rclRetCode: 2101, trace: string(stackTraceBuffer), context: errorsBuildContext(&ActionGoalRejected{}, context, string(stackTraceBuffer))}}
+		return &ActionGoalRejected{rclError: rclError{rclRetCode: 2101, trace: stackTrace, context: errorsBuildContext(&ActionGoalRejected{}, context, stackTrace)}}
 	case C.RCL_RET_ACTION_CLIENT_INVALID:
-		return &ActionClientInvalid{rclError: rclError{rclRetCode: 2102, trace: string(stackTraceBuffer), context: errorsBuildContext(&ActionClientInvalid{}, context, string(stackTraceBuffer))}}
+		return &ActionClientInvalid{rclError: rclError{rclRetCode: 2102, trace: stackTrace, context: errorsBuildContext(&ActionClientInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_ACTION_CLIENT_TAKE_FAILED:
-		return &ActionClientTakeFailed{rclError: rclError{rclRetCode: 2103, trace: string(stackTraceBuffer), context: errorsBuildContext(&ActionClientTakeFailed{}, context, string(stackTraceBuffer))}}
+		return &ActionClientTakeFailed{rclError: rclError{rclRetCode: 2103, trace: stackTrace, context: errorsBuildContext(&ActionClientTakeFailed{}, context, stackTrace)}}
 	case C.RCL_RET_ACTION_SERVER_INVALID:
-		return &ActionServerInvalid{rclError: rclError{rclRetCode: 2200, trace: string(stackTraceBuffer), context: errorsBuildContext(&ActionServerInvalid{}, context, string(stackTraceBuffer))}}
+		return &ActionServerInvalid{rclError: rclError{rclRetCode: 2200, trace: stackTrace, context: errorsBuildContext(&ActionServerInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_ACTION_SERVER_TAKE_FAILED:
-		return &ActionServerTakeFailed{rclError: rclError{rclRetCode: 2201, trace: string(stackTraceBuffer), context: errorsBuildContext(&ActionServerTakeFailed{}, context, string(stackTraceBuffer))}}
+		return &ActionServerTakeFailed{rclError: rclError{rclRetCode: 2201, trace: stackTrace, context: errorsBuildContext(&ActionServerTakeFailed{}, context, stackTrace)}}
 	case C.RCL_RET_ACTION_GOAL_HANDLE_INVALID:
-		return &ActionGoalHandleInvalid{rclError: rclError{rclRetCode: 2300, trace: string(stackTraceBuffer), context: errorsBuildContext(&ActionGoalHandleInvalid{}, context, string(stackTraceBuffer))}}
+		return &ActionGoalHandleInvalid{rclError: rclError{rclRetCode: 2300, trace: stackTrace, context: errorsBuildContext(&ActionGoalHandleInvalid{}, context, stackTrace)}}
 	case C.RCL_RET_ACTION_GOAL_EVENT_INVALID:
-		return &ActionGoalEventInvalid{rclError: rclError{rclRetCode: 2301, trace: string(stackTraceBuffer), context: errorsBuildContext(&ActionGoalEventInvalid{}, context, string(stackTraceBuffer))}}
+		return &ActionGoalEventInvalid{rclError: rclError{rclRetCode: 2301, trace: stackTrace, context: errorsBuildContext(&ActionGoalEventInvalid{}, context, stackTrace)}}
 	case C.RMW_RET_OK:
-		return &RmwOk{rclError: rclError{rclRetCode: 0, trace: string(stackTraceBuffer), context: errorsBuildContext(&RmwOk{}, context, string(stackTraceBuffer))}}
+		return &RmwOk{rclError: rclError{rclRetCode: 0, trace: stackTrace, context: errorsBuildContext(&RmwOk{}, context, stackTrace)}}
 	case C.RMW_RET_ERROR:
-		return &RmwError{rclError: rclError{rclRetCode: 1, trace: string(stackTraceBuffer), context: errorsBuildContext(&RmwError{}, context, string(stackTraceBuffer))}}
+		return &RmwError{rclError: rclError{rclRetCode: 1, trace: stackTrace, context: errorsBuildContext(&RmwError{}, context, stackTrace)}}
 	case C.RMW_RET_TIMEOUT:
-		return &RmwTimeout{rclError: rclError{rclRetCode: 2, trace: string(stackTraceBuffer), context: errorsBuildContext(&RmwTimeout{}, context, string(stackTraceBuffer))}}
+		return &RmwTimeout{rclError: rclError{rclRetCode: 2, trace: stackTrace, context: errorsBuildContext(&RmwTimeout{}, context, stackTrace)}}
 	case C.RMW_RET_UNSUPPORTED:
-		return &RmwUnsupported{rclError: rclError{rclRetCode: 3, trace: string(stackTraceBuffer), context: errorsBuildContext(&RmwUnsupported{}, context, string(stackTraceBuffer))}}
+		return &RmwUnsupported{rclError: rclError{rclRetCode: 3, trace: stackTrace, context: errorsBuildContext(&RmwUnsupported{}, context, stackTrace)}}
 	case C.RMW_RET_BAD_ALLOC:
-		return &RmwBadAlloc{rclError: rclError{rclRetCode: 10, trace: string(stackTraceBuffer), context: errorsBuildContext(&RmwBadAlloc{}, context, string(stackTraceBuffer))}}
+		return &RmwBadAlloc{rclError: rclError{rclRetCode: 10, trace: stackTrace, context: errorsBuildContext(&RmwBadAlloc{}, context, stackTrace)}}
 	case C.RMW_RET_INVALID_ARGUMENT:
-		return &RmwInvalidArgument{rclError: rclError{rclRetCode: 11, trace: string(stackTraceBuffer), context: errorsBuildContext(&RmwInvalidArgument{}, context, string(stackTraceBuffer))}}
+		return &RmwInvalidArgument{rclError: rclError{rclRetCode: 11, trace: stackTrace, context: errorsBuildContext(&RmwInvalidArgument{}, context, stackTrace)}}
 	case C.RMW_RET_INCORRECT_RMW_IMPLEMENTATION:
-		return &RmwIncorrectRmwImplementation{rclError: rclError{rclRetCode: 12, trace: string(stackTraceBuffer), context: errorsBuildContext(&RmwIncorrectRmwImplementation{}, context, string(stackTraceBuffer))}}
+		return &RmwIncorrectRmwImplementation{rclError: rclError{rclRetCode: 12, trace: stackTrace, context: errorsBuildContext(&RmwIncorrectRmwImplementation{}, context, stackTrace)}}
 
 	default:
 		return &UnknownReturnCode{rclError: rclError{rclRetCode: int(rcl_ret_t), context: context}}
