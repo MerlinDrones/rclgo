@@ -36,8 +36,12 @@ func FuzzExpandTopicName(f *testing.F) {
 // RMW_IMPLEMENTATION=rmw_cyclonedds_cpp, which rejects such input cleanly.
 //
 // Fuzzing this target under Cyclone DDS has also driven a worker to over
-// 20 GB of memory (likely a sequence length taken from the input before it is
-// bounds-checked). Always fuzz it under a memory cap, e.g.
+// 20 GB of memory. The cause is in rmw_cyclonedds, not rclgo: on Humble,
+// Jazzy and Kilted its C type support initializes sequence fields again
+// without finalizing them, so each deserialize of a message with
+// default-valued sequences leaks their buffers, and the fuzzer's millions of
+// calls add up (ros2/rmw_cyclonedds#619; fix proposed in
+// ros2/rmw_cyclonedds#634). Always fuzz it under a memory cap, e.g.
 //
 //	(ulimit -v 4000000; RMW_IMPLEMENTATION=rmw_cyclonedds_cpp go test -run '^$' -fuzz FuzzDeserialize -parallel 2 ./pkg/rclgo/)
 func FuzzDeserialize(f *testing.F) {
