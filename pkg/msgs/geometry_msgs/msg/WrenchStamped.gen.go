@@ -56,6 +56,18 @@ func (t *WrenchStamped) GetTypeSupport() types.MessageTypeSupport {
 	return WrenchStampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *WrenchStamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Wrench); err != nil {
+		return types.InField("wrench", err)
+	}
+	return nil
+}
+
 // WrenchStampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type WrenchStampedPublisher struct {
@@ -88,11 +100,17 @@ type WrenchStampedSubscriptionCallback func(msg *WrenchStamped, info *rclgo.Mess
 
 // NewWrenchStampedSubscription creates and returns a new subscription for the
 // WrenchStamped
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewWrenchStampedSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback WrenchStampedSubscriptionCallback) (*WrenchStampedSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg WrenchStamped
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg WrenchStamped
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, WrenchStampedTypeSupport, opts, callback)
 	if err != nil {
@@ -153,6 +171,7 @@ type CWrenchStamped__Sequence = C.geometry_msgs__msg__WrenchStamped__Sequence
 
 func WrenchStamped__Sequence_to_Go(goSlice *[]WrenchStamped, cSlice CWrenchStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]WrenchStamped, cSlice.size)
@@ -161,14 +180,17 @@ func WrenchStamped__Sequence_to_Go(goSlice *[]WrenchStamped, cSlice CWrenchStamp
 		WrenchStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func WrenchStamped__Sequence_to_C(cSlice *CWrenchStamped__Sequence, goSlice []WrenchStamped) {
+func WrenchStamped__Sequence_into_C(cSlice *CWrenchStamped__Sequence, goSlice []WrenchStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__WrenchStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__WrenchStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__WrenchStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__WrenchStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__WrenchStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +203,7 @@ func WrenchStamped__Array_to_Go(goSlice []WrenchStamped, cSlice []CWrenchStamped
 		WrenchStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func WrenchStamped__Array_to_C(cSlice []CWrenchStamped, goSlice []WrenchStamped) {
+func WrenchStamped__Array_into_C(cSlice []CWrenchStamped, goSlice []WrenchStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		WrenchStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

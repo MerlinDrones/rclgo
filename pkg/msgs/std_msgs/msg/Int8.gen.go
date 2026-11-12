@@ -52,6 +52,12 @@ func (t *Int8) GetTypeSupport() types.MessageTypeSupport {
 	return Int8TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Int8) CheckBounds() error {
+	return nil
+}
+
 // Int8Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Int8Publisher struct {
@@ -84,11 +90,17 @@ type Int8SubscriptionCallback func(msg *Int8, info *rclgo.MessageInfo, err error
 
 // NewInt8Subscription creates and returns a new subscription for the
 // Int8
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewInt8Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Int8SubscriptionCallback) (*Int8Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Int8
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Int8
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Int8TypeSupport, opts, callback)
 	if err != nil {
@@ -147,6 +159,7 @@ type CInt8__Sequence = C.std_msgs__msg__Int8__Sequence
 
 func Int8__Sequence_to_Go(goSlice *[]Int8, cSlice CInt8__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Int8, cSlice.size)
@@ -155,14 +168,17 @@ func Int8__Sequence_to_Go(goSlice *[]Int8, cSlice CInt8__Sequence) {
 		Int8TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Int8__Sequence_to_C(cSlice *CInt8__Sequence, goSlice []Int8) {
+func Int8__Sequence_into_C(cSlice *CInt8__Sequence, goSlice []Int8) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Int8__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Int8)(C.malloc(C.sizeof_struct_std_msgs__msg__Int8 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Int8)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Int8))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -175,7 +191,7 @@ func Int8__Array_to_Go(goSlice []Int8, cSlice []CInt8) {
 		Int8TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Int8__Array_to_C(cSlice []CInt8, goSlice []Int8) {
+func Int8__Array_into_C(cSlice []CInt8, goSlice []Int8) {
 	for i := 0; i < len(goSlice); i++ {
 		Int8TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

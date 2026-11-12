@@ -55,6 +55,18 @@ func (t *Transform) GetTypeSupport() types.MessageTypeSupport {
 	return TransformTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Transform) CheckBounds() error {
+	if err := types.CheckBounds(&t.Translation); err != nil {
+		return types.InField("translation", err)
+	}
+	if err := types.CheckBounds(&t.Rotation); err != nil {
+		return types.InField("rotation", err)
+	}
+	return nil
+}
+
 // TransformPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TransformPublisher struct {
@@ -87,11 +99,17 @@ type TransformSubscriptionCallback func(msg *Transform, info *rclgo.MessageInfo,
 
 // NewTransformSubscription creates and returns a new subscription for the
 // Transform
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTransformSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TransformSubscriptionCallback) (*TransformSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Transform
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Transform
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TransformTypeSupport, opts, callback)
 	if err != nil {
@@ -152,6 +170,7 @@ type CTransform__Sequence = C.geometry_msgs__msg__Transform__Sequence
 
 func Transform__Sequence_to_Go(goSlice *[]Transform, cSlice CTransform__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Transform, cSlice.size)
@@ -160,14 +179,17 @@ func Transform__Sequence_to_Go(goSlice *[]Transform, cSlice CTransform__Sequence
 		TransformTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Transform__Sequence_to_C(cSlice *CTransform__Sequence, goSlice []Transform) {
+func Transform__Sequence_into_C(cSlice *CTransform__Sequence, goSlice []Transform) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Transform__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Transform)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Transform * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Transform)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Transform))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -180,7 +202,7 @@ func Transform__Array_to_Go(goSlice []Transform, cSlice []CTransform) {
 		TransformTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Transform__Array_to_C(cSlice []CTransform, goSlice []Transform) {
+func Transform__Array_into_C(cSlice []CTransform, goSlice []Transform) {
 	for i := 0; i < len(goSlice); i++ {
 		TransformTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

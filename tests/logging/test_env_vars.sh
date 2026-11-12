@@ -1,4 +1,11 @@
 #!/bin/bash
+# This file is part of rclgo
+#
+# Copyright © 2025 Merlin Drones
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+#     http://www.apache.org/licenses/LICENSE-2.0
+
 # Test script to compare RCLGO_REALTIME_LOGGING vs RCUTILS_LOGGING_BUFFERED_STREAM
 # This tests whether the ROS 2 standard environment variable provides better file flushing
 

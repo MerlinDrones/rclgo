@@ -59,6 +59,12 @@ func (t *ChannelFloat32) GetTypeSupport() types.MessageTypeSupport {
 	return ChannelFloat32TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ChannelFloat32) CheckBounds() error {
+	return nil
+}
+
 // ChannelFloat32Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ChannelFloat32Publisher struct {
@@ -91,11 +97,17 @@ type ChannelFloat32SubscriptionCallback func(msg *ChannelFloat32, info *rclgo.Me
 
 // NewChannelFloat32Subscription creates and returns a new subscription for the
 // ChannelFloat32
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewChannelFloat32Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ChannelFloat32SubscriptionCallback) (*ChannelFloat32Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ChannelFloat32
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ChannelFloat32
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ChannelFloat32TypeSupport, opts, callback)
 	if err != nil {
@@ -136,8 +148,8 @@ func (t _ChannelFloat32TypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer
 func (t _ChannelFloat32TypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ChannelFloat32)
 	mem := (*C.sensor_msgs__msg__ChannelFloat32)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.values)), m.Values)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.values)), m.Values)
 }
 
 func (t _ChannelFloat32TypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +168,7 @@ type CChannelFloat32__Sequence = C.sensor_msgs__msg__ChannelFloat32__Sequence
 
 func ChannelFloat32__Sequence_to_Go(goSlice *[]ChannelFloat32, cSlice CChannelFloat32__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ChannelFloat32, cSlice.size)
@@ -164,14 +177,17 @@ func ChannelFloat32__Sequence_to_Go(goSlice *[]ChannelFloat32, cSlice CChannelFl
 		ChannelFloat32TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ChannelFloat32__Sequence_to_C(cSlice *CChannelFloat32__Sequence, goSlice []ChannelFloat32) {
+func ChannelFloat32__Sequence_into_C(cSlice *CChannelFloat32__Sequence, goSlice []ChannelFloat32) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__ChannelFloat32__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__ChannelFloat32)(C.malloc(C.sizeof_struct_sensor_msgs__msg__ChannelFloat32 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__ChannelFloat32)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__ChannelFloat32))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +200,7 @@ func ChannelFloat32__Array_to_Go(goSlice []ChannelFloat32, cSlice []CChannelFloa
 		ChannelFloat32TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ChannelFloat32__Array_to_C(cSlice []CChannelFloat32, goSlice []ChannelFloat32) {
+func ChannelFloat32__Array_into_C(cSlice []CChannelFloat32, goSlice []ChannelFloat32) {
 	for i := 0; i < len(goSlice); i++ {
 		ChannelFloat32TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

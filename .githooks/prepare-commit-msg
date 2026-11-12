@@ -1,0 +1,74 @@
+#!/bin/bash
+# SwarmOS prepare-commit-msg hook
+# Handles both regular commits and git-flow merges
+#
+# Canonical copy lives in swarmos-devtools/hooks/; do not edit the copy in a
+# repo's .githooks/.
+
+# shellcheck source=SCRIPTDIR/lib.sh
+source "$(dirname "$0")/lib.sh"
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+
+# Function to extract branch name from merge message
+get_branch_name() {
+    grep -oP "Merge branch '\K[^']+" "$COMMIT_MSG_FILE" 2>/dev/null || echo ""
+}
+
+# Function to determine commit type from branch name
+get_commit_type_from_branch() {
+    case "$1" in
+        feature/*) echo "feat" ;;
+        bugfix/*) echo "fix" ;;
+        hotfix/*) echo "fix" ;;
+        *) echo "chore" ;;
+    esac
+}
+
+# Handle merge commits (git-flow feature/release finish, etc.)
+# COMMIT_SOURCE is "merge" for plain `git merge`, but git-flow passes -m which
+# sets COMMIT_SOURCE to "message" — so also check for MERGE_HEAD.
+if [ "$COMMIT_SOURCE" = "merge" ] || { [ "$COMMIT_SOURCE" = "message" ] && in_merge; }; then
+    BRANCH=$(get_branch_name)
+
+    if [ -n "$BRANCH" ]; then
+        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+        if [[ "$BRANCH" =~ ^release/ ]]; then
+            cat > "$COMMIT_MSG_FILE" << TEMPLATE
+chore(release): merge ${BRANCH} to ${CURRENT_BRANCH}
+
+Merge ${BRANCH} into ${CURRENT_BRANCH}
+TEMPLATE
+        else
+            TYPE=$(get_commit_type_from_branch "$BRANCH")
+            FEATURE="${BRANCH#*/}"
+            cat > "$COMMIT_MSG_FILE" << TEMPLATE
+${TYPE}: merge ${FEATURE}
+
+Merge branch '${BRANCH}' into ${CURRENT_BRANCH}
+TEMPLATE
+        fi
+    fi
+    exit 0
+fi
+
+# Handle regular commits (not merge, not amend): add template if message is empty
+if [ -z "$COMMIT_SOURCE" ]; then
+    if ! grep -q "^[^#]" "$COMMIT_MSG_FILE" 2>/dev/null; then
+        cat > "$COMMIT_MSG_FILE" << 'TEMPLATE'
+# type(scope): brief description
+#
+# Longer description if needed. Explain the "why", not the "what".
+#
+# Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert
+# Scope: component name (e.g., skyhook, operator, node_state)
+#
+# Examples:
+#   feat(skyhook): add orbit mode for circular paths
+#   fix(operator): resolve memory leak in message routing
+#   docs(readme): update build instructions for ROS 2
+TEMPLATE
+    fi
+fi

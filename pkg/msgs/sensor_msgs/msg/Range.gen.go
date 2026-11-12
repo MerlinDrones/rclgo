@@ -76,6 +76,15 @@ func (t *Range) GetTypeSupport() types.MessageTypeSupport {
 	return RangeTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Range) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // RangePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type RangePublisher struct {
@@ -108,11 +117,17 @@ type RangeSubscriptionCallback func(msg *Range, info *rclgo.MessageInfo, err err
 
 // NewRangeSubscription creates and returns a new subscription for the
 // Range
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewRangeSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback RangeSubscriptionCallback) (*RangeSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Range
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Range
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, RangeTypeSupport, opts, callback)
 	if err != nil {
@@ -183,6 +198,7 @@ type CRange__Sequence = C.sensor_msgs__msg__Range__Sequence
 
 func Range__Sequence_to_Go(goSlice *[]Range, cSlice CRange__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Range, cSlice.size)
@@ -191,14 +207,17 @@ func Range__Sequence_to_Go(goSlice *[]Range, cSlice CRange__Sequence) {
 		RangeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Range__Sequence_to_C(cSlice *CRange__Sequence, goSlice []Range) {
+func Range__Sequence_into_C(cSlice *CRange__Sequence, goSlice []Range) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__Range__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__Range)(C.malloc(C.sizeof_struct_sensor_msgs__msg__Range * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__Range)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__Range))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -211,7 +230,7 @@ func Range__Array_to_Go(goSlice []Range, cSlice []CRange) {
 		RangeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Range__Array_to_C(cSlice []CRange, goSlice []Range) {
+func Range__Array_into_C(cSlice []CRange, goSlice []Range) {
 	for i := 0; i < len(goSlice); i++ {
 		RangeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -66,6 +66,15 @@ func (t *Joy) GetTypeSupport() types.MessageTypeSupport {
 	return JoyTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Joy) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // JoyPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type JoyPublisher struct {
@@ -98,11 +107,17 @@ type JoySubscriptionCallback func(msg *Joy, info *rclgo.MessageInfo, err error)
 
 // NewJoySubscription creates and returns a new subscription for the
 // Joy
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewJoySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback JoySubscriptionCallback) (*JoySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Joy
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Joy
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, JoyTypeSupport, opts, callback)
 	if err != nil {
@@ -144,8 +159,8 @@ func (t _JoyTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Joy)
 	mem := (*C.sensor_msgs__msg__Joy)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.axes)), m.Axes)
-	primitives.Int32__Sequence_to_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.buttons)), m.Buttons)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.axes)), m.Axes)
+	primitives.Int32__Sequence_into_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.buttons)), m.Buttons)
 }
 
 func (t _JoyTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -165,6 +180,7 @@ type CJoy__Sequence = C.sensor_msgs__msg__Joy__Sequence
 
 func Joy__Sequence_to_Go(goSlice *[]Joy, cSlice CJoy__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Joy, cSlice.size)
@@ -173,14 +189,17 @@ func Joy__Sequence_to_Go(goSlice *[]Joy, cSlice CJoy__Sequence) {
 		JoyTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Joy__Sequence_to_C(cSlice *CJoy__Sequence, goSlice []Joy) {
+func Joy__Sequence_into_C(cSlice *CJoy__Sequence, goSlice []Joy) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__Joy__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__Joy)(C.malloc(C.sizeof_struct_sensor_msgs__msg__Joy * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__Joy)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__Joy))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -193,7 +212,7 @@ func Joy__Array_to_Go(goSlice []Joy, cSlice []CJoy) {
 		JoyTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Joy__Array_to_C(cSlice []CJoy, goSlice []Joy) {
+func Joy__Array_into_C(cSlice []CJoy, goSlice []Joy) {
 	for i := 0; i < len(goSlice); i++ {
 		JoyTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

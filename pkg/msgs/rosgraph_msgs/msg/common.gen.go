@@ -8,6 +8,7 @@ package rosgraph_msgs_msg
 #cgo LDFLAGS: -lrcl -lrosidl_runtime_c -lrosidl_typesupport_c -lrcutils -lrmw_implementation
 #cgo LDFLAGS: -lrosgraph_msgs__rosidl_typesupport_c -lrosgraph_msgs__rosidl_generator_c
 #cgo LDFLAGS: -lbuiltin_interfaces__rosidl_typesupport_c -lbuiltin_interfaces__rosidl_generator_c
+#cgo LDFLAGS: -lrcl_interfaces__rosidl_typesupport_c -lrcl_interfaces__rosidl_generator_c
 
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/action_msgs"
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/builtin_interfaces"
@@ -25,6 +26,8 @@ package rosgraph_msgs_msg
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/type_description_interfaces"
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/unique_identifier_msgs"
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/builtin_interfaces"
+
+#cgo CFLAGS: "-I/opt/ros/jazzy/include/rcl_interfaces"
 
 #cgo CFLAGS: "-I/opt/ros/jazzy/include/rosgraph_msgs"
 */

@@ -66,6 +66,23 @@ func (t *Detection3D) GetTypeSupport() types.MessageTypeSupport {
 	return Detection3DTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Detection3D) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Results {
+		if err := types.CheckBounds(&t.Results[i]); err != nil {
+			return types.InElement("results", i, err)
+		}
+	}
+	if err := types.CheckBounds(&t.Bbox); err != nil {
+		return types.InField("bbox", err)
+	}
+	return nil
+}
+
 // Detection3DPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Detection3DPublisher struct {
@@ -98,11 +115,17 @@ type Detection3DSubscriptionCallback func(msg *Detection3D, info *rclgo.MessageI
 
 // NewDetection3DSubscription creates and returns a new subscription for the
 // Detection3D
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewDetection3DSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Detection3DSubscriptionCallback) (*Detection3DSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Detection3D
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Detection3D
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Detection3DTypeSupport, opts, callback)
 	if err != nil {
@@ -144,9 +167,9 @@ func (t _Detection3DTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message
 	m := msg.(*Detection3D)
 	mem := (*C.vision_msgs__msg__Detection3D)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	ObjectHypothesisWithPose__Sequence_to_C(&mem.results, m.Results)
+	ObjectHypothesisWithPose__Sequence_into_C(&mem.results, m.Results)
 	BoundingBox3DTypeSupport.AsCStruct(unsafe.Pointer(&mem.bbox), &m.Bbox)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.id), m.Id)
+	primitives.StringIntoC(unsafe.Pointer(&mem.id), m.Id)
 }
 
 func (t _Detection3DTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -167,6 +190,7 @@ type CDetection3D__Sequence = C.vision_msgs__msg__Detection3D__Sequence
 
 func Detection3D__Sequence_to_Go(goSlice *[]Detection3D, cSlice CDetection3D__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Detection3D, cSlice.size)
@@ -175,14 +199,17 @@ func Detection3D__Sequence_to_Go(goSlice *[]Detection3D, cSlice CDetection3D__Se
 		Detection3DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Detection3D__Sequence_to_C(cSlice *CDetection3D__Sequence, goSlice []Detection3D) {
+func Detection3D__Sequence_into_C(cSlice *CDetection3D__Sequence, goSlice []Detection3D) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__Detection3D__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__Detection3D)(C.malloc(C.sizeof_struct_vision_msgs__msg__Detection3D * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__Detection3D)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__Detection3D))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -195,7 +222,7 @@ func Detection3D__Array_to_Go(goSlice []Detection3D, cSlice []CDetection3D) {
 		Detection3DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Detection3D__Array_to_C(cSlice []CDetection3D, goSlice []Detection3D) {
+func Detection3D__Array_into_C(cSlice []CDetection3D, goSlice []Detection3D) {
 	for i := 0; i < len(goSlice); i++ {
 		Detection3DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

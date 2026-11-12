@@ -55,6 +55,15 @@ func (t *Fibonacci_SendGoal_Response) SetDefaults() {
 func (t *Fibonacci_SendGoal_Response) GetTypeSupport() types.MessageTypeSupport {
 	return Fibonacci_SendGoal_ResponseTypeSupport
 }
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Fibonacci_SendGoal_Response) CheckBounds() error {
+	if err := types.CheckBounds(&t.Stamp); err != nil {
+		return types.InField("stamp", err)
+	}
+	return nil
+}
 func (t *Fibonacci_SendGoal_Response) GetGoalAccepted() bool {
 	return t.Accepted
 }
@@ -91,11 +100,17 @@ type Fibonacci_SendGoal_ResponseSubscriptionCallback func(msg *Fibonacci_SendGoa
 
 // NewFibonacci_SendGoal_ResponseSubscription creates and returns a new subscription for the
 // Fibonacci_SendGoal_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFibonacci_SendGoal_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Fibonacci_SendGoal_ResponseSubscriptionCallback) (*Fibonacci_SendGoal_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Fibonacci_SendGoal_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Fibonacci_SendGoal_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Fibonacci_SendGoal_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -156,6 +171,7 @@ type CFibonacci_SendGoal_Response__Sequence = C.test_msgs__action__Fibonacci_Sen
 
 func Fibonacci_SendGoal_Response__Sequence_to_Go(goSlice *[]Fibonacci_SendGoal_Response, cSlice CFibonacci_SendGoal_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Fibonacci_SendGoal_Response, cSlice.size)
@@ -164,14 +180,17 @@ func Fibonacci_SendGoal_Response__Sequence_to_Go(goSlice *[]Fibonacci_SendGoal_R
 		Fibonacci_SendGoal_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Fibonacci_SendGoal_Response__Sequence_to_C(cSlice *CFibonacci_SendGoal_Response__Sequence, goSlice []Fibonacci_SendGoal_Response) {
+func Fibonacci_SendGoal_Response__Sequence_into_C(cSlice *CFibonacci_SendGoal_Response__Sequence, goSlice []Fibonacci_SendGoal_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__Fibonacci_SendGoal_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__Fibonacci_SendGoal_Response)(C.malloc(C.sizeof_struct_test_msgs__action__Fibonacci_SendGoal_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__Fibonacci_SendGoal_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__Fibonacci_SendGoal_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +203,7 @@ func Fibonacci_SendGoal_Response__Array_to_Go(goSlice []Fibonacci_SendGoal_Respo
 		Fibonacci_SendGoal_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Fibonacci_SendGoal_Response__Array_to_C(cSlice []CFibonacci_SendGoal_Response, goSlice []Fibonacci_SendGoal_Response) {
+func Fibonacci_SendGoal_Response__Array_into_C(cSlice []CFibonacci_SendGoal_Response, goSlice []Fibonacci_SendGoal_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		Fibonacci_SendGoal_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

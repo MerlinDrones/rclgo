@@ -65,6 +65,12 @@ func (t *LoggerLevel) GetTypeSupport() types.MessageTypeSupport {
 	return LoggerLevelTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *LoggerLevel) CheckBounds() error {
+	return nil
+}
+
 // LoggerLevelPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type LoggerLevelPublisher struct {
@@ -97,11 +103,17 @@ type LoggerLevelSubscriptionCallback func(msg *LoggerLevel, info *rclgo.MessageI
 
 // NewLoggerLevelSubscription creates and returns a new subscription for the
 // LoggerLevel
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewLoggerLevelSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback LoggerLevelSubscriptionCallback) (*LoggerLevelSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg LoggerLevel
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg LoggerLevel
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, LoggerLevelTypeSupport, opts, callback)
 	if err != nil {
@@ -142,7 +154,7 @@ func (t _LoggerLevelTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _LoggerLevelTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*LoggerLevel)
 	mem := (*C.rcl_interfaces__msg__LoggerLevel)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
 	mem.level = C.uint32_t(m.Level)
 }
 
@@ -162,6 +174,7 @@ type CLoggerLevel__Sequence = C.rcl_interfaces__msg__LoggerLevel__Sequence
 
 func LoggerLevel__Sequence_to_Go(goSlice *[]LoggerLevel, cSlice CLoggerLevel__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]LoggerLevel, cSlice.size)
@@ -170,14 +183,17 @@ func LoggerLevel__Sequence_to_Go(goSlice *[]LoggerLevel, cSlice CLoggerLevel__Se
 		LoggerLevelTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func LoggerLevel__Sequence_to_C(cSlice *CLoggerLevel__Sequence, goSlice []LoggerLevel) {
+func LoggerLevel__Sequence_into_C(cSlice *CLoggerLevel__Sequence, goSlice []LoggerLevel) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__LoggerLevel__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__LoggerLevel)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__LoggerLevel * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__LoggerLevel)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__LoggerLevel))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +206,7 @@ func LoggerLevel__Array_to_Go(goSlice []LoggerLevel, cSlice []CLoggerLevel) {
 		LoggerLevelTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func LoggerLevel__Array_to_C(cSlice []CLoggerLevel, goSlice []LoggerLevel) {
+func LoggerLevel__Array_into_C(cSlice []CLoggerLevel, goSlice []LoggerLevel) {
 	for i := 0; i < len(goSlice); i++ {
 		LoggerLevelTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

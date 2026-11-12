@@ -56,6 +56,17 @@ func (t *GetParameters_Response) GetTypeSupport() types.MessageTypeSupport {
 	return GetParameters_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *GetParameters_Response) CheckBounds() error {
+	for i := range t.Values {
+		if err := types.CheckBounds(&t.Values[i]); err != nil {
+			return types.InElement("values", i, err)
+		}
+	}
+	return nil
+}
+
 // GetParameters_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type GetParameters_ResponsePublisher struct {
@@ -88,11 +99,17 @@ type GetParameters_ResponseSubscriptionCallback func(msg *GetParameters_Response
 
 // NewGetParameters_ResponseSubscription creates and returns a new subscription for the
 // GetParameters_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewGetParameters_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback GetParameters_ResponseSubscriptionCallback) (*GetParameters_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg GetParameters_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg GetParameters_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, GetParameters_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -133,7 +150,7 @@ func (t _GetParameters_ResponseTypeSupport) ReleaseMemory(pointer_to_free unsafe
 func (t _GetParameters_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*GetParameters_Response)
 	mem := (*C.rcl_interfaces__srv__GetParameters_Response)(dst)
-	rcl_interfaces_msg.ParameterValue__Sequence_to_C((*rcl_interfaces_msg.CParameterValue__Sequence)(unsafe.Pointer(&mem.values)), m.Values)
+	rcl_interfaces_msg.ParameterValue__Sequence_into_C((*rcl_interfaces_msg.CParameterValue__Sequence)(unsafe.Pointer(&mem.values)), m.Values)
 }
 
 func (t _GetParameters_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -151,6 +168,7 @@ type CGetParameters_Response__Sequence = C.rcl_interfaces__srv__GetParameters_Re
 
 func GetParameters_Response__Sequence_to_Go(goSlice *[]GetParameters_Response, cSlice CGetParameters_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]GetParameters_Response, cSlice.size)
@@ -159,14 +177,17 @@ func GetParameters_Response__Sequence_to_Go(goSlice *[]GetParameters_Response, c
 		GetParameters_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetParameters_Response__Sequence_to_C(cSlice *CGetParameters_Response__Sequence, goSlice []GetParameters_Response) {
+func GetParameters_Response__Sequence_into_C(cSlice *CGetParameters_Response__Sequence, goSlice []GetParameters_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__srv__GetParameters_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__srv__GetParameters_Response)(C.malloc(C.sizeof_struct_rcl_interfaces__srv__GetParameters_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__srv__GetParameters_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__srv__GetParameters_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -179,7 +200,7 @@ func GetParameters_Response__Array_to_Go(goSlice []GetParameters_Response, cSlic
 		GetParameters_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetParameters_Response__Array_to_C(cSlice []CGetParameters_Response, goSlice []GetParameters_Response) {
+func GetParameters_Response__Array_into_C(cSlice []CGetParameters_Response, goSlice []GetParameters_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		GetParameters_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

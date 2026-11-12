@@ -59,6 +59,15 @@ func (t *Int32MultiArray) GetTypeSupport() types.MessageTypeSupport {
 	return Int32MultiArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Int32MultiArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Layout); err != nil {
+		return types.InField("layout", err)
+	}
+	return nil
+}
+
 // Int32MultiArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Int32MultiArrayPublisher struct {
@@ -91,11 +100,17 @@ type Int32MultiArraySubscriptionCallback func(msg *Int32MultiArray, info *rclgo.
 
 // NewInt32MultiArraySubscription creates and returns a new subscription for the
 // Int32MultiArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewInt32MultiArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Int32MultiArraySubscriptionCallback) (*Int32MultiArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Int32MultiArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Int32MultiArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Int32MultiArrayTypeSupport, opts, callback)
 	if err != nil {
@@ -137,7 +152,7 @@ func (t _Int32MultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mes
 	m := msg.(*Int32MultiArray)
 	mem := (*C.example_interfaces__msg__Int32MultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Int32__Sequence_to_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Int32__Sequence_into_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _Int32MultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +171,7 @@ type CInt32MultiArray__Sequence = C.example_interfaces__msg__Int32MultiArray__Se
 
 func Int32MultiArray__Sequence_to_Go(goSlice *[]Int32MultiArray, cSlice CInt32MultiArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Int32MultiArray, cSlice.size)
@@ -164,14 +180,17 @@ func Int32MultiArray__Sequence_to_Go(goSlice *[]Int32MultiArray, cSlice CInt32Mu
 		Int32MultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Int32MultiArray__Sequence_to_C(cSlice *CInt32MultiArray__Sequence, goSlice []Int32MultiArray) {
+func Int32MultiArray__Sequence_into_C(cSlice *CInt32MultiArray__Sequence, goSlice []Int32MultiArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__Int32MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__Int32MultiArray)(C.malloc(C.sizeof_struct_example_interfaces__msg__Int32MultiArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__Int32MultiArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__Int32MultiArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +203,7 @@ func Int32MultiArray__Array_to_Go(goSlice []Int32MultiArray, cSlice []CInt32Mult
 		Int32MultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Int32MultiArray__Array_to_C(cSlice []CInt32MultiArray, goSlice []Int32MultiArray) {
+func Int32MultiArray__Array_into_C(cSlice []CInt32MultiArray, goSlice []Int32MultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		Int32MultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

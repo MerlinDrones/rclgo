@@ -97,7 +97,9 @@ if err := clock.SleepUntil(ctx, deadline); err != nil {
 }
 ```
 
-If sim time is enabled, `SleepUntil` blocks until `/clock` has advanced to the target time.
+If sim time is enabled, `SleepUntil` blocks until `/clock` has advanced to the target time. It returns `ctx.Err()`
+as soon as the context ends (also while a paused simulator publishes nothing), and `rostime.ErrTimeJumpedBack` if
+simulated time jumps backwards during the sleep (a simulation reset or a looping bag).
 
 ---
 
@@ -106,7 +108,7 @@ If sim time is enabled, `SleepUntil` blocks until `/clock` has advanced to the t
 `Rate` is a convenience wrapper for steady loop timing.
 
 ```go
-r := rostime.NewRate(clock, 10) // 10 Hz loop
+r := clock.Rate(10) // 10 Hz loop
 
 for {
     // Do work here
@@ -118,14 +120,21 @@ for {
 ```
 
 * Uses the provided `Clock` (so sim time or wall time automatically apply).
-* Maintains the requested frequency regardless of execution time (like ROS 2).
+* Maintains the requested frequency regardless of execution time, with rclcpp's `Rate::sleep` rules: if an
+  iteration overran by more than a period, the rate resets instead of returning immediately until it has caught up;
+  if time jumped backwards, it counts periods from the new time.
 
 ---
 
 ## `/use_sim_time`
 
 * Declared automatically by `params.Manager` (`false` by default).
-* When set to `true`, `Clock` switches to `/clock` subscription.
+* When set to `true` (at start-up or later, e.g. with `ros2 param set`), `Clock` switches to the `/clock`
+  subscription; setting it back to `false` returns to the system time. Sleepers wake up and continue on the new source.
+* Until the first `/clock` message arrives, simulated time is zero (as in rclcpp and rclpy).
+* While simulated time is active, `Clock` also drives the ROS-time clock of the node's context, so rclgo timers and
+  action servers on that context follow `/clock` (they stop while the simulation is paused). That clock is shared by
+  every node of the context. A context created with a system-time or steady clock is not affected.
 * QoS is explicitly set to **KeepLast(1), BestEffort, Volatile** (ROS 2 standard).
 
 To enable sim time:
@@ -143,7 +152,7 @@ ros2 param set /your_node use_sim_time true
 ```go
 pm, _ := params.NewManager(node)
 clock, _ := rostime.NewClock(ctx, node, pm)
-r := rostime.NewRate(clock, 1) // 1 Hz
+r := clock.Rate(1) // 1 Hz
 
 for {
     log.Infof("tick at %v", clock.Now())

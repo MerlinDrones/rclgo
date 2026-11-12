@@ -55,6 +55,12 @@ func (t *Point2D) GetTypeSupport() types.MessageTypeSupport {
 	return Point2DTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Point2D) CheckBounds() error {
+	return nil
+}
+
 // Point2DPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Point2DPublisher struct {
@@ -87,11 +93,17 @@ type Point2DSubscriptionCallback func(msg *Point2D, info *rclgo.MessageInfo, err
 
 // NewPoint2DSubscription creates and returns a new subscription for the
 // Point2D
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPoint2DSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Point2DSubscriptionCallback) (*Point2DSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Point2D
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Point2D
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Point2DTypeSupport, opts, callback)
 	if err != nil {
@@ -152,6 +164,7 @@ type CPoint2D__Sequence = C.vision_msgs__msg__Point2D__Sequence
 
 func Point2D__Sequence_to_Go(goSlice *[]Point2D, cSlice CPoint2D__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Point2D, cSlice.size)
@@ -160,14 +173,17 @@ func Point2D__Sequence_to_Go(goSlice *[]Point2D, cSlice CPoint2D__Sequence) {
 		Point2DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Point2D__Sequence_to_C(cSlice *CPoint2D__Sequence, goSlice []Point2D) {
+func Point2D__Sequence_into_C(cSlice *CPoint2D__Sequence, goSlice []Point2D) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__Point2D__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__Point2D)(C.malloc(C.sizeof_struct_vision_msgs__msg__Point2D * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__Point2D)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__Point2D))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -180,7 +196,7 @@ func Point2D__Array_to_Go(goSlice []Point2D, cSlice []CPoint2D) {
 		Point2DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Point2D__Array_to_C(cSlice []CPoint2D, goSlice []Point2D) {
+func Point2D__Array_into_C(cSlice []CPoint2D, goSlice []Point2D) {
 	for i := 0; i < len(goSlice); i++ {
 		Point2DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

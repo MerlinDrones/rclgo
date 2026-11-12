@@ -58,6 +58,12 @@ func (t *IntegerRange) GetTypeSupport() types.MessageTypeSupport {
 	return IntegerRangeTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *IntegerRange) CheckBounds() error {
+	return nil
+}
+
 // IntegerRangePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type IntegerRangePublisher struct {
@@ -90,11 +96,17 @@ type IntegerRangeSubscriptionCallback func(msg *IntegerRange, info *rclgo.Messag
 
 // NewIntegerRangeSubscription creates and returns a new subscription for the
 // IntegerRange
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewIntegerRangeSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback IntegerRangeSubscriptionCallback) (*IntegerRangeSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg IntegerRange
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg IntegerRange
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, IntegerRangeTypeSupport, opts, callback)
 	if err != nil {
@@ -157,6 +169,7 @@ type CIntegerRange__Sequence = C.rcl_interfaces__msg__IntegerRange__Sequence
 
 func IntegerRange__Sequence_to_Go(goSlice *[]IntegerRange, cSlice CIntegerRange__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]IntegerRange, cSlice.size)
@@ -165,14 +178,17 @@ func IntegerRange__Sequence_to_Go(goSlice *[]IntegerRange, cSlice CIntegerRange_
 		IntegerRangeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func IntegerRange__Sequence_to_C(cSlice *CIntegerRange__Sequence, goSlice []IntegerRange) {
+func IntegerRange__Sequence_into_C(cSlice *CIntegerRange__Sequence, goSlice []IntegerRange) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__IntegerRange__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__IntegerRange)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__IntegerRange * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__IntegerRange)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__IntegerRange))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -185,7 +201,7 @@ func IntegerRange__Array_to_Go(goSlice []IntegerRange, cSlice []CIntegerRange) {
 		IntegerRangeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func IntegerRange__Array_to_C(cSlice []CIntegerRange, goSlice []IntegerRange) {
+func IntegerRange__Array_into_C(cSlice []CIntegerRange, goSlice []IntegerRange) {
 	for i := 0; i < len(goSlice); i++ {
 		IntegerRangeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

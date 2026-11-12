@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# This file is part of rclgo
+#
+# Copyright © 2025 Merlin Drones
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+#     http://www.apache.org/licenses/LICENSE-2.0
 
 # This script generates ROS2 message bindings for rclgo DEVELOPMENT.
 # This is for working on rclgo itself, using only standard ROS 2 packages.
@@ -6,11 +12,14 @@
 # For ROS 2 workspace development (with custom packages like px4_msgs),
 # see gen_cgo_flags.sh instead.
 
+# ROS 2 distribution to generate for: the sourced one, else jazzy.
+ROS_DISTRO="${ROS_DISTRO:-jazzy}"
+
 echo "=== rclgo Development: Generate ROS2 Message Bindings ==="
 echo ""
 echo "This script generates Go bindings for STANDARD ROS 2 packages only."
 echo "It uses the following settings:"
-echo "  - Root path: /opt/ros/jazzy (base ROS 2 installation)"
+echo "  - Root path: /opt/ros/${ROS_DISTRO} (base ROS 2 installation)"
 echo "  - Destination: ./pkg/msgs"
 echo "  - Included packages: std_msgs, std_srvs, sensor_msgs, geometry_msgs,"
 echo "                       example_interfaces, test_msgs, action_msgs, vision_msgs"
@@ -42,7 +51,7 @@ case "$choice" in
 esac
 
 go run ./cmd/rclgo-gen generate \
-  --root-path /opt/ros/jazzy \
+  --root-path /opt/ros/${ROS_DISTRO} \
   --dest-path ./pkg/msgs \
   --message-module-prefix github.com/merlindrones/rclgo/pkg/msgs \
   --rclgo-import-path github.com/merlindrones/rclgo \
@@ -54,6 +63,7 @@ go run ./cmd/rclgo-gen generate \
   --include-package example_interfaces \
   --include-package test_msgs \
   --include-package action_msgs \
+  --include-package action_tutorials_interfaces \
   --include-package vision_msgs \
   --include-package builtin_interfaces \
   --include-package unique_identifier_msgs \

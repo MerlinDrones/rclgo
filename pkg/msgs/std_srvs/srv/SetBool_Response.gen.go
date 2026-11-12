@@ -56,6 +56,12 @@ func (t *SetBool_Response) GetTypeSupport() types.MessageTypeSupport {
 	return SetBool_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *SetBool_Response) CheckBounds() error {
+	return nil
+}
+
 // SetBool_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type SetBool_ResponsePublisher struct {
@@ -88,11 +94,17 @@ type SetBool_ResponseSubscriptionCallback func(msg *SetBool_Response, info *rclg
 
 // NewSetBool_ResponseSubscription creates and returns a new subscription for the
 // SetBool_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewSetBool_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback SetBool_ResponseSubscriptionCallback) (*SetBool_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg SetBool_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg SetBool_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, SetBool_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -134,7 +146,7 @@ func (t _SetBool_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*SetBool_Response)
 	mem := (*C.std_srvs__srv__SetBool_Response)(dst)
 	mem.success = C.bool(m.Success)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.message), m.Message)
+	primitives.StringIntoC(unsafe.Pointer(&mem.message), m.Message)
 }
 
 func (t _SetBool_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -153,6 +165,7 @@ type CSetBool_Response__Sequence = C.std_srvs__srv__SetBool_Response__Sequence
 
 func SetBool_Response__Sequence_to_Go(goSlice *[]SetBool_Response, cSlice CSetBool_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetBool_Response, cSlice.size)
@@ -161,14 +174,17 @@ func SetBool_Response__Sequence_to_Go(goSlice *[]SetBool_Response, cSlice CSetBo
 		SetBool_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetBool_Response__Sequence_to_C(cSlice *CSetBool_Response__Sequence, goSlice []SetBool_Response) {
+func SetBool_Response__Sequence_into_C(cSlice *CSetBool_Response__Sequence, goSlice []SetBool_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_srvs__srv__SetBool_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_srvs__srv__SetBool_Response)(C.malloc(C.sizeof_struct_std_srvs__srv__SetBool_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_srvs__srv__SetBool_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_srvs__srv__SetBool_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +197,7 @@ func SetBool_Response__Array_to_Go(goSlice []SetBool_Response, cSlice []CSetBool
 		SetBool_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetBool_Response__Array_to_C(cSlice []CSetBool_Response, goSlice []SetBool_Response) {
+func SetBool_Response__Array_into_C(cSlice []CSetBool_Response, goSlice []SetBool_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		SetBool_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

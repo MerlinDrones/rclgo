@@ -55,6 +55,18 @@ func (t *Accel) GetTypeSupport() types.MessageTypeSupport {
 	return AccelTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Accel) CheckBounds() error {
+	if err := types.CheckBounds(&t.Linear); err != nil {
+		return types.InField("linear", err)
+	}
+	if err := types.CheckBounds(&t.Angular); err != nil {
+		return types.InField("angular", err)
+	}
+	return nil
+}
+
 // AccelPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type AccelPublisher struct {
@@ -87,11 +99,17 @@ type AccelSubscriptionCallback func(msg *Accel, info *rclgo.MessageInfo, err err
 
 // NewAccelSubscription creates and returns a new subscription for the
 // Accel
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewAccelSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback AccelSubscriptionCallback) (*AccelSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Accel
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Accel
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, AccelTypeSupport, opts, callback)
 	if err != nil {
@@ -152,6 +170,7 @@ type CAccel__Sequence = C.geometry_msgs__msg__Accel__Sequence
 
 func Accel__Sequence_to_Go(goSlice *[]Accel, cSlice CAccel__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Accel, cSlice.size)
@@ -160,14 +179,17 @@ func Accel__Sequence_to_Go(goSlice *[]Accel, cSlice CAccel__Sequence) {
 		AccelTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Accel__Sequence_to_C(cSlice *CAccel__Sequence, goSlice []Accel) {
+func Accel__Sequence_into_C(cSlice *CAccel__Sequence, goSlice []Accel) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Accel__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Accel)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Accel * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Accel)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Accel))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -180,7 +202,7 @@ func Accel__Array_to_Go(goSlice []Accel, cSlice []CAccel) {
 		AccelTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Accel__Array_to_C(cSlice []CAccel, goSlice []Accel) {
+func Accel__Array_into_C(cSlice []CAccel, goSlice []Accel) {
 	for i := 0; i < len(goSlice); i++ {
 		AccelTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

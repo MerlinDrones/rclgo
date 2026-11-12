@@ -62,6 +62,20 @@ func (t *LabelInfo) GetTypeSupport() types.MessageTypeSupport {
 	return LabelInfoTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *LabelInfo) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.ClassMap {
+		if err := types.CheckBounds(&t.ClassMap[i]); err != nil {
+			return types.InElement("class_map", i, err)
+		}
+	}
+	return nil
+}
+
 // LabelInfoPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type LabelInfoPublisher struct {
@@ -94,11 +108,17 @@ type LabelInfoSubscriptionCallback func(msg *LabelInfo, info *rclgo.MessageInfo,
 
 // NewLabelInfoSubscription creates and returns a new subscription for the
 // LabelInfo
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewLabelInfoSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback LabelInfoSubscriptionCallback) (*LabelInfoSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg LabelInfo
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg LabelInfo
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, LabelInfoTypeSupport, opts, callback)
 	if err != nil {
@@ -140,7 +160,7 @@ func (t _LabelInfoTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) 
 	m := msg.(*LabelInfo)
 	mem := (*C.vision_msgs__msg__LabelInfo)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	VisionClass__Sequence_to_C(&mem.class_map, m.ClassMap)
+	VisionClass__Sequence_into_C(&mem.class_map, m.ClassMap)
 	mem.threshold = C.float(m.Threshold)
 }
 
@@ -161,6 +181,7 @@ type CLabelInfo__Sequence = C.vision_msgs__msg__LabelInfo__Sequence
 
 func LabelInfo__Sequence_to_Go(goSlice *[]LabelInfo, cSlice CLabelInfo__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]LabelInfo, cSlice.size)
@@ -169,14 +190,17 @@ func LabelInfo__Sequence_to_Go(goSlice *[]LabelInfo, cSlice CLabelInfo__Sequence
 		LabelInfoTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func LabelInfo__Sequence_to_C(cSlice *CLabelInfo__Sequence, goSlice []LabelInfo) {
+func LabelInfo__Sequence_into_C(cSlice *CLabelInfo__Sequence, goSlice []LabelInfo) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__LabelInfo__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__LabelInfo)(C.malloc(C.sizeof_struct_vision_msgs__msg__LabelInfo * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__LabelInfo)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__LabelInfo))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -189,7 +213,7 @@ func LabelInfo__Array_to_Go(goSlice []LabelInfo, cSlice []CLabelInfo) {
 		LabelInfoTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func LabelInfo__Array_to_C(cSlice []CLabelInfo, goSlice []LabelInfo) {
+func LabelInfo__Array_into_C(cSlice []CLabelInfo, goSlice []LabelInfo) {
 	for i := 0; i < len(goSlice); i++ {
 		LabelInfoTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -53,14 +54,48 @@ type Config struct {
 	RclgoImportPath     string
 	MessageModulePrefix string
 	RootPaths           []string
-	DestPath            string
-	CGOFlagsPath        string
+	// EmbedRootPaths are glob patterns (path.Match syntax) selecting which of
+	// RootPaths are written into the #cgo directives of generated code. Other
+	// roots, such as workspace overlays, are still searched for interfaces,
+	// but their include and library directories must come from the build
+	// environment (CGO_CFLAGS/CGO_LDFLAGS, e.g. the file CGOFlagsPath names),
+	// so that generated code does not depend on the machine that generated it.
+	// Nil means DefaultEmbedRootPaths.
+	EmbedRootPaths []string
+	DestPath       string
+	CGOFlagsPath   string
 
 	RegexIncludes  RuleSet
 	ROSPkgIncludes []string
 	GoPkgIncludes  []string
 
 	LicenseHeader string
+}
+
+// DefaultEmbedRootPaths selects the roots that are the same on every machine:
+// the ROS 2 distribution installs (the Debian and RPM packages always install
+// to /opt/ros/<distro>) and the system prefix /usr.
+var DefaultEmbedRootPaths = []string{"/opt/ros/*", "/usr"}
+
+// EmbeddedRootPaths returns the root paths whose include and library
+// directories generated code embeds: those of RootPaths that match one of
+// EmbedRootPaths, in RootPaths order.
+func (c Config) EmbeddedRootPaths() []string {
+	patterns := c.EmbedRootPaths
+	if patterns == nil {
+		patterns = DefaultEmbedRootPaths
+	}
+	var out []string
+	for _, root := range c.RootPaths {
+		clean := filepath.Clean(root)
+		for _, p := range patterns {
+			if ok, _ := path.Match(p, clean); ok {
+				out = append(out, root)
+				break
+			}
+		}
+	}
+	return out
 }
 
 var DefaultConfig = Config{
@@ -161,10 +196,6 @@ var rclgoROSIncludes = []string{
 	"unique_identifier_msgs",
 }
 
-func includeDirFlag(rootPath, rosPkg string) string {
-	return fmt.Sprintf("-I%s", filepath.Join(rootPath, "include", rosPkg))
-}
-
 func libDirFlag(rootPath string) string {
 	return fmt.Sprintf("-L%[1]s -Wl,-rpath=%[1]s", filepath.Join(rootPath, "lib"))
 }
@@ -173,8 +204,8 @@ func prependFlagEnv(envVar string, flags []string) string {
 	return strings.Join(flags, " ") + " " + os.Getenv(envVar)
 }
 
-func writeFlagEnv(w io.Writer, envVar string, flags stringSet) error {
-	_, err := fmt.Fprintf(w, "export CGO_%s=%s\n", envVar, shellescape.Quote(prependFlagEnv(envVar, flags.ToSortedSlice())))
+func writeFlagEnv(w io.Writer, envVar string, flags orderedSet) error {
+	_, err := fmt.Fprintf(w, "export CGO_%s=%s\n", envVar, shellescape.Quote(prependFlagEnv(envVar, flags.list)))
 	return err
 }
 
@@ -183,8 +214,14 @@ func (g *Generator) GenerateCGOFlags() error {
 		return nil
 	}
 	PrintErrln("Generating CGO flags:", g.config.CGOFlagsPath)
-	libDirs := stringSet{}
-	includes := stringSet{}
+	// Flags keep the order of the root paths, so that an overlay's headers
+	// and libraries come before an underlay's.
+	var libDirs, includes orderedSet
+	pkgs := make([]string, 0, len(g.cImportsByPkgAndType))
+	for pkgAndType := range g.cImportsByPkgAndType {
+		pkgs = append(pkgs, pkgAndType)
+	}
+	sort.Strings(pkgs)
 
 	for _, rootPath := range g.config.RootPaths {
 		// Add standard ROS include paths
@@ -193,7 +230,7 @@ func (g *Generator) GenerateCGOFlags() error {
 		}
 
 		// Add custom package paths
-		for pkgAndType := range g.cImportsByPkgAndType {
+		for _, pkgAndType := range pkgs {
 			pkg, _, err := parsePkgAndType(pkgAndType)
 			if err != nil {
 				PrintErrf("Failed to parse package and type from %s: %v\n", pkgAndType, err)
@@ -220,7 +257,7 @@ func (g *Generator) GenerateCGOFlags() error {
 
 // addIncludeAndLibPaths adds include and lib paths for a package,
 // handling both merged install (install/include/pkg) and isolated install (install/pkg/include/pkg) layouts.
-func (g *Generator) addIncludeAndLibPaths(rootPath, pkg string, includes, libDirs *stringSet) {
+func (g *Generator) addIncludeAndLibPaths(rootPath, pkg string, includes, libDirs *orderedSet) {
 	// Try merged install layout: install/include/pkg
 	mergedInclude := filepath.Join(rootPath, "include", pkg)
 	if _, err := os.Stat(mergedInclude); err == nil {
@@ -249,15 +286,18 @@ type rosPkgRef struct {
 }
 
 func (g *Generator) GenerateGolangMessageTypes() error {
-	g.findPackages()
+	if err := g.findPackages(); err != nil {
+		return err
+	}
+	var errs []error
 	if len(g.config.RegexIncludes) == 0 && len(g.config.ROSPkgIncludes) == 0 && len(g.config.GoPkgIncludes) == 0 {
 		for pkg := range g.allPkgs {
-			g.generatePkg(pkg, false)
+			errs = append(errs, g.generatePkg(pkg, false))
 		}
 	} else {
 		for _, pkg := range g.config.ROSPkgIncludes {
 			fmt.Printf("Generating ROS2 package: %s\n", pkg)
-			g.generatePkg(pkg, true)
+			errs = append(errs, g.generatePkg(pkg, true))
 		}
 		goDeps, err := loadGoPkgDeps(g.config.GoPkgIncludes...)
 		if err != nil {
@@ -267,48 +307,48 @@ func (g *Generator) GenerateGolangMessageTypes() error {
 		for goDep := range goDeps {
 			pkgWithType := strings.TrimPrefix(goDep, prefix)
 			if pkgWithType != goDep {
-				g.generatePkg(path.Dir(pkgWithType), true)
+				errs = append(errs, g.generatePkg(path.Dir(pkgWithType), true))
 			}
 		}
 		if g.actionMsgsNeeded {
-			g.generatePkg("action_msgs", true)
+			errs = append(errs, g.generatePkg("action_msgs", true))
 		}
 		for pkg := range g.allPkgs {
 			if g.config.RegexIncludes.Includes(pkg) {
-				g.generatePkg(pkg, false)
+				errs = append(errs, g.generatePkg(pkg, false))
 			}
 		}
 	}
 	for pkgAndType, imports := range g.cImportsByPkgAndType {
 		err := g.generateCommonPackageGoFile(pkgAndType, imports)
 		if err != nil {
-			PrintErrf("Failed to generate common package file for package %s: %v\n", pkgAndType, err)
+			errs = append(errs, fmt.Errorf("failed to generate common package file for package %s: %w", pkgAndType, err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
-func (g *Generator) generatePkg(pkg string, genDeps bool) {
+func (g *Generator) generatePkg(pkg string, genDeps bool) error {
 	ref := g.allPkgs[pkg]
 	if ref == nil {
-		PrintErrf("Failed to generate package %s: package not found\n", pkg)
-	} else if !ref.Generated {
-		ref.Generated = true
-		for meta, path := range ref.Interfaces {
-			g.generateInterface(meta, path)
-		}
-		if genDeps {
-			for imp := range g.cImportsByPkgAndType[pkg+"_msg"] {
-				g.generatePkg(imp, genDeps)
-			}
-			for imp := range g.cImportsByPkgAndType[pkg+"_srv"] {
-				g.generatePkg(imp, genDeps)
-			}
-			for imp := range g.cImportsByPkgAndType[pkg+"_action"] {
-				g.generatePkg(imp, genDeps)
+		return fmt.Errorf("failed to generate package %s: package not found under %v", pkg, g.config.RootPaths)
+	}
+	if ref.Generated {
+		return nil
+	}
+	ref.Generated = true
+	var errs []error
+	for meta, path := range ref.Interfaces {
+		errs = append(errs, g.generateInterface(meta, path))
+	}
+	if genDeps {
+		for _, typ := range []string{"_msg", "_srv", "_action"} {
+			for imp := range g.cImportsByPkgAndType[pkg+typ] {
+				errs = append(errs, g.generatePkg(imp, genDeps))
 			}
 		}
 	}
+	return errors.Join(errs...)
 }
 
 func (g *Generator) getCImportsForPkgAndType(pkgAndType string) stringSet {
@@ -320,28 +360,31 @@ func (g *Generator) getCImportsForPkgAndType(pkgAndType string) stringSet {
 	return set
 }
 
-func (g *Generator) generateInterface(meta Metadata, ifacePath string) {
+func (g *Generator) generateInterface(meta Metadata, ifacePath string) error {
 	PrintErrf("Generating: %s\n", ifacePath)
+	var msgs []*ROS2Message
 	switch meta.Type {
 	case "msg":
 		result, err := g.generateMessage(&meta, ifacePath)
 		if err != nil {
-			PrintErrf("Error converting ROS2 Message '%s' to '%s', error: %v\n", ifacePath, g.config.DestPath, err)
+			return fmt.Errorf("converting ROS2 message %s: %w", ifacePath, err)
 		}
 		set := g.getCImportsForPkgAndType(result.GoPackage())
 		set.AddFrom(result.CImports)
+		msgs = []*ROS2Message{result}
 	case "srv":
 		result, err := g.generateService(&meta, ifacePath)
 		if err != nil {
-			PrintErrf("Error converting ROS2 Service '%s' to '%s', error: %v\n", ifacePath, g.config.DestPath, err)
+			return fmt.Errorf("converting ROS2 service %s: %w", ifacePath, err)
 		}
 		set := g.getCImportsForPkgAndType(result.GoPackage())
 		set.AddFrom(result.Request.CImports)
 		set.AddFrom(result.Response.CImports)
+		msgs = []*ROS2Message{result.Request, result.Response}
 	case "action":
 		result, err := g.generateAction(ifacePath)
 		if err != nil {
-			PrintErrf("Error converting ROS2 Action '%s' to '%s', error: %v\n", ifacePath, g.config.DestPath, err)
+			return fmt.Errorf("converting ROS2 action %s: %w", ifacePath, err)
 		}
 		g.actionMsgsNeeded = true
 		set := g.getCImportsForPkgAndType(result.GoPackage())
@@ -353,36 +396,96 @@ func (g *Generator) generateInterface(meta Metadata, ifacePath string) {
 		set.AddFrom(result.GetResult.Response.CImports)
 		set.AddFrom(result.Feedback.CImports)
 		set.AddFrom(result.FeedbackMessage.CImports)
+		msgs = []*ROS2Message{result.Goal, result.Result, result.Feedback}
 	default:
-		PrintErrf("Interface file %s has an invalid type: %s\n", ifacePath, meta.Type)
+		return fmt.Errorf("interface file %s has an invalid type: %s", ifacePath, meta.Type)
 	}
+	return g.checkFieldTypesExist(ifacePath, msgs)
 }
 
-func (g *Generator) findPackages() {
+// checkFieldTypesExist reports fields whose message type is not found under
+// the root paths; the generated code would not compile.
+func (g *Generator) checkFieldTypesExist(ifacePath string, msgs []*ROS2Message) error {
+	var errs []error
+	for _, msg := range msgs {
+		for _, f := range msg.Fields {
+			pkg := f.PkgName
+			switch pkg {
+			case "", "time", "primitives":
+				continue
+			case ".":
+				pkg = msg.Package
+			}
+			ref := g.allPkgs[pkg]
+			if ref == nil {
+				errs = append(errs, fmt.Errorf("%s: field '%s' has type %s/%s, but package %s is not found under %v",
+					ifacePath, f.RosName, pkg, f.RosType, pkg, g.config.RootPaths))
+				continue
+			}
+			if _, ok := ref.Interfaces[Metadata{Name: f.RosType, Package: pkg, Type: "msg"}]; !ok {
+				errs = append(errs, fmt.Errorf("%s: field '%s' has type %s/%s, but package %s has no message %s",
+					ifacePath, f.RosName, pkg, f.RosType, pkg, f.RosType))
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// findPackages finds the interface files under the root paths. As with
+// colcon/ament overlays, a package comes from the first root path that has it:
+// an underlay's copy of the same package is ignored entirely (not merged
+// file by file). A root path that can't be read is an error.
+func (g *Generator) findPackages() error {
 	g.allPkgs = map[string]*rosPkgRef{}
-	for i := len(g.config.RootPaths) - 1; i >= 0; i-- {
-		filepath.Walk(g.config.RootPaths[i], func(path string, info fs.FileInfo, err error) error { //nolint:errcheck
+	for _, root := range g.config.RootPaths {
+		found := map[string]*rosPkgRef{}
+		idlOnly := map[string]bool{} // packages seen with .idl interface files
+		err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				if path == root {
+					return fmt.Errorf("root path %s: %w", root, err)
+				}
+				PrintErrf("Skipping %s: %v\n", path, err)
+				return nil
+			}
 			skip, blacklistEntry := blacklisted(path)
 			if skip {
 				PrintErrf("Blacklisted: %s, matched regex '%s'\n", path, blacklistEntry)
 				return nil
+			}
+			if re.M(filepath.ToSlash(path), `m!/(msg|srv|action)/[^/]+\.idl$!`) {
+				idlOnly[filepath.Base(filepath.Dir(filepath.Dir(path)))] = true
 			}
 			if re.M(filepath.ToSlash(path), `m!/(msg/.+\.msg)|(srv/.+\.srv)|(action/.+\.action)$!`) {
 				meta, err := parseMetadataFromPath(path)
 				if err != nil {
 					PrintErrf("Failed to parse metadata from path %s: %v\n", path, err)
 				} else {
-					ref := g.allPkgs[meta.Package]
+					ref := found[meta.Package]
 					if ref == nil {
 						ref = &rosPkgRef{Interfaces: map[Metadata]string{}}
-						g.allPkgs[meta.Package] = ref
+						found[meta.Package] = ref
 					}
 					ref.Interfaces[*meta] = path
 				}
 			}
 			return nil
 		})
+		if err != nil {
+			return err
+		}
+		for pkg := range idlOnly {
+			if found[pkg] == nil && g.allPkgs[pkg] == nil {
+				PrintErrf("Package %s under %s has only .idl interface files, which rclgo-gen does not read; skipped\n", pkg, root)
+			}
+		}
+		for pkg, ref := range found {
+			if _, ok := g.allPkgs[pkg]; !ok {
+				g.allPkgs[pkg] = ref
+			}
+		}
 	}
+	return nil
 }
 
 // FindPackagesForCgoFlags scans include directories to find all ROS packages
@@ -459,22 +562,20 @@ func (g *Generator) generateMessage(md *Metadata, sourcePath string) (*ROS2Messa
 	return msg, nil
 }
 
+// parseMetadataFromPath reads the package, interface type and name from a
+// path ending in <package>/<msg|srv|action>/<Name>.<ext>.
 func parseMetadataFromPath(p string) (*Metadata, error) {
 	base := filepath.Base(p)
 	ext := filepath.Ext(base)
-	m := &Metadata{
-		Name: strings.TrimSuffix(base, ext),
-		Type: ext[1:],
-	}
-	dirs := strings.Split(p, string(filepath.Separator))
-
-	if len(dirs) >= 2 {
-		m.Package = dirs[len(dirs)-3]
-	} else {
+	dirs := strings.Split(filepath.Clean(p), string(filepath.Separator))
+	if ext == "" || len(dirs) < 3 || dirs[len(dirs)-3] == "" {
 		return nil, fmt.Errorf("Path '%s' cannot be parsed for ROS2 package name!", p)
 	}
-
-	return m, nil
+	return &Metadata{
+		Name:    strings.TrimSuffix(base, ext),
+		Type:    ext[1:],
+		Package: dirs[len(dirs)-3],
+	}, nil
 }
 
 func ifaceFilePath(destPathPkgRoot string, m *Metadata) string {

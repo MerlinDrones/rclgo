@@ -59,6 +59,20 @@ func (t *Classification) GetTypeSupport() types.MessageTypeSupport {
 	return ClassificationTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Classification) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Results {
+		if err := types.CheckBounds(&t.Results[i]); err != nil {
+			return types.InElement("results", i, err)
+		}
+	}
+	return nil
+}
+
 // ClassificationPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ClassificationPublisher struct {
@@ -91,11 +105,17 @@ type ClassificationSubscriptionCallback func(msg *Classification, info *rclgo.Me
 
 // NewClassificationSubscription creates and returns a new subscription for the
 // Classification
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewClassificationSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ClassificationSubscriptionCallback) (*ClassificationSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Classification
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Classification
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ClassificationTypeSupport, opts, callback)
 	if err != nil {
@@ -137,7 +157,7 @@ func (t _ClassificationTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	m := msg.(*Classification)
 	mem := (*C.vision_msgs__msg__Classification)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	ObjectHypothesis__Sequence_to_C(&mem.results, m.Results)
+	ObjectHypothesis__Sequence_into_C(&mem.results, m.Results)
 }
 
 func (t _ClassificationTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +176,7 @@ type CClassification__Sequence = C.vision_msgs__msg__Classification__Sequence
 
 func Classification__Sequence_to_Go(goSlice *[]Classification, cSlice CClassification__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Classification, cSlice.size)
@@ -164,14 +185,17 @@ func Classification__Sequence_to_Go(goSlice *[]Classification, cSlice CClassific
 		ClassificationTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Classification__Sequence_to_C(cSlice *CClassification__Sequence, goSlice []Classification) {
+func Classification__Sequence_into_C(cSlice *CClassification__Sequence, goSlice []Classification) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__Classification__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__Classification)(C.malloc(C.sizeof_struct_vision_msgs__msg__Classification * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__Classification)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__Classification))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +208,7 @@ func Classification__Array_to_Go(goSlice []Classification, cSlice []CClassificat
 		ClassificationTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Classification__Array_to_C(cSlice []CClassification, goSlice []Classification) {
+func Classification__Array_into_C(cSlice []CClassification, goSlice []Classification) {
 	for i := 0; i < len(goSlice); i++ {
 		ClassificationTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

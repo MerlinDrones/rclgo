@@ -70,6 +70,15 @@ func (t *ServiceEventInfo) GetTypeSupport() types.MessageTypeSupport {
 	return ServiceEventInfoTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ServiceEventInfo) CheckBounds() error {
+	if err := types.CheckBounds(&t.Stamp); err != nil {
+		return types.InField("stamp", err)
+	}
+	return nil
+}
+
 // ServiceEventInfoPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ServiceEventInfoPublisher struct {
@@ -102,11 +111,17 @@ type ServiceEventInfoSubscriptionCallback func(msg *ServiceEventInfo, info *rclg
 
 // NewServiceEventInfoSubscription creates and returns a new subscription for the
 // ServiceEventInfo
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewServiceEventInfoSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ServiceEventInfoSubscriptionCallback) (*ServiceEventInfoSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ServiceEventInfo
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ServiceEventInfo
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ServiceEventInfoTypeSupport, opts, callback)
 	if err != nil {
@@ -150,7 +165,7 @@ func (t _ServiceEventInfoTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	mem.event_type = C.uint8_t(m.EventType)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.stamp), &m.Stamp)
 	cSlice_client_gid := mem.client_gid[:]
-	primitives.Char__Array_to_C(*(*[]primitives.CChar)(unsafe.Pointer(&cSlice_client_gid)), m.ClientGid[:])
+	primitives.Char__Array_into_C(*(*[]primitives.CChar)(unsafe.Pointer(&cSlice_client_gid)), m.ClientGid[:])
 	mem.sequence_number = C.int64_t(m.SequenceNumber)
 }
 
@@ -173,6 +188,7 @@ type CServiceEventInfo__Sequence = C.service_msgs__msg__ServiceEventInfo__Sequen
 
 func ServiceEventInfo__Sequence_to_Go(goSlice *[]ServiceEventInfo, cSlice CServiceEventInfo__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ServiceEventInfo, cSlice.size)
@@ -181,14 +197,17 @@ func ServiceEventInfo__Sequence_to_Go(goSlice *[]ServiceEventInfo, cSlice CServi
 		ServiceEventInfoTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ServiceEventInfo__Sequence_to_C(cSlice *CServiceEventInfo__Sequence, goSlice []ServiceEventInfo) {
+func ServiceEventInfo__Sequence_into_C(cSlice *CServiceEventInfo__Sequence, goSlice []ServiceEventInfo) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.service_msgs__msg__ServiceEventInfo__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.service_msgs__msg__ServiceEventInfo)(C.malloc(C.sizeof_struct_service_msgs__msg__ServiceEventInfo * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.service_msgs__msg__ServiceEventInfo)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_service_msgs__msg__ServiceEventInfo))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -201,7 +220,7 @@ func ServiceEventInfo__Array_to_Go(goSlice []ServiceEventInfo, cSlice []CService
 		ServiceEventInfoTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ServiceEventInfo__Array_to_C(cSlice []CServiceEventInfo, goSlice []ServiceEventInfo) {
+func ServiceEventInfo__Array_into_C(cSlice []CServiceEventInfo, goSlice []ServiceEventInfo) {
 	for i := 0; i < len(goSlice); i++ {
 		ServiceEventInfoTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

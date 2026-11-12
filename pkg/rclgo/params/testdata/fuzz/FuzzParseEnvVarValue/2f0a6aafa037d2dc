@@ -1,0 +1,2 @@
+go test fuzz v1
+string("0\xbc\xbc\xbc\xbc\u2000\u2000")

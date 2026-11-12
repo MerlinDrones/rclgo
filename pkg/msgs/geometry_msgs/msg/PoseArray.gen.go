@@ -59,6 +59,20 @@ func (t *PoseArray) GetTypeSupport() types.MessageTypeSupport {
 	return PoseArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PoseArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Poses {
+		if err := types.CheckBounds(&t.Poses[i]); err != nil {
+			return types.InElement("poses", i, err)
+		}
+	}
+	return nil
+}
+
 // PoseArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PoseArrayPublisher struct {
@@ -91,11 +105,17 @@ type PoseArraySubscriptionCallback func(msg *PoseArray, info *rclgo.MessageInfo,
 
 // NewPoseArraySubscription creates and returns a new subscription for the
 // PoseArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPoseArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PoseArraySubscriptionCallback) (*PoseArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg PoseArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg PoseArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PoseArrayTypeSupport, opts, callback)
 	if err != nil {
@@ -137,7 +157,7 @@ func (t _PoseArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) 
 	m := msg.(*PoseArray)
 	mem := (*C.geometry_msgs__msg__PoseArray)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	Pose__Sequence_to_C(&mem.poses, m.Poses)
+	Pose__Sequence_into_C(&mem.poses, m.Poses)
 }
 
 func (t _PoseArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +176,7 @@ type CPoseArray__Sequence = C.geometry_msgs__msg__PoseArray__Sequence
 
 func PoseArray__Sequence_to_Go(goSlice *[]PoseArray, cSlice CPoseArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]PoseArray, cSlice.size)
@@ -164,14 +185,17 @@ func PoseArray__Sequence_to_Go(goSlice *[]PoseArray, cSlice CPoseArray__Sequence
 		PoseArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PoseArray__Sequence_to_C(cSlice *CPoseArray__Sequence, goSlice []PoseArray) {
+func PoseArray__Sequence_into_C(cSlice *CPoseArray__Sequence, goSlice []PoseArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__PoseArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__PoseArray)(C.malloc(C.sizeof_struct_geometry_msgs__msg__PoseArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__PoseArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__PoseArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +208,7 @@ func PoseArray__Array_to_Go(goSlice []PoseArray, cSlice []CPoseArray) {
 		PoseArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PoseArray__Array_to_C(cSlice []CPoseArray, goSlice []PoseArray) {
+func PoseArray__Array_into_C(cSlice []CPoseArray, goSlice []PoseArray) {
 	for i := 0; i < len(goSlice); i++ {
 		PoseArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

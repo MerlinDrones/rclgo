@@ -1,0 +1,114 @@
+# Issue triage — managed by swarmos-devtools; do not edit in place.
+#
+# Every issue needs an Issue Type and a Priority (both defined at the org
+# level). GitHub can't reject an issue, so this workflow:
+#   - sets the Priority field from the issue form's Priority answer
+#   - labels issues missing a type or priority `needs-triage` and comments once
+#   - removes `needs-triage` when both are set
+# Only issues created on or after TRIAGE_SINCE are checked, so existing issues
+# (being prioritised by hand) are never touched. The weekly run only re-checks
+# issues already labeled `needs-triage`.
+name: Issue triage
+
+on:
+  issues:
+    types: [opened, edited, reopened, typed, untyped]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const TRIAGE_SINCE = '2026-10-22T00:00:00Z';   // issues created earlier are never touched
+            const LABEL = 'needs-triage';
+            const MARKER = '<!-- swarmos-issue-triage -->';
+            const { owner, repo } = context.repo;
+
+            const fieldsQuery = `query($owner:String!,$repo:String!){
+              repository(owner:$owner,name:$repo){
+                issueFields(first:20){ nodes{ ... on IssueFieldSingleSelect{ id name options{ id name } } } }
+              }}`;
+            const issueQuery = `query($owner:String!,$repo:String!,$n:Int!){
+              repository(owner:$owner,name:$repo){ issue(number:$n){
+                id
+                issueType{ name }
+                labels(first:50){ nodes{ name } }
+                issueFieldValues(first:20){ nodes{ __typename
+                  ... on IssueFieldSingleSelectValue{ name field{ ... on IssueFieldSingleSelect{ name } } } } }
+              }}}`;
+
+            const fields = (await github.graphql(fieldsQuery, { owner, repo })).repository.issueFields.nodes;
+            const priorityField = fields.find(f => f && f.name === 'Priority');
+            if (!priorityField) {
+              core.setFailed('Org issue field "Priority" not found');
+              return;
+            }
+
+            async function triage(number, body) {
+              const issue = (await github.graphql(issueQuery, { owner, repo, n: number })).repository.issue;
+              const labels = issue.labels.nodes.map(l => l.name);
+              let priority = issue.issueFieldValues.nodes
+                .find(v => v.field && v.field.name === 'Priority')?.name;
+
+              // Issue forms can't set org fields directly: copy the form answer across
+              if (!priority && body) {
+                const answer = body.match(/###\s*Priority\s*\n+\s*([A-Za-z]+)/)?.[1];
+                const option = answer && priorityField.options.find(o => o.name.toLowerCase() === answer.toLowerCase());
+                if (option) {
+                  await github.graphql(`mutation($issue:ID!,$field:ID!,$option:ID!){
+                    setIssueFieldValue(input:{issueId:$issue, issueFields:[{fieldId:$field, singleSelectOptionId:$option}]}){ clientMutationId }
+                  }`, { issue: issue.id, field: priorityField.id, option: option.id });
+                  priority = option.name;
+                  core.info(`#${number}: Priority set to ${option.name} from the issue form`);
+                }
+              }
+
+              const missing = [];
+              if (!issue.issueType) missing.push('an **Issue Type** (Bug, Feature, Safety, Chore, Research and Design)');
+              if (!priority) missing.push(`a **Priority** (${priorityField.options.map(o => o.name).join(', ')})`);
+
+              if (missing.length === 0) {
+                if (labels.includes(LABEL)) {
+                  await github.rest.issues.removeLabel({ owner, repo, issue_number: number, name: LABEL });
+                  core.info(`#${number}: triaged, removed ${LABEL}`);
+                }
+                return;
+              }
+
+              if (!labels.includes(LABEL)) {
+                await github.rest.issues.addLabels({ owner, repo, issue_number: number, labels: [LABEL] });
+              }
+              const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number });
+              if (!comments.some(c => c.body && c.body.includes(MARKER))) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: number,
+                  body: `${MARKER}\nEvery SwarmOS issue needs an Issue Type and a Priority. This issue is missing ${missing.join(' and ')}.\n\nSet them in the issue sidebar; the \`${LABEL}\` label is removed automatically.` });
+              }
+              core.info(`#${number}: missing ${missing.length} item(s), labeled ${LABEL}`);
+            }
+
+            if (context.eventName === 'issues') {
+              const issue = context.payload.issue;
+              if (issue.state !== 'open') {
+                core.info(`#${issue.number}: closed, skipping`);
+                return;
+              }
+              if (issue.created_at < TRIAGE_SINCE) {
+                core.info(`#${issue.number}: created ${issue.created_at}, before TRIAGE_SINCE ${TRIAGE_SINCE}; skipping`);
+                return;
+              }
+              await triage(issue.number, issue.body || '');
+            } else {
+              const open = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: 'open', labels: LABEL });
+              for (const i of open.filter(i => !i.pull_request && i.created_at >= TRIAGE_SINCE)) {
+                await triage(i.number, i.body || '');
+              }
+            }

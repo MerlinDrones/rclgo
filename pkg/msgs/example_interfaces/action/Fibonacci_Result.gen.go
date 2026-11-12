@@ -56,6 +56,12 @@ func (t *Fibonacci_Result) GetTypeSupport() types.MessageTypeSupport {
 	return Fibonacci_ResultTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Fibonacci_Result) CheckBounds() error {
+	return nil
+}
+
 // Fibonacci_ResultPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Fibonacci_ResultPublisher struct {
@@ -88,11 +94,17 @@ type Fibonacci_ResultSubscriptionCallback func(msg *Fibonacci_Result, info *rclg
 
 // NewFibonacci_ResultSubscription creates and returns a new subscription for the
 // Fibonacci_Result
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFibonacci_ResultSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Fibonacci_ResultSubscriptionCallback) (*Fibonacci_ResultSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Fibonacci_Result
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Fibonacci_Result
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Fibonacci_ResultTypeSupport, opts, callback)
 	if err != nil {
@@ -133,7 +145,7 @@ func (t _Fibonacci_ResultTypeSupport) ReleaseMemory(pointer_to_free unsafe.Point
 func (t _Fibonacci_ResultTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Fibonacci_Result)
 	mem := (*C.example_interfaces__action__Fibonacci_Result)(dst)
-	primitives.Int32__Sequence_to_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.sequence)), m.Sequence)
+	primitives.Int32__Sequence_into_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.sequence)), m.Sequence)
 }
 
 func (t _Fibonacci_ResultTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -151,6 +163,7 @@ type CFibonacci_Result__Sequence = C.example_interfaces__action__Fibonacci_Resul
 
 func Fibonacci_Result__Sequence_to_Go(goSlice *[]Fibonacci_Result, cSlice CFibonacci_Result__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Fibonacci_Result, cSlice.size)
@@ -159,14 +172,17 @@ func Fibonacci_Result__Sequence_to_Go(goSlice *[]Fibonacci_Result, cSlice CFibon
 		Fibonacci_ResultTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Fibonacci_Result__Sequence_to_C(cSlice *CFibonacci_Result__Sequence, goSlice []Fibonacci_Result) {
+func Fibonacci_Result__Sequence_into_C(cSlice *CFibonacci_Result__Sequence, goSlice []Fibonacci_Result) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__action__Fibonacci_Result__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__action__Fibonacci_Result)(C.malloc(C.sizeof_struct_example_interfaces__action__Fibonacci_Result * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__action__Fibonacci_Result)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__action__Fibonacci_Result))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -179,7 +195,7 @@ func Fibonacci_Result__Array_to_Go(goSlice []Fibonacci_Result, cSlice []CFibonac
 		Fibonacci_ResultTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Fibonacci_Result__Array_to_C(cSlice []CFibonacci_Result, goSlice []Fibonacci_Result) {
+func Fibonacci_Result__Array_into_C(cSlice []CFibonacci_Result, goSlice []Fibonacci_Result) {
 	for i := 0; i < len(goSlice); i++ {
 		Fibonacci_ResultTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -52,6 +52,12 @@ func (t *Int16) GetTypeSupport() types.MessageTypeSupport {
 	return Int16TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Int16) CheckBounds() error {
+	return nil
+}
+
 // Int16Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Int16Publisher struct {
@@ -84,11 +90,17 @@ type Int16SubscriptionCallback func(msg *Int16, info *rclgo.MessageInfo, err err
 
 // NewInt16Subscription creates and returns a new subscription for the
 // Int16
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewInt16Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Int16SubscriptionCallback) (*Int16Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Int16
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Int16
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Int16TypeSupport, opts, callback)
 	if err != nil {
@@ -147,6 +159,7 @@ type CInt16__Sequence = C.std_msgs__msg__Int16__Sequence
 
 func Int16__Sequence_to_Go(goSlice *[]Int16, cSlice CInt16__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Int16, cSlice.size)
@@ -155,14 +168,17 @@ func Int16__Sequence_to_Go(goSlice *[]Int16, cSlice CInt16__Sequence) {
 		Int16TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Int16__Sequence_to_C(cSlice *CInt16__Sequence, goSlice []Int16) {
+func Int16__Sequence_into_C(cSlice *CInt16__Sequence, goSlice []Int16) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Int16__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Int16)(C.malloc(C.sizeof_struct_std_msgs__msg__Int16 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Int16)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Int16))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -175,7 +191,7 @@ func Int16__Array_to_Go(goSlice []Int16, cSlice []CInt16) {
 		Int16TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Int16__Array_to_C(cSlice []CInt16, goSlice []Int16) {
+func Int16__Array_into_C(cSlice []CInt16, goSlice []Int16) {
 	for i := 0; i < len(goSlice); i++ {
 		Int16TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

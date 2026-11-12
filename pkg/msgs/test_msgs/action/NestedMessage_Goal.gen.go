@@ -60,6 +60,21 @@ func (t *NestedMessage_Goal) GetTypeSupport() types.MessageTypeSupport {
 	return NestedMessage_GoalTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NestedMessage_Goal) CheckBounds() error {
+	if err := types.CheckBounds(&t.NestedFieldNoPkg); err != nil {
+		return types.InField("nested_field_no_pkg", err)
+	}
+	if err := types.CheckBounds(&t.NestedField); err != nil {
+		return types.InField("nested_field", err)
+	}
+	if err := types.CheckBounds(&t.NestedDifferentPkg); err != nil {
+		return types.InField("nested_different_pkg", err)
+	}
+	return nil
+}
+
 // NestedMessage_GoalPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type NestedMessage_GoalPublisher struct {
@@ -92,11 +107,17 @@ type NestedMessage_GoalSubscriptionCallback func(msg *NestedMessage_Goal, info *
 
 // NewNestedMessage_GoalSubscription creates and returns a new subscription for the
 // NestedMessage_Goal
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewNestedMessage_GoalSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback NestedMessage_GoalSubscriptionCallback) (*NestedMessage_GoalSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg NestedMessage_Goal
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg NestedMessage_Goal
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, NestedMessage_GoalTypeSupport, opts, callback)
 	if err != nil {
@@ -159,6 +180,7 @@ type CNestedMessage_Goal__Sequence = C.test_msgs__action__NestedMessage_Goal__Se
 
 func NestedMessage_Goal__Sequence_to_Go(goSlice *[]NestedMessage_Goal, cSlice CNestedMessage_Goal__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]NestedMessage_Goal, cSlice.size)
@@ -167,14 +189,17 @@ func NestedMessage_Goal__Sequence_to_Go(goSlice *[]NestedMessage_Goal, cSlice CN
 		NestedMessage_GoalTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NestedMessage_Goal__Sequence_to_C(cSlice *CNestedMessage_Goal__Sequence, goSlice []NestedMessage_Goal) {
+func NestedMessage_Goal__Sequence_into_C(cSlice *CNestedMessage_Goal__Sequence, goSlice []NestedMessage_Goal) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__NestedMessage_Goal__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__NestedMessage_Goal)(C.malloc(C.sizeof_struct_test_msgs__action__NestedMessage_Goal * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__NestedMessage_Goal)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__NestedMessage_Goal))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +212,7 @@ func NestedMessage_Goal__Array_to_Go(goSlice []NestedMessage_Goal, cSlice []CNes
 		NestedMessage_GoalTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NestedMessage_Goal__Array_to_C(cSlice []CNestedMessage_Goal, goSlice []NestedMessage_Goal) {
+func NestedMessage_Goal__Array_into_C(cSlice []CNestedMessage_Goal, goSlice []NestedMessage_Goal) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedMessage_GoalTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

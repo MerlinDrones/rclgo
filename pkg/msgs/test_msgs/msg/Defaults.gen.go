@@ -88,6 +88,12 @@ func (t *Defaults) GetTypeSupport() types.MessageTypeSupport {
 	return DefaultsTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Defaults) CheckBounds() error {
+	return nil
+}
+
 // DefaultsPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type DefaultsPublisher struct {
@@ -120,11 +126,17 @@ type DefaultsSubscriptionCallback func(msg *Defaults, info *rclgo.MessageInfo, e
 
 // NewDefaultsSubscription creates and returns a new subscription for the
 // Defaults
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewDefaultsSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback DefaultsSubscriptionCallback) (*DefaultsSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Defaults
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Defaults
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, DefaultsTypeSupport, opts, callback)
 	if err != nil {
@@ -207,6 +219,7 @@ type CDefaults__Sequence = C.test_msgs__msg__Defaults__Sequence
 
 func Defaults__Sequence_to_Go(goSlice *[]Defaults, cSlice CDefaults__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Defaults, cSlice.size)
@@ -215,14 +228,17 @@ func Defaults__Sequence_to_Go(goSlice *[]Defaults, cSlice CDefaults__Sequence) {
 		DefaultsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Defaults__Sequence_to_C(cSlice *CDefaults__Sequence, goSlice []Defaults) {
+func Defaults__Sequence_into_C(cSlice *CDefaults__Sequence, goSlice []Defaults) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__Defaults__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__Defaults)(C.malloc(C.sizeof_struct_test_msgs__msg__Defaults * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__Defaults)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__Defaults))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -235,7 +251,7 @@ func Defaults__Array_to_Go(goSlice []Defaults, cSlice []CDefaults) {
 		DefaultsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Defaults__Array_to_C(cSlice []CDefaults, goSlice []Defaults) {
+func Defaults__Array_into_C(cSlice []CDefaults, goSlice []Defaults) {
 	for i := 0; i < len(goSlice); i++ {
 		DefaultsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

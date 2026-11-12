@@ -224,8 +224,14 @@ string input
 		So(splitMsgDefaultArrayValues("int", ``), ShouldResemble, nilAry)
 		So(splitMsgDefaultArrayValues("int", `[]`), ShouldResemble, nilAry)
 		So(splitMsgDefaultArrayValues("int", `[1,2,3]`), ShouldResemble, []string{`1`, `2`, `3`})
-		So(splitMsgDefaultArrayValues("string", `["", "this is a", "test msg"]`), ShouldResemble, []string{`""`, `"this is a"`, `"test msg"`})
-		So(splitMsgDefaultArrayValues("string", `[1  ,  2 ,   "3"]`), ShouldResemble, []string{`"1  "`, `"2 "`, `"3"`})
+		So(splitMsgDefaultArrayValues("string", `["", "this is a", "test msg"]`), ShouldResemble, []string{``, `this is a`, `test msg`})
+		So(splitMsgDefaultArrayValues("string", `[1  ,  2 ,   "3"]`), ShouldResemble, []string{`1  `, `2 `, `3`})
+		// String values as rosidl reads them: outer quotes removed, only an
+		// escaped quote of the same kind unescaped, other backslashes kept.
+		So(defaultValueSanitizer("string", `'a\b'`), ShouldEqual, `"a\\b"`)
+		So(defaultValueSanitizer("string", `'it\'s'`), ShouldEqual, `"it's"`)
+		So(defaultValueSanitizer("string", `"tab\t"`), ShouldEqual, `"tab\\t"`)
+		So(defaultValueSanitizer("string", `unquoted`), ShouldEqual, `"unquoted"`)
 		So(defaultValueSanitizer("string", `"Hello world!"`), ShouldEqual, `"Hello world!"`)
 		So(defaultValueSanitizer("string", `"Hello\"world!"`), ShouldEqual, `"Hello\"world!"`)
 	})
@@ -253,35 +259,36 @@ string input
 func TestCErrorTypeParser(t *testing.T) {
 	SetDefaultFailureMode(FailureContinues)
 	Convey("", t, func() {
-		et := parseROS2ErrorType("/// Success return code.")
+		p := newErrorTypeParser()
+		et := p.parse("/// Success return code.")
 		So(et, ShouldBeNil)
-		So(ros2errorTypesCommentsBuffer.String(), ShouldEqual, "Success return code.")
+		So(p.comments.String(), ShouldEqual, "Success return code.")
 
-		et = parseROS2ErrorType("#define RCL_RET_OK RMW_RET_OK")
+		et = p.parse("#define RCL_RET_OK RMW_RET_OK")
 		So(et, ShouldResemble, &ROS2ErrorType{
 			Name:      "RCL_RET_OK",
 			Rcl_ret_t: "",
 			Reference: "RMW_RET_OK",
 			Comment:   "Success return code.",
 		})
-		So(ros2errorTypesCommentsBuffer.Len(), ShouldEqual, 0)
+		So(p.comments.Len(), ShouldEqual, 0)
 
-		et = parseROS2ErrorType("/// This comment is flushed because it is not part of a continuous stream.")
+		et = p.parse("/// This comment is flushed because it is not part of a continuous stream.")
 		So(et, ShouldBeNil)
-		So(ros2errorTypesCommentsBuffer.Len(), ShouldBeGreaterThan, 0)
+		So(p.comments.Len(), ShouldBeGreaterThan, 0)
 
-		et = parseROS2ErrorType("")
+		et = p.parse("")
 		So(et, ShouldBeNil)
-		So(ros2errorTypesCommentsBuffer.String(), ShouldEqual, "")
+		So(p.comments.String(), ShouldEqual, "")
 
-		et = parseROS2ErrorType("#define RCL_RET_NOT_INIT 101")
+		et = p.parse("#define RCL_RET_NOT_INIT 101")
 		So(et, ShouldResemble, &ROS2ErrorType{
 			Name:      "RCL_RET_NOT_INIT",
 			Rcl_ret_t: "101",
 			Reference: "",
 			Comment:   "",
 		})
-		So(ros2errorTypesCommentsBuffer.Len(), ShouldEqual, 0)
+		So(p.comments.Len(), ShouldEqual, 0)
 	})
 }
 
@@ -353,5 +360,22 @@ func snapshotCanonical(name string, obj interface{}) error {
 
 	default:
 		return cupaloy.SnapshotMulti(name, obj)
+	}
+}
+
+// An unqualified type names a message of the same package, as rosidl reads it;
+// there is no implicit std_msgs (not even for Header).
+func TestUnqualifiedTypesAreSamePackage(t *testing.T) {
+	for _, name := range []string{"Empty", "Header", "String", "Time", "MyType"} {
+		f := &ROS2Field{RosType: name}
+		pkg, _, _ := translateROS2Type(f, &ROS2Message{Metadata: &Metadata{Package: "my_msgs", Type: "msg"}})
+		if pkg != "." {
+			t.Errorf("msg field of type %s resolved to package %q, want the same package", name, pkg)
+		}
+		f = &ROS2Field{RosType: name}
+		pkg, _, _ = translateROS2Type(f, &ROS2Message{Metadata: &Metadata{Package: "my_msgs", Type: "srv"}})
+		if pkg != "my_msgs" {
+			t.Errorf("srv field of type %s resolved to package %q, want my_msgs (its msg package)", name, pkg)
+		}
 	}
 }

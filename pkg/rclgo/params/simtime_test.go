@@ -1,3 +1,12 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package params
 
 import (
@@ -15,7 +24,7 @@ type sinkSender struct {
 func (s *sinkSender) SendResponse(m types.Message) error { s.last = m; return nil }
 
 func TestEnableUseSimTimeHook_TogglesOnSet(t *testing.T) {
-	m := &Manager{st: newStore()}
+	m := newBareManager()
 
 	var toggles []bool
 	m.EnableUseSimTimeHook(func(enabled bool) {

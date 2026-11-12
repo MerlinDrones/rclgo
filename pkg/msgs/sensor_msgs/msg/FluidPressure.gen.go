@@ -59,6 +59,15 @@ func (t *FluidPressure) GetTypeSupport() types.MessageTypeSupport {
 	return FluidPressureTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *FluidPressure) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // FluidPressurePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type FluidPressurePublisher struct {
@@ -91,11 +100,17 @@ type FluidPressureSubscriptionCallback func(msg *FluidPressure, info *rclgo.Mess
 
 // NewFluidPressureSubscription creates and returns a new subscription for the
 // FluidPressure
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFluidPressureSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback FluidPressureSubscriptionCallback) (*FluidPressureSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg FluidPressure
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg FluidPressure
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, FluidPressureTypeSupport, opts, callback)
 	if err != nil {
@@ -158,6 +173,7 @@ type CFluidPressure__Sequence = C.sensor_msgs__msg__FluidPressure__Sequence
 
 func FluidPressure__Sequence_to_Go(goSlice *[]FluidPressure, cSlice CFluidPressure__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]FluidPressure, cSlice.size)
@@ -166,14 +182,17 @@ func FluidPressure__Sequence_to_Go(goSlice *[]FluidPressure, cSlice CFluidPressu
 		FluidPressureTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func FluidPressure__Sequence_to_C(cSlice *CFluidPressure__Sequence, goSlice []FluidPressure) {
+func FluidPressure__Sequence_into_C(cSlice *CFluidPressure__Sequence, goSlice []FluidPressure) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__FluidPressure__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__FluidPressure)(C.malloc(C.sizeof_struct_sensor_msgs__msg__FluidPressure * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__FluidPressure)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__FluidPressure))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -186,7 +205,7 @@ func FluidPressure__Array_to_Go(goSlice []FluidPressure, cSlice []CFluidPressure
 		FluidPressureTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func FluidPressure__Array_to_C(cSlice []CFluidPressure, goSlice []FluidPressure) {
+func FluidPressure__Array_into_C(cSlice []CFluidPressure, goSlice []FluidPressure) {
 	for i := 0; i < len(goSlice); i++ {
 		FluidPressureTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

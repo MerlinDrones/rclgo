@@ -1,0 +1,86 @@
+#!/bin/bash
+# SwarmOS pre-commit hook
+#
+# Canonical copy lives in swarmos-devtools/hooks/; do not edit the copy in a
+# repo's .githooks/. Repo-specific checks go in .githooks/pre-commit.local.
+
+# shellcheck source=SCRIPTDIR/lib.sh
+source "$(dirname "$0")/lib.sh"
+
+info "🔍 Running pre-commit checks..."
+
+STAGED="$(git diff --cached --name-only --diff-filter=d)"
+
+# Prevent commits to protected branches (merge commits, e.g. git-flow finish, are allowed)
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if is_protected_branch "$BRANCH"; then
+    if in_merge; then
+        info "  ℹ️  Merge commit on $BRANCH — allowing"
+    else
+        echo -e "${RED}❌ Cannot commit directly to $BRANCH!${NC}"
+        echo "   Use git-flow: git flow feature start <name>"
+        exit 1
+    fi
+fi
+
+# Merge conflict markers
+if git diff --cached -- . ':(exclude)*.md' ':(exclude)*.rst' | grep -qE "^\+(<<<<<<<|=======|>>>>>>>)( |$)"; then
+    fail "❌ Found merge conflict markers!"
+fi
+
+# TODO:REMOVE markers in code files
+TODO_LINES=$(echo "$STAGED" | grep -E '\.(go|js|ts|jsx|tsx|mjs|cjs|py|c|cpp|h|hpp|sh)$' | while read -r file; do
+    git diff --cached -- "$file" | grep -n -E "^\+.*TODO:.*REMOVE" | sed "s|^|$file:|"
+done)
+if [ -n "$TODO_LINES" ]; then
+    echo -e "${RED}❌ Found TODO:REMOVE markers!${NC}"
+    echo ""
+    echo "$TODO_LINES"
+    echo ""
+    echo "   Remove temporary TODOs before committing"
+    exit 1
+fi
+
+# Debugging statements in JS/TS files (commented ones are OK)
+DEBUG_LINES=$(echo "$STAGED" | grep -E '\.(js|ts|jsx|tsx|mjs|cjs)$' | while read -r file; do
+    git diff --cached -- "$file" | grep -n -E "^\+[^/]*\b(console\.log|debugger)\b" | sed "s|^|$file:|"
+done)
+if [ -n "$DEBUG_LINES" ]; then
+    echo -e "${RED}❌ Found uncommented debugging statements!${NC}"
+    echo ""
+    echo "$DEBUG_LINES"
+    echo ""
+    echo "   Remove console.log or debugger before committing"
+    exit 1
+fi
+
+# Go formatting of the staged content
+STAGED_GO="$(echo "$STAGED" | grep '\.go$' || true)"
+if [ -n "$STAGED_GO" ]; then
+    info "  → Checking Go formatting..."
+    UNFORMATTED=""
+    while read -r file; do
+        is_generated_go "$file" && continue
+        if [ -n "$(git show ":$file" | gofmt -l 2>&1)" ]; then
+            UNFORMATTED="$UNFORMATTED$file"$'\n'
+        fi
+    done <<< "$STAGED_GO"
+    if [ -n "$UNFORMATTED" ]; then
+        echo -e "${RED}❌ Go files need formatting:${NC}"
+        echo -n "$UNFORMATTED"
+        echo "   Run: gofmt -w <file>  (then git add it)"
+        exit 1
+    fi
+fi
+
+# Repo-specific checks (may stage generated files, so run before vet/test)
+run_local_hook pre-commit "$@"
+
+# Engineering policy: test before you commit. Vet + test the changed packages.
+STAGED="$(git diff --cached --name-only --diff-filter=d)"
+if echo "$STAGED" | grep -qE '(\.go|go\.mod|go\.sum)$'; then
+    load_ros_env
+    go_checks_for_changed_files < <(echo "$STAGED")
+fi
+
+ok "✅ Pre-commit checks passed!"

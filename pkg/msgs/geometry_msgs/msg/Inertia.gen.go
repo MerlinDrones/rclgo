@@ -73,6 +73,15 @@ func (t *Inertia) GetTypeSupport() types.MessageTypeSupport {
 	return InertiaTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Inertia) CheckBounds() error {
+	if err := types.CheckBounds(&t.Com); err != nil {
+		return types.InField("com", err)
+	}
+	return nil
+}
+
 // InertiaPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type InertiaPublisher struct {
@@ -105,11 +114,17 @@ type InertiaSubscriptionCallback func(msg *Inertia, info *rclgo.MessageInfo, err
 
 // NewInertiaSubscription creates and returns a new subscription for the
 // Inertia
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewInertiaSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback InertiaSubscriptionCallback) (*InertiaSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Inertia
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Inertia
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, InertiaTypeSupport, opts, callback)
 	if err != nil {
@@ -182,6 +197,7 @@ type CInertia__Sequence = C.geometry_msgs__msg__Inertia__Sequence
 
 func Inertia__Sequence_to_Go(goSlice *[]Inertia, cSlice CInertia__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Inertia, cSlice.size)
@@ -190,14 +206,17 @@ func Inertia__Sequence_to_Go(goSlice *[]Inertia, cSlice CInertia__Sequence) {
 		InertiaTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Inertia__Sequence_to_C(cSlice *CInertia__Sequence, goSlice []Inertia) {
+func Inertia__Sequence_into_C(cSlice *CInertia__Sequence, goSlice []Inertia) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Inertia__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Inertia)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Inertia * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Inertia)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Inertia))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -210,7 +229,7 @@ func Inertia__Array_to_Go(goSlice []Inertia, cSlice []CInertia) {
 		InertiaTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Inertia__Array_to_C(cSlice []CInertia, goSlice []Inertia) {
+func Inertia__Array_into_C(cSlice []CInertia, goSlice []Inertia) {
 	for i := 0; i < len(goSlice); i++ {
 		InertiaTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

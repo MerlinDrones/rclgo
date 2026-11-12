@@ -40,7 +40,7 @@ func (s _FibonacciTypeSupport) NewSendGoalResponse(accepted bool, stamp time.Dur
 	msg := NewFibonacci_SendGoal_Response()
 	msg.Accepted = accepted
 	secs := stamp.Truncate(time.Second)
-	msg.Stamp.Sec = int32(secs)
+	msg.Stamp.Sec = int32(secs / time.Second)
 	msg.Stamp.Nanosec = uint32(stamp - secs)
 	return msg
 }
@@ -139,10 +139,15 @@ type _FibonacciAction struct {
 }
 
 func (a _FibonacciAction) ExecuteGoal(ctx context.Context, handle *rclgo.GoalHandle) (types.Message, error) {
-	return a.action.ExecuteGoal(ctx, &FibonacciGoalHandle{
+	result, err := a.action.ExecuteGoal(ctx, &FibonacciGoalHandle{
 		GoalHandle:  handle,
 		Description: handle.Description.(*Fibonacci_Goal),
 	})
+	if result == nil {
+		// A nil *Fibonacci_Result must not become a non-nil types.Message.
+		return nil, err
+	}
+	return result, err
 }
 
 func (a _FibonacciAction) TypeSupport() types.ActionTypeSupport {

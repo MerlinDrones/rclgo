@@ -61,6 +61,21 @@ func (t *TransitionEvent) GetTypeSupport() types.MessageTypeSupport {
 	return TransitionEventTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *TransitionEvent) CheckBounds() error {
+	if err := types.CheckBounds(&t.Transition); err != nil {
+		return types.InField("transition", err)
+	}
+	if err := types.CheckBounds(&t.StartState); err != nil {
+		return types.InField("start_state", err)
+	}
+	if err := types.CheckBounds(&t.GoalState); err != nil {
+		return types.InField("goal_state", err)
+	}
+	return nil
+}
+
 // TransitionEventPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TransitionEventPublisher struct {
@@ -93,11 +108,17 @@ type TransitionEventSubscriptionCallback func(msg *TransitionEvent, info *rclgo.
 
 // NewTransitionEventSubscription creates and returns a new subscription for the
 // TransitionEvent
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTransitionEventSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TransitionEventSubscriptionCallback) (*TransitionEventSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg TransitionEvent
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg TransitionEvent
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TransitionEventTypeSupport, opts, callback)
 	if err != nil {
@@ -162,6 +183,7 @@ type CTransitionEvent__Sequence = C.lifecycle_msgs__msg__TransitionEvent__Sequen
 
 func TransitionEvent__Sequence_to_Go(goSlice *[]TransitionEvent, cSlice CTransitionEvent__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]TransitionEvent, cSlice.size)
@@ -170,14 +192,17 @@ func TransitionEvent__Sequence_to_Go(goSlice *[]TransitionEvent, cSlice CTransit
 		TransitionEventTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TransitionEvent__Sequence_to_C(cSlice *CTransitionEvent__Sequence, goSlice []TransitionEvent) {
+func TransitionEvent__Sequence_into_C(cSlice *CTransitionEvent__Sequence, goSlice []TransitionEvent) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__msg__TransitionEvent__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__msg__TransitionEvent)(C.malloc(C.sizeof_struct_lifecycle_msgs__msg__TransitionEvent * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__msg__TransitionEvent)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__msg__TransitionEvent))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +215,7 @@ func TransitionEvent__Array_to_Go(goSlice []TransitionEvent, cSlice []CTransitio
 		TransitionEventTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TransitionEvent__Array_to_C(cSlice []CTransitionEvent, goSlice []TransitionEvent) {
+func TransitionEvent__Array_into_C(cSlice []CTransitionEvent, goSlice []TransitionEvent) {
 	for i := 0; i < len(goSlice); i++ {
 		TransitionEventTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -1,3 +1,12 @@
+/*
+This file is part of rclgo
+
+Copyright © 2022 Technology Innovation Institute, United Arab Emirates
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package rclgo
 
 /*
@@ -7,6 +16,7 @@ package rclgo
 import "C"
 
 import (
+	"runtime"
 	"unsafe"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
@@ -29,10 +39,18 @@ func (n *Node) GetTopicNamesAndTypes(demangle bool) (map[string][]string, error)
 }
 
 func (n *Node) GetNodeNames() (names, namespaces []string, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	if !n.life.acquire() {
+		return nil, nil, closedErr("node")
+	}
+	defer n.life.release()
 	rcnames := C.rcutils_get_zero_initialized_string_array()
-	defer C.rcutils_string_array_fini(&rcnames)
+	defer func() { joinFiniErr(&err, C.rcl_ret_t(C.rcutils_string_array_fini(&rcnames)), "node names") }()
 	rcnamespaces := C.rcutils_get_zero_initialized_string_array()
-	defer C.rcutils_string_array_fini(&rcnamespaces)
+	defer func() {
+		joinFiniErr(&err, C.rcl_ret_t(C.rcutils_string_array_fini(&rcnamespaces)), "node namespaces")
+	}()
 	rc := C.rcl_get_node_names(
 		n.rcl_node_t,
 		*n.context.rcl_allocator_t,
@@ -133,13 +151,19 @@ func (n *Node) getNamesAndTypes(
 		node, namespace *C.char,
 		namesAndTypes *C.rmw_names_and_types_t,
 	) C.int,
-) (map[string][]string, error) {
+) (_ map[string][]string, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	if !n.life.acquire() {
+		return nil, closedErr("node")
+	}
+	defer n.life.release()
 	cnode := C.CString(node)
 	defer C.free(unsafe.Pointer(cnode))
 	cnamespace := C.CString(namespace)
 	defer C.free(unsafe.Pointer(cnamespace))
 	cnamesAndTypes := C.rcl_get_zero_initialized_names_and_types()
-	defer C.rcl_names_and_types_fini(&cnamesAndTypes)
+	defer func() { joinFiniErr(&err, C.rcl_names_and_types_fini(&cnamesAndTypes), "names and types") }()
 	rc := get(cnode, cnamespace, &cnamesAndTypes)
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to get topic names and types")
@@ -180,12 +204,20 @@ type TopicEndpointInfo struct {
 	QosProfile    qos.Profile
 }
 
+// GetPublishersInfoByTopic returns the publishers of topic, with their node,
+// type and QoS (rclcpp's get_publishers_info_by_topic). With mangle true (the
+// usual case, rclcpp's default no_mangle=false) topic is a ROS topic name that
+// is converted to the middleware's name; with mangle false it is used as the
+// middleware's name unchanged. Note that mangle is the inverse of rcl's
+// no_mangle argument.
 func (n *Node) GetPublishersInfoByTopic(topic string, mangle bool) ([]TopicEndpointInfo, error) {
 	return n.getInfoByTopic("publishers", topic, mangle, func(topic *C.char, noMangle C.bool, infoArray *C.rmw_topic_endpoint_info_array_t) C.int {
 		return C.rcl_get_publishers_info_by_topic(n.rcl_node_t, n.context.rcl_allocator_t, topic, noMangle, infoArray)
 	})
 }
 
+// GetSubscriptionsInfoByTopic is GetPublishersInfoByTopic for the topic's
+// subscriptions (rclcpp's get_subscriptions_info_by_topic).
 func (n *Node) GetSubscriptionsInfoByTopic(topic string, mangle bool) ([]TopicEndpointInfo, error) {
 	return n.getInfoByTopic("subscriptions", topic, mangle, func(topic *C.char, noMangle C.bool, infoArray *C.rmw_topic_endpoint_info_array_t) C.int {
 		return C.rcl_get_subscriptions_info_by_topic(n.rcl_node_t, n.context.rcl_allocator_t, topic, noMangle, infoArray)
@@ -196,11 +228,19 @@ func (n *Node) getInfoByTopic(kind, topic string, mangle bool, get func(
 	topic *C.char,
 	noMangle C.bool,
 	infoArray *C.rmw_topic_endpoint_info_array_t,
-) C.int) ([]TopicEndpointInfo, error) {
+) C.int) (_ []TopicEndpointInfo, err error) {
+	runtime.LockOSThread() // rcl error state is per OS thread; see errorString
+	defer runtime.UnlockOSThread()
+	if !n.life.acquire() {
+		return nil, closedErr("node")
+	}
+	defer n.life.release()
 	ctopic := C.CString(topic)
 	defer C.free(unsafe.Pointer(ctopic))
 	infoArray := C.rmw_get_zero_initialized_topic_endpoint_info_array()
-	defer C.rmw_topic_endpoint_info_array_fini(&infoArray, n.context.rcl_allocator_t)
+	defer func() {
+		joinFiniErr(&err, C.rcl_ret_t(C.rmw_topic_endpoint_info_array_fini(&infoArray, n.context.rcl_allocator_t)), "endpoint info")
+	}()
 	rc := get(ctopic, !C.bool(mangle), &infoArray)
 	if rc != C.RCL_RET_OK {
 		return nil, errorsCastC(rc, "failed to get "+kind+" info by topic")

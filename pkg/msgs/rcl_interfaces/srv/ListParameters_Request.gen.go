@@ -63,6 +63,12 @@ func (t *ListParameters_Request) GetTypeSupport() types.MessageTypeSupport {
 	return ListParameters_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ListParameters_Request) CheckBounds() error {
+	return nil
+}
+
 // ListParameters_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ListParameters_RequestPublisher struct {
@@ -95,11 +101,17 @@ type ListParameters_RequestSubscriptionCallback func(msg *ListParameters_Request
 
 // NewListParameters_RequestSubscription creates and returns a new subscription for the
 // ListParameters_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewListParameters_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ListParameters_RequestSubscriptionCallback) (*ListParameters_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ListParameters_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ListParameters_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ListParameters_RequestTypeSupport, opts, callback)
 	if err != nil {
@@ -140,7 +152,7 @@ func (t _ListParameters_RequestTypeSupport) ReleaseMemory(pointer_to_free unsafe
 func (t _ListParameters_RequestTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ListParameters_Request)
 	mem := (*C.rcl_interfaces__srv__ListParameters_Request)(dst)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.prefixes)), m.Prefixes)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.prefixes)), m.Prefixes)
 	mem.depth = C.uint64_t(m.Depth)
 }
 
@@ -160,6 +172,7 @@ type CListParameters_Request__Sequence = C.rcl_interfaces__srv__ListParameters_R
 
 func ListParameters_Request__Sequence_to_Go(goSlice *[]ListParameters_Request, cSlice CListParameters_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ListParameters_Request, cSlice.size)
@@ -168,14 +181,17 @@ func ListParameters_Request__Sequence_to_Go(goSlice *[]ListParameters_Request, c
 		ListParameters_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ListParameters_Request__Sequence_to_C(cSlice *CListParameters_Request__Sequence, goSlice []ListParameters_Request) {
+func ListParameters_Request__Sequence_into_C(cSlice *CListParameters_Request__Sequence, goSlice []ListParameters_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__srv__ListParameters_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__srv__ListParameters_Request)(C.malloc(C.sizeof_struct_rcl_interfaces__srv__ListParameters_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__srv__ListParameters_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__srv__ListParameters_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -188,7 +204,7 @@ func ListParameters_Request__Array_to_Go(goSlice []ListParameters_Request, cSlic
 		ListParameters_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ListParameters_Request__Array_to_C(cSlice []CListParameters_Request, goSlice []ListParameters_Request) {
+func ListParameters_Request__Array_into_C(cSlice []CListParameters_Request, goSlice []ListParameters_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		ListParameters_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

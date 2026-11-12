@@ -52,6 +52,12 @@ func (t *AddTwoInts_Response) GetTypeSupport() types.MessageTypeSupport {
 	return AddTwoInts_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *AddTwoInts_Response) CheckBounds() error {
+	return nil
+}
+
 // AddTwoInts_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type AddTwoInts_ResponsePublisher struct {
@@ -84,11 +90,17 @@ type AddTwoInts_ResponseSubscriptionCallback func(msg *AddTwoInts_Response, info
 
 // NewAddTwoInts_ResponseSubscription creates and returns a new subscription for the
 // AddTwoInts_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewAddTwoInts_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback AddTwoInts_ResponseSubscriptionCallback) (*AddTwoInts_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg AddTwoInts_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg AddTwoInts_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, AddTwoInts_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -147,6 +159,7 @@ type CAddTwoInts_Response__Sequence = C.example_interfaces__srv__AddTwoInts_Resp
 
 func AddTwoInts_Response__Sequence_to_Go(goSlice *[]AddTwoInts_Response, cSlice CAddTwoInts_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]AddTwoInts_Response, cSlice.size)
@@ -155,14 +168,17 @@ func AddTwoInts_Response__Sequence_to_Go(goSlice *[]AddTwoInts_Response, cSlice 
 		AddTwoInts_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func AddTwoInts_Response__Sequence_to_C(cSlice *CAddTwoInts_Response__Sequence, goSlice []AddTwoInts_Response) {
+func AddTwoInts_Response__Sequence_into_C(cSlice *CAddTwoInts_Response__Sequence, goSlice []AddTwoInts_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__srv__AddTwoInts_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__srv__AddTwoInts_Response)(C.malloc(C.sizeof_struct_example_interfaces__srv__AddTwoInts_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__srv__AddTwoInts_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__srv__AddTwoInts_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -175,7 +191,7 @@ func AddTwoInts_Response__Array_to_Go(goSlice []AddTwoInts_Response, cSlice []CA
 		AddTwoInts_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func AddTwoInts_Response__Array_to_C(cSlice []CAddTwoInts_Response, goSlice []AddTwoInts_Response) {
+func AddTwoInts_Response__Array_into_C(cSlice []CAddTwoInts_Response, goSlice []AddTwoInts_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		AddTwoInts_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

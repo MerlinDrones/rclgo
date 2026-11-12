@@ -53,6 +53,12 @@ func (t *UUID) GetTypeSupport() types.MessageTypeSupport {
 	return UUIDTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *UUID) CheckBounds() error {
+	return nil
+}
+
 // UUIDPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type UUIDPublisher struct {
@@ -85,11 +91,17 @@ type UUIDSubscriptionCallback func(msg *UUID, info *rclgo.MessageInfo, err error
 
 // NewUUIDSubscription creates and returns a new subscription for the
 // UUID
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewUUIDSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback UUIDSubscriptionCallback) (*UUIDSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg UUID
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg UUID
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, UUIDTypeSupport, opts, callback)
 	if err != nil {
@@ -131,7 +143,7 @@ func (t _UUIDTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*UUID)
 	mem := (*C.unique_identifier_msgs__msg__UUID)(dst)
 	cSlice_uuid := mem.uuid[:]
-	primitives.Uint8__Array_to_C(*(*[]primitives.CUint8)(unsafe.Pointer(&cSlice_uuid)), m.Uuid[:])
+	primitives.Uint8__Array_into_C(*(*[]primitives.CUint8)(unsafe.Pointer(&cSlice_uuid)), m.Uuid[:])
 }
 
 func (t _UUIDTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -150,6 +162,7 @@ type CUUID__Sequence = C.unique_identifier_msgs__msg__UUID__Sequence
 
 func UUID__Sequence_to_Go(goSlice *[]UUID, cSlice CUUID__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]UUID, cSlice.size)
@@ -158,14 +171,17 @@ func UUID__Sequence_to_Go(goSlice *[]UUID, cSlice CUUID__Sequence) {
 		UUIDTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func UUID__Sequence_to_C(cSlice *CUUID__Sequence, goSlice []UUID) {
+func UUID__Sequence_into_C(cSlice *CUUID__Sequence, goSlice []UUID) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.unique_identifier_msgs__msg__UUID__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.unique_identifier_msgs__msg__UUID)(C.malloc(C.sizeof_struct_unique_identifier_msgs__msg__UUID * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.unique_identifier_msgs__msg__UUID)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_unique_identifier_msgs__msg__UUID))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -178,7 +194,7 @@ func UUID__Array_to_Go(goSlice []UUID, cSlice []CUUID) {
 		UUIDTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func UUID__Array_to_C(cSlice []CUUID, goSlice []UUID) {
+func UUID__Array_into_C(cSlice []CUUID, goSlice []UUID) {
 	for i := 0; i < len(goSlice); i++ {
 		UUIDTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -11,9 +11,14 @@ package typemap
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
 )
+
+// mu guards the three maps: generated packages register on import, but
+// applications may also register and look up types from any goroutine.
+var mu sync.RWMutex
 
 /*
 messageTypeMap maps the ROS2 Message type name to the type implementation in Go,
@@ -33,6 +38,8 @@ correct type can be dynamically chosen. The Golang types of ROS2 Message use
 to automatically populate this when imported.
 */
 func RegisterMessage(alias string, msgType types.MessageTypeSupport) {
+	mu.Lock()
+	defer mu.Unlock()
 	messageTypeMap[alias] = msgType
 }
 
@@ -48,6 +55,8 @@ to
 returns true if the type mapping is found
 */
 func GetMessage(msgType string) (types.MessageTypeSupport, bool) {
+	mu.RLock()
+	defer mu.RUnlock()
 	ros2msg, ok := messageTypeMap[msgType]
 	return ros2msg, ok
 }
@@ -56,6 +65,8 @@ func GetMessage(msgType string) (types.MessageTypeSupport, bool) {
 GetMessageMust panics if there is no mapping
 */
 func GetMessageMust(msgType string) types.MessageTypeSupport {
+	mu.RLock()
+	defer mu.RUnlock()
 	ros2msg, ok := messageTypeMap[msgType]
 	if !ok {
 		panic(fmt.Sprintf("No registered implementation for ROS2 message type '%s'!\n", msgType))
@@ -68,17 +79,23 @@ var serviceTypeMap = make(map[string]types.ServiceTypeSupport)
 
 // RegisterService is the RegisterMessage equivalent for services.
 func RegisterService(alias string, srvType types.ServiceTypeSupport) {
+	mu.Lock()
+	defer mu.Unlock()
 	serviceTypeMap[alias] = srvType
 }
 
 // GetService is the GetMessage equivalent for services.
 func GetService(srvType string) (types.ServiceTypeSupport, bool) {
+	mu.RLock()
+	defer mu.RUnlock()
 	srv, ok := serviceTypeMap[srvType]
 	return srv, ok
 }
 
 // GetServiceMust is the GetMessageMust equivalent for services.
 func GetServiceMust(srvType string) types.ServiceTypeSupport {
+	mu.RLock()
+	defer mu.RUnlock()
 	srv, ok := serviceTypeMap[srvType]
 	if !ok {
 		panic(fmt.Sprintf("No registered implementation for ROS2 message type '%s'!\n", srvType))
@@ -91,17 +108,23 @@ var actionTypeMap = make(map[string]types.ActionTypeSupport)
 
 // RegisterAction is the RegisterMessage equivalent for actions.
 func RegisterAction(alias string, actionType types.ActionTypeSupport) {
+	mu.Lock()
+	defer mu.Unlock()
 	actionTypeMap[alias] = actionType
 }
 
 // GetAction is the GetMessage equivalent for actions.
 func GetAction(actionType string) (types.ActionTypeSupport, bool) {
+	mu.RLock()
+	defer mu.RUnlock()
 	action, ok := actionTypeMap[actionType]
 	return action, ok
 }
 
 // GetActionMust is the GetMessageMust equivalent for actions.
 func GetActionMust(actionType string) types.ActionTypeSupport {
+	mu.RLock()
+	defer mu.RUnlock()
 	action, ok := actionTypeMap[actionType]
 	if !ok {
 		panic(fmt.Sprintf("No registered implementation for ROS2 message type '%s'!\n", actionType))

@@ -53,6 +53,15 @@ func (t *SetParametersAtomically_Response) GetTypeSupport() types.MessageTypeSup
 	return SetParametersAtomically_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *SetParametersAtomically_Response) CheckBounds() error {
+	if err := types.CheckBounds(&t.Result); err != nil {
+		return types.InField("result", err)
+	}
+	return nil
+}
+
 // SetParametersAtomically_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type SetParametersAtomically_ResponsePublisher struct {
@@ -85,11 +94,17 @@ type SetParametersAtomically_ResponseSubscriptionCallback func(msg *SetParameter
 
 // NewSetParametersAtomically_ResponseSubscription creates and returns a new subscription for the
 // SetParametersAtomically_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewSetParametersAtomically_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback SetParametersAtomically_ResponseSubscriptionCallback) (*SetParametersAtomically_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg SetParametersAtomically_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg SetParametersAtomically_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, SetParametersAtomically_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -148,6 +163,7 @@ type CSetParametersAtomically_Response__Sequence = C.rcl_interfaces__srv__SetPar
 
 func SetParametersAtomically_Response__Sequence_to_Go(goSlice *[]SetParametersAtomically_Response, cSlice CSetParametersAtomically_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetParametersAtomically_Response, cSlice.size)
@@ -156,14 +172,17 @@ func SetParametersAtomically_Response__Sequence_to_Go(goSlice *[]SetParametersAt
 		SetParametersAtomically_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetParametersAtomically_Response__Sequence_to_C(cSlice *CSetParametersAtomically_Response__Sequence, goSlice []SetParametersAtomically_Response) {
+func SetParametersAtomically_Response__Sequence_into_C(cSlice *CSetParametersAtomically_Response__Sequence, goSlice []SetParametersAtomically_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__srv__SetParametersAtomically_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__srv__SetParametersAtomically_Response)(C.malloc(C.sizeof_struct_rcl_interfaces__srv__SetParametersAtomically_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__srv__SetParametersAtomically_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__srv__SetParametersAtomically_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -176,7 +195,7 @@ func SetParametersAtomically_Response__Array_to_Go(goSlice []SetParametersAtomic
 		SetParametersAtomically_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetParametersAtomically_Response__Array_to_C(cSlice []CSetParametersAtomically_Response, goSlice []SetParametersAtomically_Response) {
+func SetParametersAtomically_Response__Array_into_C(cSlice []CSetParametersAtomically_Response, goSlice []SetParametersAtomically_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		SetParametersAtomically_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

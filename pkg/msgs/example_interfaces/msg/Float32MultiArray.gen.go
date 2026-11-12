@@ -59,6 +59,15 @@ func (t *Float32MultiArray) GetTypeSupport() types.MessageTypeSupport {
 	return Float32MultiArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Float32MultiArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Layout); err != nil {
+		return types.InField("layout", err)
+	}
+	return nil
+}
+
 // Float32MultiArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Float32MultiArrayPublisher struct {
@@ -91,11 +100,17 @@ type Float32MultiArraySubscriptionCallback func(msg *Float32MultiArray, info *rc
 
 // NewFloat32MultiArraySubscription creates and returns a new subscription for the
 // Float32MultiArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFloat32MultiArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Float32MultiArraySubscriptionCallback) (*Float32MultiArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Float32MultiArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Float32MultiArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Float32MultiArrayTypeSupport, opts, callback)
 	if err != nil {
@@ -137,7 +152,7 @@ func (t _Float32MultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.M
 	m := msg.(*Float32MultiArray)
 	mem := (*C.example_interfaces__msg__Float32MultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _Float32MultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +171,7 @@ type CFloat32MultiArray__Sequence = C.example_interfaces__msg__Float32MultiArray
 
 func Float32MultiArray__Sequence_to_Go(goSlice *[]Float32MultiArray, cSlice CFloat32MultiArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Float32MultiArray, cSlice.size)
@@ -164,14 +180,17 @@ func Float32MultiArray__Sequence_to_Go(goSlice *[]Float32MultiArray, cSlice CFlo
 		Float32MultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Float32MultiArray__Sequence_to_C(cSlice *CFloat32MultiArray__Sequence, goSlice []Float32MultiArray) {
+func Float32MultiArray__Sequence_into_C(cSlice *CFloat32MultiArray__Sequence, goSlice []Float32MultiArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__Float32MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__Float32MultiArray)(C.malloc(C.sizeof_struct_example_interfaces__msg__Float32MultiArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__Float32MultiArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__Float32MultiArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +203,7 @@ func Float32MultiArray__Array_to_Go(goSlice []Float32MultiArray, cSlice []CFloat
 		Float32MultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Float32MultiArray__Array_to_C(cSlice []CFloat32MultiArray, goSlice []Float32MultiArray) {
+func Float32MultiArray__Array_into_C(cSlice []CFloat32MultiArray, goSlice []Float32MultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		Float32MultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

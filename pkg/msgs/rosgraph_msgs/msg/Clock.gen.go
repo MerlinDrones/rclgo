@@ -53,6 +53,15 @@ func (t *Clock) GetTypeSupport() types.MessageTypeSupport {
 	return ClockTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Clock) CheckBounds() error {
+	if err := types.CheckBounds(&t.Clock); err != nil {
+		return types.InField("clock", err)
+	}
+	return nil
+}
+
 // ClockPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ClockPublisher struct {
@@ -85,11 +94,17 @@ type ClockSubscriptionCallback func(msg *Clock, info *rclgo.MessageInfo, err err
 
 // NewClockSubscription creates and returns a new subscription for the
 // Clock
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewClockSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ClockSubscriptionCallback) (*ClockSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Clock
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Clock
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ClockTypeSupport, opts, callback)
 	if err != nil {
@@ -148,6 +163,7 @@ type CClock__Sequence = C.rosgraph_msgs__msg__Clock__Sequence
 
 func Clock__Sequence_to_Go(goSlice *[]Clock, cSlice CClock__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Clock, cSlice.size)
@@ -156,14 +172,17 @@ func Clock__Sequence_to_Go(goSlice *[]Clock, cSlice CClock__Sequence) {
 		ClockTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Clock__Sequence_to_C(cSlice *CClock__Sequence, goSlice []Clock) {
+func Clock__Sequence_into_C(cSlice *CClock__Sequence, goSlice []Clock) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosgraph_msgs__msg__Clock__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rosgraph_msgs__msg__Clock)(C.malloc(C.sizeof_struct_rosgraph_msgs__msg__Clock * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rosgraph_msgs__msg__Clock)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rosgraph_msgs__msg__Clock))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -176,7 +195,7 @@ func Clock__Array_to_Go(goSlice []Clock, cSlice []CClock) {
 		ClockTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Clock__Array_to_C(cSlice []CClock, goSlice []Clock) {
+func Clock__Array_into_C(cSlice []CClock, goSlice []Clock) {
 	for i := 0; i < len(goSlice); i++ {
 		ClockTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

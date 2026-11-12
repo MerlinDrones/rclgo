@@ -79,6 +79,18 @@ func (t *NavSatFix) GetTypeSupport() types.MessageTypeSupport {
 	return NavSatFixTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NavSatFix) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Status); err != nil {
+		return types.InField("status", err)
+	}
+	return nil
+}
+
 // NavSatFixPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type NavSatFixPublisher struct {
@@ -111,11 +123,17 @@ type NavSatFixSubscriptionCallback func(msg *NavSatFix, info *rclgo.MessageInfo,
 
 // NewNavSatFixSubscription creates and returns a new subscription for the
 // NavSatFix
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewNavSatFixSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback NavSatFixSubscriptionCallback) (*NavSatFixSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg NavSatFix
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg NavSatFix
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, NavSatFixTypeSupport, opts, callback)
 	if err != nil {
@@ -162,7 +180,7 @@ func (t _NavSatFixTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) 
 	mem.longitude = C.double(m.Longitude)
 	mem.altitude = C.double(m.Altitude)
 	cSlice_position_covariance := mem.position_covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_position_covariance)), m.PositionCovariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_position_covariance)), m.PositionCovariance[:])
 	mem.position_covariance_type = C.uint8_t(m.PositionCovarianceType)
 }
 
@@ -188,6 +206,7 @@ type CNavSatFix__Sequence = C.sensor_msgs__msg__NavSatFix__Sequence
 
 func NavSatFix__Sequence_to_Go(goSlice *[]NavSatFix, cSlice CNavSatFix__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]NavSatFix, cSlice.size)
@@ -196,14 +215,17 @@ func NavSatFix__Sequence_to_Go(goSlice *[]NavSatFix, cSlice CNavSatFix__Sequence
 		NavSatFixTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NavSatFix__Sequence_to_C(cSlice *CNavSatFix__Sequence, goSlice []NavSatFix) {
+func NavSatFix__Sequence_into_C(cSlice *CNavSatFix__Sequence, goSlice []NavSatFix) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__NavSatFix__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__NavSatFix)(C.malloc(C.sizeof_struct_sensor_msgs__msg__NavSatFix * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__NavSatFix)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__NavSatFix))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -216,7 +238,7 @@ func NavSatFix__Array_to_Go(goSlice []NavSatFix, cSlice []CNavSatFix) {
 		NavSatFixTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NavSatFix__Array_to_C(cSlice []CNavSatFix, goSlice []NavSatFix) {
+func NavSatFix__Array_into_C(cSlice []CNavSatFix, goSlice []NavSatFix) {
 	for i := 0; i < len(goSlice); i++ {
 		NavSatFixTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

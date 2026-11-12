@@ -60,6 +60,21 @@ func (t *NestedMessage_Feedback) GetTypeSupport() types.MessageTypeSupport {
 	return NestedMessage_FeedbackTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NestedMessage_Feedback) CheckBounds() error {
+	if err := types.CheckBounds(&t.NestedFieldNoPkg); err != nil {
+		return types.InField("nested_field_no_pkg", err)
+	}
+	if err := types.CheckBounds(&t.NestedField); err != nil {
+		return types.InField("nested_field", err)
+	}
+	if err := types.CheckBounds(&t.NestedDifferentPkg); err != nil {
+		return types.InField("nested_different_pkg", err)
+	}
+	return nil
+}
+
 // NestedMessage_FeedbackPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type NestedMessage_FeedbackPublisher struct {
@@ -92,11 +107,17 @@ type NestedMessage_FeedbackSubscriptionCallback func(msg *NestedMessage_Feedback
 
 // NewNestedMessage_FeedbackSubscription creates and returns a new subscription for the
 // NestedMessage_Feedback
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewNestedMessage_FeedbackSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback NestedMessage_FeedbackSubscriptionCallback) (*NestedMessage_FeedbackSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg NestedMessage_Feedback
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg NestedMessage_Feedback
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, NestedMessage_FeedbackTypeSupport, opts, callback)
 	if err != nil {
@@ -159,6 +180,7 @@ type CNestedMessage_Feedback__Sequence = C.test_msgs__action__NestedMessage_Feed
 
 func NestedMessage_Feedback__Sequence_to_Go(goSlice *[]NestedMessage_Feedback, cSlice CNestedMessage_Feedback__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]NestedMessage_Feedback, cSlice.size)
@@ -167,14 +189,17 @@ func NestedMessage_Feedback__Sequence_to_Go(goSlice *[]NestedMessage_Feedback, c
 		NestedMessage_FeedbackTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NestedMessage_Feedback__Sequence_to_C(cSlice *CNestedMessage_Feedback__Sequence, goSlice []NestedMessage_Feedback) {
+func NestedMessage_Feedback__Sequence_into_C(cSlice *CNestedMessage_Feedback__Sequence, goSlice []NestedMessage_Feedback) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__NestedMessage_Feedback__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__NestedMessage_Feedback)(C.malloc(C.sizeof_struct_test_msgs__action__NestedMessage_Feedback * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__NestedMessage_Feedback)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__NestedMessage_Feedback))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +212,7 @@ func NestedMessage_Feedback__Array_to_Go(goSlice []NestedMessage_Feedback, cSlic
 		NestedMessage_FeedbackTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NestedMessage_Feedback__Array_to_C(cSlice []CNestedMessage_Feedback, goSlice []NestedMessage_Feedback) {
+func NestedMessage_Feedback__Array_into_C(cSlice []CNestedMessage_Feedback, goSlice []NestedMessage_Feedback) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedMessage_FeedbackTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

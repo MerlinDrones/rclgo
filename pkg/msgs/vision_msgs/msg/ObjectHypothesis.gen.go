@@ -56,6 +56,12 @@ func (t *ObjectHypothesis) GetTypeSupport() types.MessageTypeSupport {
 	return ObjectHypothesisTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ObjectHypothesis) CheckBounds() error {
+	return nil
+}
+
 // ObjectHypothesisPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ObjectHypothesisPublisher struct {
@@ -88,11 +94,17 @@ type ObjectHypothesisSubscriptionCallback func(msg *ObjectHypothesis, info *rclg
 
 // NewObjectHypothesisSubscription creates and returns a new subscription for the
 // ObjectHypothesis
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewObjectHypothesisSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ObjectHypothesisSubscriptionCallback) (*ObjectHypothesisSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ObjectHypothesis
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ObjectHypothesis
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ObjectHypothesisTypeSupport, opts, callback)
 	if err != nil {
@@ -133,7 +145,7 @@ func (t _ObjectHypothesisTypeSupport) ReleaseMemory(pointer_to_free unsafe.Point
 func (t _ObjectHypothesisTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ObjectHypothesis)
 	mem := (*C.vision_msgs__msg__ObjectHypothesis)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.class_id), m.ClassId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.class_id), m.ClassId)
 	mem.score = C.double(m.Score)
 }
 
@@ -153,6 +165,7 @@ type CObjectHypothesis__Sequence = C.vision_msgs__msg__ObjectHypothesis__Sequenc
 
 func ObjectHypothesis__Sequence_to_Go(goSlice *[]ObjectHypothesis, cSlice CObjectHypothesis__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ObjectHypothesis, cSlice.size)
@@ -161,14 +174,17 @@ func ObjectHypothesis__Sequence_to_Go(goSlice *[]ObjectHypothesis, cSlice CObjec
 		ObjectHypothesisTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ObjectHypothesis__Sequence_to_C(cSlice *CObjectHypothesis__Sequence, goSlice []ObjectHypothesis) {
+func ObjectHypothesis__Sequence_into_C(cSlice *CObjectHypothesis__Sequence, goSlice []ObjectHypothesis) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__ObjectHypothesis__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__ObjectHypothesis)(C.malloc(C.sizeof_struct_vision_msgs__msg__ObjectHypothesis * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__ObjectHypothesis)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__ObjectHypothesis))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +197,7 @@ func ObjectHypothesis__Array_to_Go(goSlice []ObjectHypothesis, cSlice []CObjectH
 		ObjectHypothesisTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ObjectHypothesis__Array_to_C(cSlice []CObjectHypothesis, goSlice []ObjectHypothesis) {
+func ObjectHypothesis__Array_into_C(cSlice []CObjectHypothesis, goSlice []ObjectHypothesis) {
 	for i := 0; i < len(goSlice); i++ {
 		ObjectHypothesisTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

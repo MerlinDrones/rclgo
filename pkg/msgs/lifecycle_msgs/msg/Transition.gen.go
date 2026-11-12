@@ -89,6 +89,12 @@ func (t *Transition) GetTypeSupport() types.MessageTypeSupport {
 	return TransitionTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Transition) CheckBounds() error {
+	return nil
+}
+
 // TransitionPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TransitionPublisher struct {
@@ -121,11 +127,17 @@ type TransitionSubscriptionCallback func(msg *Transition, info *rclgo.MessageInf
 
 // NewTransitionSubscription creates and returns a new subscription for the
 // Transition
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTransitionSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TransitionSubscriptionCallback) (*TransitionSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Transition
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Transition
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TransitionTypeSupport, opts, callback)
 	if err != nil {
@@ -167,7 +179,7 @@ func (t _TransitionTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message)
 	m := msg.(*Transition)
 	mem := (*C.lifecycle_msgs__msg__Transition)(dst)
 	mem.id = C.uint8_t(m.Id)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.label), m.Label)
+	primitives.StringIntoC(unsafe.Pointer(&mem.label), m.Label)
 }
 
 func (t _TransitionTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -186,6 +198,7 @@ type CTransition__Sequence = C.lifecycle_msgs__msg__Transition__Sequence
 
 func Transition__Sequence_to_Go(goSlice *[]Transition, cSlice CTransition__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Transition, cSlice.size)
@@ -194,14 +207,17 @@ func Transition__Sequence_to_Go(goSlice *[]Transition, cSlice CTransition__Seque
 		TransitionTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Transition__Sequence_to_C(cSlice *CTransition__Sequence, goSlice []Transition) {
+func Transition__Sequence_into_C(cSlice *CTransition__Sequence, goSlice []Transition) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__msg__Transition__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__msg__Transition)(C.malloc(C.sizeof_struct_lifecycle_msgs__msg__Transition * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__msg__Transition)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__msg__Transition))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -214,7 +230,7 @@ func Transition__Array_to_Go(goSlice []Transition, cSlice []CTransition) {
 		TransitionTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Transition__Array_to_C(cSlice []CTransition, goSlice []Transition) {
+func Transition__Array_into_C(cSlice []CTransition, goSlice []Transition) {
 	for i := 0; i < len(goSlice); i++ {
 		TransitionTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -150,6 +150,27 @@ func (t *Arrays_Response) GetTypeSupport() types.MessageTypeSupport {
 	return Arrays_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Arrays_Response) CheckBounds() error {
+	for i := range t.BasicTypesValues {
+		if err := types.CheckBounds(&t.BasicTypesValues[i]); err != nil {
+			return types.InElement("basic_types_values", i, err)
+		}
+	}
+	for i := range t.ConstantsValues {
+		if err := types.CheckBounds(&t.ConstantsValues[i]); err != nil {
+			return types.InElement("constants_values", i, err)
+		}
+	}
+	for i := range t.DefaultsValues {
+		if err := types.CheckBounds(&t.DefaultsValues[i]); err != nil {
+			return types.InElement("defaults_values", i, err)
+		}
+	}
+	return nil
+}
+
 // Arrays_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Arrays_ResponsePublisher struct {
@@ -182,11 +203,17 @@ type Arrays_ResponseSubscriptionCallback func(msg *Arrays_Response, info *rclgo.
 
 // NewArrays_ResponseSubscription creates and returns a new subscription for the
 // Arrays_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewArrays_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Arrays_ResponseSubscriptionCallback) (*Arrays_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Arrays_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Arrays_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Arrays_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -228,67 +255,67 @@ func (t _Arrays_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mes
 	m := msg.(*Arrays_Response)
 	mem := (*C.test_msgs__srv__Arrays_Response)(dst)
 	cSlice_bool_values := mem.bool_values[:]
-	primitives.Bool__Array_to_C(*(*[]primitives.CBool)(unsafe.Pointer(&cSlice_bool_values)), m.BoolValues[:])
+	primitives.Bool__Array_into_C(*(*[]primitives.CBool)(unsafe.Pointer(&cSlice_bool_values)), m.BoolValues[:])
 	cSlice_byte_values := mem.byte_values[:]
-	primitives.Byte__Array_to_C(*(*[]primitives.CByte)(unsafe.Pointer(&cSlice_byte_values)), m.ByteValues[:])
+	primitives.Byte__Array_into_C(*(*[]primitives.CByte)(unsafe.Pointer(&cSlice_byte_values)), m.ByteValues[:])
 	cSlice_char_values := mem.char_values[:]
-	primitives.Char__Array_to_C(*(*[]primitives.CChar)(unsafe.Pointer(&cSlice_char_values)), m.CharValues[:])
+	primitives.Char__Array_into_C(*(*[]primitives.CChar)(unsafe.Pointer(&cSlice_char_values)), m.CharValues[:])
 	cSlice_float32_values := mem.float32_values[:]
-	primitives.Float32__Array_to_C(*(*[]primitives.CFloat32)(unsafe.Pointer(&cSlice_float32_values)), m.Float32Values[:])
+	primitives.Float32__Array_into_C(*(*[]primitives.CFloat32)(unsafe.Pointer(&cSlice_float32_values)), m.Float32Values[:])
 	cSlice_float64_values := mem.float64_values[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_float64_values)), m.Float64Values[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_float64_values)), m.Float64Values[:])
 	cSlice_int8_values := mem.int8_values[:]
-	primitives.Int8__Array_to_C(*(*[]primitives.CInt8)(unsafe.Pointer(&cSlice_int8_values)), m.Int8Values[:])
+	primitives.Int8__Array_into_C(*(*[]primitives.CInt8)(unsafe.Pointer(&cSlice_int8_values)), m.Int8Values[:])
 	cSlice_uint8_values := mem.uint8_values[:]
-	primitives.Uint8__Array_to_C(*(*[]primitives.CUint8)(unsafe.Pointer(&cSlice_uint8_values)), m.Uint8Values[:])
+	primitives.Uint8__Array_into_C(*(*[]primitives.CUint8)(unsafe.Pointer(&cSlice_uint8_values)), m.Uint8Values[:])
 	cSlice_int16_values := mem.int16_values[:]
-	primitives.Int16__Array_to_C(*(*[]primitives.CInt16)(unsafe.Pointer(&cSlice_int16_values)), m.Int16Values[:])
+	primitives.Int16__Array_into_C(*(*[]primitives.CInt16)(unsafe.Pointer(&cSlice_int16_values)), m.Int16Values[:])
 	cSlice_uint16_values := mem.uint16_values[:]
-	primitives.Uint16__Array_to_C(*(*[]primitives.CUint16)(unsafe.Pointer(&cSlice_uint16_values)), m.Uint16Values[:])
+	primitives.Uint16__Array_into_C(*(*[]primitives.CUint16)(unsafe.Pointer(&cSlice_uint16_values)), m.Uint16Values[:])
 	cSlice_int32_values := mem.int32_values[:]
-	primitives.Int32__Array_to_C(*(*[]primitives.CInt32)(unsafe.Pointer(&cSlice_int32_values)), m.Int32Values[:])
+	primitives.Int32__Array_into_C(*(*[]primitives.CInt32)(unsafe.Pointer(&cSlice_int32_values)), m.Int32Values[:])
 	cSlice_uint32_values := mem.uint32_values[:]
-	primitives.Uint32__Array_to_C(*(*[]primitives.CUint32)(unsafe.Pointer(&cSlice_uint32_values)), m.Uint32Values[:])
+	primitives.Uint32__Array_into_C(*(*[]primitives.CUint32)(unsafe.Pointer(&cSlice_uint32_values)), m.Uint32Values[:])
 	cSlice_int64_values := mem.int64_values[:]
-	primitives.Int64__Array_to_C(*(*[]primitives.CInt64)(unsafe.Pointer(&cSlice_int64_values)), m.Int64Values[:])
+	primitives.Int64__Array_into_C(*(*[]primitives.CInt64)(unsafe.Pointer(&cSlice_int64_values)), m.Int64Values[:])
 	cSlice_uint64_values := mem.uint64_values[:]
-	primitives.Uint64__Array_to_C(*(*[]primitives.CUint64)(unsafe.Pointer(&cSlice_uint64_values)), m.Uint64Values[:])
+	primitives.Uint64__Array_into_C(*(*[]primitives.CUint64)(unsafe.Pointer(&cSlice_uint64_values)), m.Uint64Values[:])
 	cSlice_string_values := mem.string_values[:]
-	primitives.String__Array_to_C(*(*[]primitives.CString)(unsafe.Pointer(&cSlice_string_values)), m.StringValues[:])
+	primitives.String__Array_into_C(*(*[]primitives.CString)(unsafe.Pointer(&cSlice_string_values)), m.StringValues[:])
 	cSlice_basic_types_values := mem.basic_types_values[:]
-	test_msgs_msg.BasicTypes__Array_to_C(*(*[]test_msgs_msg.CBasicTypes)(unsafe.Pointer(&cSlice_basic_types_values)), m.BasicTypesValues[:])
+	test_msgs_msg.BasicTypes__Array_into_C(*(*[]test_msgs_msg.CBasicTypes)(unsafe.Pointer(&cSlice_basic_types_values)), m.BasicTypesValues[:])
 	cSlice_constants_values := mem.constants_values[:]
-	test_msgs_msg.Constants__Array_to_C(*(*[]test_msgs_msg.CConstants)(unsafe.Pointer(&cSlice_constants_values)), m.ConstantsValues[:])
+	test_msgs_msg.Constants__Array_into_C(*(*[]test_msgs_msg.CConstants)(unsafe.Pointer(&cSlice_constants_values)), m.ConstantsValues[:])
 	cSlice_defaults_values := mem.defaults_values[:]
-	test_msgs_msg.Defaults__Array_to_C(*(*[]test_msgs_msg.CDefaults)(unsafe.Pointer(&cSlice_defaults_values)), m.DefaultsValues[:])
+	test_msgs_msg.Defaults__Array_into_C(*(*[]test_msgs_msg.CDefaults)(unsafe.Pointer(&cSlice_defaults_values)), m.DefaultsValues[:])
 	cSlice_bool_values_default := mem.bool_values_default[:]
-	primitives.Bool__Array_to_C(*(*[]primitives.CBool)(unsafe.Pointer(&cSlice_bool_values_default)), m.BoolValuesDefault[:])
+	primitives.Bool__Array_into_C(*(*[]primitives.CBool)(unsafe.Pointer(&cSlice_bool_values_default)), m.BoolValuesDefault[:])
 	cSlice_byte_values_default := mem.byte_values_default[:]
-	primitives.Byte__Array_to_C(*(*[]primitives.CByte)(unsafe.Pointer(&cSlice_byte_values_default)), m.ByteValuesDefault[:])
+	primitives.Byte__Array_into_C(*(*[]primitives.CByte)(unsafe.Pointer(&cSlice_byte_values_default)), m.ByteValuesDefault[:])
 	cSlice_char_values_default := mem.char_values_default[:]
-	primitives.Char__Array_to_C(*(*[]primitives.CChar)(unsafe.Pointer(&cSlice_char_values_default)), m.CharValuesDefault[:])
+	primitives.Char__Array_into_C(*(*[]primitives.CChar)(unsafe.Pointer(&cSlice_char_values_default)), m.CharValuesDefault[:])
 	cSlice_float32_values_default := mem.float32_values_default[:]
-	primitives.Float32__Array_to_C(*(*[]primitives.CFloat32)(unsafe.Pointer(&cSlice_float32_values_default)), m.Float32ValuesDefault[:])
+	primitives.Float32__Array_into_C(*(*[]primitives.CFloat32)(unsafe.Pointer(&cSlice_float32_values_default)), m.Float32ValuesDefault[:])
 	cSlice_float64_values_default := mem.float64_values_default[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_float64_values_default)), m.Float64ValuesDefault[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_float64_values_default)), m.Float64ValuesDefault[:])
 	cSlice_int8_values_default := mem.int8_values_default[:]
-	primitives.Int8__Array_to_C(*(*[]primitives.CInt8)(unsafe.Pointer(&cSlice_int8_values_default)), m.Int8ValuesDefault[:])
+	primitives.Int8__Array_into_C(*(*[]primitives.CInt8)(unsafe.Pointer(&cSlice_int8_values_default)), m.Int8ValuesDefault[:])
 	cSlice_uint8_values_default := mem.uint8_values_default[:]
-	primitives.Uint8__Array_to_C(*(*[]primitives.CUint8)(unsafe.Pointer(&cSlice_uint8_values_default)), m.Uint8ValuesDefault[:])
+	primitives.Uint8__Array_into_C(*(*[]primitives.CUint8)(unsafe.Pointer(&cSlice_uint8_values_default)), m.Uint8ValuesDefault[:])
 	cSlice_int16_values_default := mem.int16_values_default[:]
-	primitives.Int16__Array_to_C(*(*[]primitives.CInt16)(unsafe.Pointer(&cSlice_int16_values_default)), m.Int16ValuesDefault[:])
+	primitives.Int16__Array_into_C(*(*[]primitives.CInt16)(unsafe.Pointer(&cSlice_int16_values_default)), m.Int16ValuesDefault[:])
 	cSlice_uint16_values_default := mem.uint16_values_default[:]
-	primitives.Uint16__Array_to_C(*(*[]primitives.CUint16)(unsafe.Pointer(&cSlice_uint16_values_default)), m.Uint16ValuesDefault[:])
+	primitives.Uint16__Array_into_C(*(*[]primitives.CUint16)(unsafe.Pointer(&cSlice_uint16_values_default)), m.Uint16ValuesDefault[:])
 	cSlice_int32_values_default := mem.int32_values_default[:]
-	primitives.Int32__Array_to_C(*(*[]primitives.CInt32)(unsafe.Pointer(&cSlice_int32_values_default)), m.Int32ValuesDefault[:])
+	primitives.Int32__Array_into_C(*(*[]primitives.CInt32)(unsafe.Pointer(&cSlice_int32_values_default)), m.Int32ValuesDefault[:])
 	cSlice_uint32_values_default := mem.uint32_values_default[:]
-	primitives.Uint32__Array_to_C(*(*[]primitives.CUint32)(unsafe.Pointer(&cSlice_uint32_values_default)), m.Uint32ValuesDefault[:])
+	primitives.Uint32__Array_into_C(*(*[]primitives.CUint32)(unsafe.Pointer(&cSlice_uint32_values_default)), m.Uint32ValuesDefault[:])
 	cSlice_int64_values_default := mem.int64_values_default[:]
-	primitives.Int64__Array_to_C(*(*[]primitives.CInt64)(unsafe.Pointer(&cSlice_int64_values_default)), m.Int64ValuesDefault[:])
+	primitives.Int64__Array_into_C(*(*[]primitives.CInt64)(unsafe.Pointer(&cSlice_int64_values_default)), m.Int64ValuesDefault[:])
 	cSlice_uint64_values_default := mem.uint64_values_default[:]
-	primitives.Uint64__Array_to_C(*(*[]primitives.CUint64)(unsafe.Pointer(&cSlice_uint64_values_default)), m.Uint64ValuesDefault[:])
+	primitives.Uint64__Array_into_C(*(*[]primitives.CUint64)(unsafe.Pointer(&cSlice_uint64_values_default)), m.Uint64ValuesDefault[:])
 	cSlice_string_values_default := mem.string_values_default[:]
-	primitives.String__Array_to_C(*(*[]primitives.CString)(unsafe.Pointer(&cSlice_string_values_default)), m.StringValuesDefault[:])
+	primitives.String__Array_into_C(*(*[]primitives.CString)(unsafe.Pointer(&cSlice_string_values_default)), m.StringValuesDefault[:])
 }
 
 func (t _Arrays_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -367,6 +394,7 @@ type CArrays_Response__Sequence = C.test_msgs__srv__Arrays_Response__Sequence
 
 func Arrays_Response__Sequence_to_Go(goSlice *[]Arrays_Response, cSlice CArrays_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Arrays_Response, cSlice.size)
@@ -375,14 +403,17 @@ func Arrays_Response__Sequence_to_Go(goSlice *[]Arrays_Response, cSlice CArrays_
 		Arrays_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Arrays_Response__Sequence_to_C(cSlice *CArrays_Response__Sequence, goSlice []Arrays_Response) {
+func Arrays_Response__Sequence_into_C(cSlice *CArrays_Response__Sequence, goSlice []Arrays_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__srv__Arrays_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__srv__Arrays_Response)(C.malloc(C.sizeof_struct_test_msgs__srv__Arrays_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__srv__Arrays_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__srv__Arrays_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -395,7 +426,7 @@ func Arrays_Response__Array_to_Go(goSlice []Arrays_Response, cSlice []CArrays_Re
 		Arrays_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Arrays_Response__Array_to_C(cSlice []CArrays_Response, goSlice []Arrays_Response) {
+func Arrays_Response__Array_into_C(cSlice []CArrays_Response, goSlice []Arrays_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		Arrays_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

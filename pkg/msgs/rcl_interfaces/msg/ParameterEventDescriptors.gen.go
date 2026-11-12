@@ -67,6 +67,27 @@ func (t *ParameterEventDescriptors) GetTypeSupport() types.MessageTypeSupport {
 	return ParameterEventDescriptorsTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ParameterEventDescriptors) CheckBounds() error {
+	for i := range t.NewParameters {
+		if err := types.CheckBounds(&t.NewParameters[i]); err != nil {
+			return types.InElement("new_parameters", i, err)
+		}
+	}
+	for i := range t.ChangedParameters {
+		if err := types.CheckBounds(&t.ChangedParameters[i]); err != nil {
+			return types.InElement("changed_parameters", i, err)
+		}
+	}
+	for i := range t.DeletedParameters {
+		if err := types.CheckBounds(&t.DeletedParameters[i]); err != nil {
+			return types.InElement("deleted_parameters", i, err)
+		}
+	}
+	return nil
+}
+
 // ParameterEventDescriptorsPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ParameterEventDescriptorsPublisher struct {
@@ -99,11 +120,17 @@ type ParameterEventDescriptorsSubscriptionCallback func(msg *ParameterEventDescr
 
 // NewParameterEventDescriptorsSubscription creates and returns a new subscription for the
 // ParameterEventDescriptors
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewParameterEventDescriptorsSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ParameterEventDescriptorsSubscriptionCallback) (*ParameterEventDescriptorsSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ParameterEventDescriptors
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ParameterEventDescriptors
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ParameterEventDescriptorsTypeSupport, opts, callback)
 	if err != nil {
@@ -144,9 +171,9 @@ func (t _ParameterEventDescriptorsTypeSupport) ReleaseMemory(pointer_to_free uns
 func (t _ParameterEventDescriptorsTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ParameterEventDescriptors)
 	mem := (*C.rcl_interfaces__msg__ParameterEventDescriptors)(dst)
-	ParameterDescriptor__Sequence_to_C(&mem.new_parameters, m.NewParameters)
-	ParameterDescriptor__Sequence_to_C(&mem.changed_parameters, m.ChangedParameters)
-	ParameterDescriptor__Sequence_to_C(&mem.deleted_parameters, m.DeletedParameters)
+	ParameterDescriptor__Sequence_into_C(&mem.new_parameters, m.NewParameters)
+	ParameterDescriptor__Sequence_into_C(&mem.changed_parameters, m.ChangedParameters)
+	ParameterDescriptor__Sequence_into_C(&mem.deleted_parameters, m.DeletedParameters)
 }
 
 func (t _ParameterEventDescriptorsTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -166,6 +193,7 @@ type CParameterEventDescriptors__Sequence = C.rcl_interfaces__msg__ParameterEven
 
 func ParameterEventDescriptors__Sequence_to_Go(goSlice *[]ParameterEventDescriptors, cSlice CParameterEventDescriptors__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ParameterEventDescriptors, cSlice.size)
@@ -174,14 +202,17 @@ func ParameterEventDescriptors__Sequence_to_Go(goSlice *[]ParameterEventDescript
 		ParameterEventDescriptorsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ParameterEventDescriptors__Sequence_to_C(cSlice *CParameterEventDescriptors__Sequence, goSlice []ParameterEventDescriptors) {
+func ParameterEventDescriptors__Sequence_into_C(cSlice *CParameterEventDescriptors__Sequence, goSlice []ParameterEventDescriptors) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__ParameterEventDescriptors__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__ParameterEventDescriptors)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__ParameterEventDescriptors * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__ParameterEventDescriptors)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__ParameterEventDescriptors))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -194,7 +225,7 @@ func ParameterEventDescriptors__Array_to_Go(goSlice []ParameterEventDescriptors,
 		ParameterEventDescriptorsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ParameterEventDescriptors__Array_to_C(cSlice []CParameterEventDescriptors, goSlice []ParameterEventDescriptors) {
+func ParameterEventDescriptors__Array_into_C(cSlice []CParameterEventDescriptors, goSlice []ParameterEventDescriptors) {
 	for i := 0; i < len(goSlice); i++ {
 		ParameterEventDescriptorsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

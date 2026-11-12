@@ -63,6 +63,15 @@ func (t *VisionInfo) GetTypeSupport() types.MessageTypeSupport {
 	return VisionInfoTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *VisionInfo) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // VisionInfoPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type VisionInfoPublisher struct {
@@ -95,11 +104,17 @@ type VisionInfoSubscriptionCallback func(msg *VisionInfo, info *rclgo.MessageInf
 
 // NewVisionInfoSubscription creates and returns a new subscription for the
 // VisionInfo
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewVisionInfoSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback VisionInfoSubscriptionCallback) (*VisionInfoSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg VisionInfo
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg VisionInfo
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, VisionInfoTypeSupport, opts, callback)
 	if err != nil {
@@ -141,8 +156,8 @@ func (t _VisionInfoTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message)
 	m := msg.(*VisionInfo)
 	mem := (*C.vision_msgs__msg__VisionInfo)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.method), m.Method)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.database_location), m.DatabaseLocation)
+	primitives.StringIntoC(unsafe.Pointer(&mem.method), m.Method)
+	primitives.StringIntoC(unsafe.Pointer(&mem.database_location), m.DatabaseLocation)
 	mem.database_version = C.int32_t(m.DatabaseVersion)
 }
 
@@ -164,6 +179,7 @@ type CVisionInfo__Sequence = C.vision_msgs__msg__VisionInfo__Sequence
 
 func VisionInfo__Sequence_to_Go(goSlice *[]VisionInfo, cSlice CVisionInfo__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]VisionInfo, cSlice.size)
@@ -172,14 +188,17 @@ func VisionInfo__Sequence_to_Go(goSlice *[]VisionInfo, cSlice CVisionInfo__Seque
 		VisionInfoTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func VisionInfo__Sequence_to_C(cSlice *CVisionInfo__Sequence, goSlice []VisionInfo) {
+func VisionInfo__Sequence_into_C(cSlice *CVisionInfo__Sequence, goSlice []VisionInfo) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__VisionInfo__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__VisionInfo)(C.malloc(C.sizeof_struct_vision_msgs__msg__VisionInfo * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__VisionInfo)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__VisionInfo))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -192,7 +211,7 @@ func VisionInfo__Array_to_Go(goSlice []VisionInfo, cSlice []CVisionInfo) {
 		VisionInfoTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func VisionInfo__Array_to_C(cSlice []CVisionInfo, goSlice []VisionInfo) {
+func VisionInfo__Array_into_C(cSlice []CVisionInfo, goSlice []VisionInfo) {
 	for i := 0; i < len(goSlice); i++ {
 		VisionInfoTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

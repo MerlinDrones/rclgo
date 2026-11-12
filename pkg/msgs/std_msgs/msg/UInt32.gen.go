@@ -52,6 +52,12 @@ func (t *UInt32) GetTypeSupport() types.MessageTypeSupport {
 	return UInt32TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *UInt32) CheckBounds() error {
+	return nil
+}
+
 // UInt32Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type UInt32Publisher struct {
@@ -84,11 +90,17 @@ type UInt32SubscriptionCallback func(msg *UInt32, info *rclgo.MessageInfo, err e
 
 // NewUInt32Subscription creates and returns a new subscription for the
 // UInt32
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewUInt32Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback UInt32SubscriptionCallback) (*UInt32Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg UInt32
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg UInt32
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, UInt32TypeSupport, opts, callback)
 	if err != nil {
@@ -147,6 +159,7 @@ type CUInt32__Sequence = C.std_msgs__msg__UInt32__Sequence
 
 func UInt32__Sequence_to_Go(goSlice *[]UInt32, cSlice CUInt32__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]UInt32, cSlice.size)
@@ -155,14 +168,17 @@ func UInt32__Sequence_to_Go(goSlice *[]UInt32, cSlice CUInt32__Sequence) {
 		UInt32TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func UInt32__Sequence_to_C(cSlice *CUInt32__Sequence, goSlice []UInt32) {
+func UInt32__Sequence_into_C(cSlice *CUInt32__Sequence, goSlice []UInt32) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__UInt32__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__UInt32)(C.malloc(C.sizeof_struct_std_msgs__msg__UInt32 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__UInt32)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__UInt32))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -175,7 +191,7 @@ func UInt32__Array_to_Go(goSlice []UInt32, cSlice []CUInt32) {
 		UInt32TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func UInt32__Array_to_C(cSlice []CUInt32, goSlice []UInt32) {
+func UInt32__Array_into_C(cSlice []CUInt32, goSlice []UInt32) {
 	for i := 0; i < len(goSlice); i++ {
 		UInt32TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

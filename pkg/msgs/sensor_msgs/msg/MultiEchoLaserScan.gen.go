@@ -86,6 +86,25 @@ func (t *MultiEchoLaserScan) GetTypeSupport() types.MessageTypeSupport {
 	return MultiEchoLaserScanTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *MultiEchoLaserScan) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Ranges {
+		if err := types.CheckBounds(&t.Ranges[i]); err != nil {
+			return types.InElement("ranges", i, err)
+		}
+	}
+	for i := range t.Intensities {
+		if err := types.CheckBounds(&t.Intensities[i]); err != nil {
+			return types.InElement("intensities", i, err)
+		}
+	}
+	return nil
+}
+
 // MultiEchoLaserScanPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type MultiEchoLaserScanPublisher struct {
@@ -118,11 +137,17 @@ type MultiEchoLaserScanSubscriptionCallback func(msg *MultiEchoLaserScan, info *
 
 // NewMultiEchoLaserScanSubscription creates and returns a new subscription for the
 // MultiEchoLaserScan
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewMultiEchoLaserScanSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback MultiEchoLaserScanSubscriptionCallback) (*MultiEchoLaserScanSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg MultiEchoLaserScan
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg MultiEchoLaserScan
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, MultiEchoLaserScanTypeSupport, opts, callback)
 	if err != nil {
@@ -171,8 +196,8 @@ func (t _MultiEchoLaserScanTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.
 	mem.scan_time = C.float(m.ScanTime)
 	mem.range_min = C.float(m.RangeMin)
 	mem.range_max = C.float(m.RangeMax)
-	LaserEcho__Sequence_to_C(&mem.ranges, m.Ranges)
-	LaserEcho__Sequence_to_C(&mem.intensities, m.Intensities)
+	LaserEcho__Sequence_into_C(&mem.ranges, m.Ranges)
+	LaserEcho__Sequence_into_C(&mem.intensities, m.Intensities)
 }
 
 func (t _MultiEchoLaserScanTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -199,6 +224,7 @@ type CMultiEchoLaserScan__Sequence = C.sensor_msgs__msg__MultiEchoLaserScan__Seq
 
 func MultiEchoLaserScan__Sequence_to_Go(goSlice *[]MultiEchoLaserScan, cSlice CMultiEchoLaserScan__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]MultiEchoLaserScan, cSlice.size)
@@ -207,14 +233,17 @@ func MultiEchoLaserScan__Sequence_to_Go(goSlice *[]MultiEchoLaserScan, cSlice CM
 		MultiEchoLaserScanTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func MultiEchoLaserScan__Sequence_to_C(cSlice *CMultiEchoLaserScan__Sequence, goSlice []MultiEchoLaserScan) {
+func MultiEchoLaserScan__Sequence_into_C(cSlice *CMultiEchoLaserScan__Sequence, goSlice []MultiEchoLaserScan) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__MultiEchoLaserScan__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__MultiEchoLaserScan)(C.malloc(C.sizeof_struct_sensor_msgs__msg__MultiEchoLaserScan * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__MultiEchoLaserScan)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__MultiEchoLaserScan))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -227,7 +256,7 @@ func MultiEchoLaserScan__Array_to_Go(goSlice []MultiEchoLaserScan, cSlice []CMul
 		MultiEchoLaserScanTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func MultiEchoLaserScan__Array_to_C(cSlice []CMultiEchoLaserScan, goSlice []MultiEchoLaserScan) {
+func MultiEchoLaserScan__Array_into_C(cSlice []CMultiEchoLaserScan, goSlice []MultiEchoLaserScan) {
 	for i := 0; i < len(goSlice); i++ {
 		MultiEchoLaserScanTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -12,8 +12,11 @@ package gogen
 import (
 	"errors"
 	"fmt"
+	"math"
+	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/kivilahtio/go-re/v0"
 )
@@ -158,18 +161,19 @@ func (p *parser) addImport(msg *ROS2Message, pkg string) {
 
 func (p *parser) parseSections(source string, sections ...*ROS2Message) error {
 	current := 0
+	var errs []error
 	for i, line := range strings.Split(source, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "---" {
-			if current >= len(sections) {
-				return errors.New("too many sections")
-			}
 			current++
+			if current >= len(sections) {
+				return errors.Join(append(errs, fmt.Errorf("line %d: too many sections", i+1))...)
+			}
 		} else if err := p.parseLine(sections[current], line); err != nil {
-			return fmt.Errorf("error on line %d: %w", i+1, err)
+			errs = append(errs, fmt.Errorf("error on line %d: %w", i+1, err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func (p *parser) parseLine(msg *ROS2Message, line string) error {
@@ -213,19 +217,32 @@ func (p *parser) parseMessageLine(testRow string, ros2msg *ROS2Message) (interfa
 		p.ros2messagesCommentsBuffer.Reset()
 		return nil, nil
 	}
+	// As rosidl_adapter does, a comment starts at the first '#' of the line,
+	// even right after a value ("int32 x 5#c") or inside quotes.
+	comment, hasComment := "", false
+	if i := strings.IndexByte(testRow, '#'); i >= 0 {
+		comment, hasComment = strings.TrimSpace(strings.TrimLeft(testRow[i:], "#")), true
+		testRow = strings.TrimSpace(testRow[:i])
+	}
 
 	typeChar, capture := isRowConstantOrField(testRow)
+	if hasComment && capture != nil {
+		capture["comment"] = comment
+	}
 	switch typeChar {
 	case 'c':
 		con, err := p.ParseROS2MessageConstant(capture)
-		if err == nil {
-			return con, nil
+		if err != nil {
+			return nil, fmt.Errorf("invalid constant '%s': %w", testRow, err)
 		}
+		return con, nil
 	case 'f':
 		f, err := p.ParseROS2MessageField(capture, ros2msg)
-		if err == nil {
-			return f, nil
+		if err != nil {
+			return nil, fmt.Errorf("invalid field '%s': %w", testRow, err)
 		}
+		f.GoName = uniqueFieldGoName(f.GoName, ros2msg)
+		return f, nil
 	}
 	return nil, fmt.Errorf("couldn't parse the input row as either ROS2 Field or Constant? input '%s'", testRow)
 }
@@ -255,8 +272,7 @@ func isRowConstantOrField(textRow string) (byte, map[string]string) {
 	(?P<array>\[(?P<bounded><=)?(?P<size>\d*)\])?
 	\s+
 	(?P<field>\w+)
-	\s*
-	(?P<default>[^#]+)?
+	(?:\s+(?P<default>[^#]+))?
 	(?:\s+\#\s*(?P<comment>.*))?
 	$
 	!x`)
@@ -268,6 +284,12 @@ func isRowConstantOrField(textRow string) (byte, map[string]string) {
 }
 
 func (p *parser) ParseROS2MessageConstant(capture map[string]string) (*ROS2Constant, error) {
+	if capture["package"] != "" || capture["array"] != "" {
+		return nil, errors.New("constants must have a primitive, non-array type")
+	}
+	if !validConstantName.MatchString(capture["field"]) {
+		return nil, fmt.Errorf("invalid constant name '%s': must match %s", capture["field"], validConstantName)
+	}
 	d := &ROS2Constant{
 		RosType: capture["type"],
 		RosName: capture["field"],
@@ -280,12 +302,19 @@ func (p *parser) ParseROS2MessageConstant(capture map[string]string) (*ROS2Const
 		d.GoType = fmt.Sprintf("<MISSING translation from ROS2 Constant type '%s'>", d.RosType)
 		return d, fmt.Errorf("Unknown ROS2 Constant type '%s'\n", d.RosType)
 	}
+	if err := checkPrimitiveValue(d.RosType, d.Value, 0); err != nil {
+		return nil, err
+	}
 	d.GoType = t.GoType
 	d.PkgName = t.PackageName
 	return d, nil
 }
 
 func (p *parser) ParseROS2MessageField(capture map[string]string, ros2msg *ROS2Message) (*ROS2Field, error) {
+	capture["default"] = strings.TrimSpace(capture["default"])
+	if err := checkField(capture); err != nil {
+		return nil, err
+	}
 	size, err := strconv.ParseInt(capture["size"], 10, 32)
 	if err != nil && capture["size"] != "" {
 		return nil, err
@@ -355,40 +384,29 @@ func translateROS2Type(f *ROS2Field, m *ROS2Message) (pkgName string, cType stri
 		return f.PkgName, f.RosType, f.RosType
 	}
 
-	// implicit package, type of std_msgs
-	if m.Package != "std_msgs" {
-		switch f.RosType {
-		case "Bool", "ColorRGBA",
-			"Duration", "Empty", "Float32MultiArray", "Float32",
-			"Float64MultiArray", "Float64", "Header", "Int8MultiArray",
-			"Int8", "Int16MultiArray", "Int16", "Int32MultiArray", "Int32",
-			"Int64MultiArray", "Int64", "MultiArrayDimension", "MultiarrayLayout",
-			"String", "Time", "UInt8MultiArray", "UInt8", "UInt16MultiArray", "UInt16",
-			"UInt32MultiArray", "UInt32", "UInt64MultiArray", "UInt64":
-			return "std_msgs", f.RosType, f.RosType
-		}
-	}
-
-	// These are not actually primitive types, but same-package complex types.
+	// An unqualified type is in the message's own package, as rosidl reads
+	// it (rosidl_adapter's BaseType): there is no implicit std_msgs, not even
+	// for Header. In a .srv or .action file (handled above) that package's
+	// messages live in another Go package, <pkg>/msg.
 	return ".", f.RosType, f.RosType
 }
 
 func (p *parser) cSerializationCode(f *ROS2Field, m *ROS2Message) string {
 	if f.TypeArray != "" && f.ArraySize > 0 && f.PkgName != "" && f.PkgIsLocal {
 		// Complex value Array local package reference
-		return ucFirst(f.RosType) + `__Array_to_C(mem.` + f.CName + `[:], m.` + f.GoName + `[:])`
+		return ucFirst(f.RosType) + `__Array_into_C(mem.` + f.CName + `[:], m.` + f.GoName + `[:])`
 
 	} else if f.TypeArray != "" && f.ArraySize > 0 && f.PkgName != "" && !f.PkgIsLocal {
 		// Complex value Array remote package reference
 		return `cSlice_` + f.RosName + ` := mem.` + f.CName + `[:]
-	` + f.GoPkgReference() + ucFirst(f.RosType) + `__Array_to_C(*(*[]` + f.GoPkgReference() + `C` + ucFirst(f.RosType) + `)(unsafe.Pointer(&cSlice_` + f.RosName + `)), m.` + f.GoName + `[:])`
+	` + f.GoPkgReference() + ucFirst(f.RosType) + `__Array_into_C(*(*[]` + f.GoPkgReference() + `C` + ucFirst(f.RosType) + `)(unsafe.Pointer(&cSlice_` + f.RosName + `)), m.` + f.GoName + `[:])`
 	} else if f.TypeArray != "" && f.ArraySize == 0 && f.PkgName != "" && f.PkgIsLocal {
 		// Complex value Slice local package reference
-		return ucFirst(f.RosType) + `__Sequence_to_C(&mem.` + f.CName + `, m.` + f.GoName + `)`
+		return ucFirst(f.RosType) + `__Sequence_into_C(&mem.` + f.CName + `, m.` + f.GoName + `)`
 
 	} else if f.TypeArray != "" && f.ArraySize == 0 && f.PkgName != "" && !f.PkgIsLocal {
 		// Complex value Slice remote package reference
-		return f.GoPkgReference() + ucFirst(f.RosType) + `__Sequence_to_C((*` + f.GoPkgReference() + `C` + ucFirst(f.RosType) + `__Sequence)(unsafe.Pointer(&mem.` + f.CName + `)), m.` + f.GoName + `)`
+		return f.GoPkgReference() + ucFirst(f.RosType) + `__Sequence_into_C((*` + f.GoPkgReference() + `C` + ucFirst(f.RosType) + `__Sequence)(unsafe.Pointer(&mem.` + f.CName + `)), m.` + f.GoName + `)`
 
 	} else if f.TypeArray == "" && f.PkgName != "" {
 		// Complex value single
@@ -398,12 +416,12 @@ func (p *parser) cSerializationCode(f *ROS2Field, m *ROS2Message) string {
 		// Primitive value Array
 		m.GoImports[p.config.RclgoImportPath+"/pkg/rclgo/primitives"] = "primitives"
 		return `cSlice_` + f.RosName + ` := mem.` + f.CName + `[:]
-	` + `primitives.` + ucFirst(f.RosType) + `__Array_to_C(*(*[]primitives.C` + ucFirst(f.RosType) + `)(unsafe.Pointer(&cSlice_` + f.RosName + `)), m.` + f.GoName + `[:])`
+	` + `primitives.` + ucFirst(f.RosType) + `__Array_into_C(*(*[]primitives.C` + ucFirst(f.RosType) + `)(unsafe.Pointer(&cSlice_` + f.RosName + `)), m.` + f.GoName + `[:])`
 
 	} else if f.TypeArray != "" && f.ArraySize == 0 && f.PkgName == "" {
 		// Primitive value Slice
 		m.GoImports[p.config.RclgoImportPath+"/pkg/rclgo/primitives"] = "primitives"
-		return `primitives.` + ucFirst(f.RosType) + `__Sequence_to_C((*primitives.C` + ucFirst(f.RosType) + `__Sequence)(unsafe.Pointer(&mem.` + f.CName + `)), m.` + f.GoName + `)`
+		return `primitives.` + ucFirst(f.RosType) + `__Sequence_into_C((*primitives.C` + ucFirst(f.RosType) + `__Sequence)(unsafe.Pointer(&mem.` + f.CName + `)), m.` + f.GoName + `)`
 
 	} else if f.TypeArray == "" && f.PkgName == "" {
 		// Primitive value single
@@ -413,10 +431,10 @@ func (p *parser) cSerializationCode(f *ROS2Field, m *ROS2Message) string {
 		// generated message fields.
 		if f.RosType == "string" {
 			m.GoImports[p.config.RclgoImportPath+"/pkg/rclgo/primitives"] = "primitives"
-			return "primitives.StringAsCStruct(unsafe.Pointer(&mem." + f.CName + "), m." + f.GoName + ")"
+			return "primitives.StringIntoC(unsafe.Pointer(&mem." + f.CName + "), m." + f.GoName + ")"
 		} else if f.RosType == "U16String" {
 			m.GoImports[p.config.RclgoImportPath+"/pkg/rclgo/primitives"] = "primitives"
-			return "primitives.U16StringAsCStruct(unsafe.Pointer(&mem." + f.CName + "), m." + f.GoName + ")"
+			return "primitives.U16StringIntoC(unsafe.Pointer(&mem." + f.CName + "), m." + f.GoName + ")"
 		}
 		return `mem.` + f.CName + ` = C.` + f.CType + `(m.` + f.GoName + `)`
 	}
@@ -569,4 +587,186 @@ func cloneCode(f *ROS2Field) string {
 		return "c." + f.GoName + " = t." + f.GoName
 	}
 	return "//<MISSING cloneCode!!>"
+}
+
+// checkBoundsCode returns the CheckBounds statements for f: a length check
+// for a bounded sequence, and a check of each nested message. Nested
+// messages are checked through types.CheckBounds, so that messages generated
+// without CheckBounds still compile.
+func checkBoundsCode(f *ROS2Field) string {
+	var b strings.Builder
+	if bound := strings.TrimPrefix(f.ArrayBounded, "<="); bound != "" {
+		fmt.Fprintf(&b, "if len(t.%s) > %s {\n\t\treturn types.BoundExceeded(%q, len(t.%s), %s)\n\t}", f.GoName, bound, f.RosName, f.GoName, bound)
+	}
+	if f.PkgName == "" {
+		return b.String()
+	}
+	if b.Len() > 0 {
+		b.WriteString("\n\t")
+	}
+	if f.TypeArray == "" {
+		fmt.Fprintf(&b, "if err := types.CheckBounds(&t.%s); err != nil {\n\t\treturn types.InField(%q, err)\n\t}", f.GoName, f.RosName)
+	} else {
+		fmt.Fprintf(&b, "for i := range t.%s {\n\t\tif err := types.CheckBounds(&t.%s[i]); err != nil {\n\t\t\treturn types.InElement(%q, i, err)\n\t\t}\n\t}", f.GoName, f.GoName, f.RosName)
+	}
+	return b.String()
+}
+
+// Names and values are checked as rosidl checks them (rosidl_adapter's
+// parser), so that a definition rosidl accepts is never rejected here, and a
+// line rosidl would reject is reported instead of being turned into a field.
+var (
+	validLowerName    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	validConstantName = regexp.MustCompile(`^[A-Z](?:[A-Z0-9_]?[A-Z0-9]+)*$`)
+	validTypeName     = regexp.MustCompile(`^[A-Z][A-Za-z0-9]*$`)
+)
+
+// isValidLowerName reports whether s is a valid ROS package or field name.
+func isValidLowerName(s string) bool {
+	return validLowerName.MatchString(s) && !strings.Contains(s, "__") && !strings.HasSuffix(s, "_")
+}
+
+func checkField(capture map[string]string) error {
+	pkg, typ, name, def := capture["package"], capture["type"], capture["field"], capture["default"]
+	_, primitive := primitiveTypeMappings[typ]
+	switch {
+	case pkg != "" && !isValidLowerName(pkg):
+		return fmt.Errorf("invalid package name '%s'", pkg)
+	case pkg != "" && !validTypeName.MatchString(typ):
+		return fmt.Errorf("invalid message type name '%s/%s'", pkg, typ)
+	case pkg == "" && !primitive && !validTypeName.MatchString(typ):
+		return fmt.Errorf("unknown type '%s': not a primitive type or a valid message type name", typ)
+	case !isValidLowerName(name):
+		return fmt.Errorf("invalid field name '%s'", name)
+	case def == "":
+		return nil
+	case pkg != "" || !primitive:
+		return fmt.Errorf("unexpected '%s' after field '%s': only fields of primitive types have default values", def, name)
+	}
+	stringBound := 0
+	if b := strings.TrimPrefix(capture["boundedString"], "<="); b != "" {
+		stringBound, _ = strconv.Atoi(b)
+	}
+	if capture["array"] == "" {
+		return checkPrimitiveValue(typ, def, stringBound)
+	}
+	if !strings.HasPrefix(def, "[") || !strings.HasSuffix(def, "]") {
+		return fmt.Errorf("default value of array field '%s' must be enclosed in [ ]: '%s'", name, def)
+	}
+	values := splitMsgDefaultArrayValues("", def)
+	if strings.TrimSpace(normalizeMsgDefaultArrayValue(def)) == "" {
+		values = nil
+	}
+	size, _ := strconv.Atoi(capture["size"])
+	switch {
+	case capture["bounded"] != "" && len(values) > size:
+		return fmt.Errorf("default value of field '%s' has %d elements, more than its bound %d", name, len(values), size)
+	case capture["bounded"] == "" && capture["size"] != "" && len(values) != size:
+		return fmt.Errorf("default value of field '%s' has %d elements, its array size is %d", name, len(values), size)
+	}
+	for _, v := range values {
+		if err := checkPrimitiveValue(typ, strings.TrimSpace(v), stringBound); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkPrimitiveValue reports whether value is a valid value of the primitive
+// ROS type, following rosidl_adapter's parse_primitive_value_string. A
+// stringBound > 0 limits the length of string values.
+func checkPrimitiveValue(rosType, value string, stringBound int) error {
+	invalid := func(why string) error {
+		return fmt.Errorf("invalid %s value '%s': %s", rosType, value, why)
+	}
+	parseInt := func(bits int, unsigned bool) error {
+		var err error
+		if unsigned {
+			if _, err = strconv.ParseUint(value, 10, bits); err != nil {
+				_, err = strconv.ParseUint(value, 0, bits)
+			}
+		} else {
+			if _, err = strconv.ParseInt(value, 10, bits); err != nil {
+				_, err = strconv.ParseInt(value, 0, bits)
+			}
+		}
+		if err != nil {
+			return invalid(fmt.Sprintf("must be a %d-bit integer", bits))
+		}
+		return nil
+	}
+	switch rosType {
+	case "bool":
+		switch strings.ToLower(value) {
+		case "true", "false", "1", "0":
+			return nil
+		}
+		return invalid("must be true, false, 1 or 0")
+	case "byte", "char", "uint8":
+		return parseInt(8, true)
+	case "uint16", "uint32", "uint64":
+		bits, _ := strconv.Atoi(rosType[4:])
+		return parseInt(bits, true)
+	case "int8", "int16", "int32", "int64":
+		bits, _ := strconv.Atoi(rosType[3:])
+		return parseInt(bits, false)
+	case "float32", "float64":
+		f, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return invalid("must be a floating point number")
+		}
+		if math.IsInf(f, 0) || math.IsNaN(f) {
+			// rosidl's .msg parser accepts them, but its C and C++ generators
+			// fail on them, so no built package has them.
+			return invalid("infinities and NaN are not supported by the rosidl generators")
+		}
+		return nil
+	case "string", "wstring":
+		for _, q := range []string{`"`, `'`} {
+			if len(value) >= 2 && strings.HasPrefix(value, q) && strings.HasSuffix(value, q) {
+				value = value[1 : len(value)-1]
+				for i := 0; i < len(value); i++ {
+					if value[i:i+1] == q && (i == 0 || value[i-1] != '\\') {
+						return invalid("inner quotes must be escaped")
+					}
+				}
+				value = strings.ReplaceAll(value, `\`+q, q)
+				break
+			}
+		}
+		if stringBound > 0 && utf8.RuneCountInString(value) > stringBound {
+			return invalid(fmt.Sprintf("longer than the bound of %d characters", stringBound))
+		}
+		return nil
+	}
+	return nil
+}
+
+// generatedMethods are the methods generated on message types; a field may not
+// have one of these Go names.
+var generatedMethods = map[string]bool{
+	"CallForEach": true, "Clone": true, "CloneMsg": true, "GetGoalAccepted": true,
+	"GetGoalDescription": true, "GetGoalID": true, "GetTypeSupport": true,
+	"SetDefaults": true, "CheckBounds": true, "SetGoalDescription": true, "SetGoalID": true,
+}
+
+// uniqueFieldGoName returns name, with underscores appended (as rclpy appends
+// one to Python keywords) if it is the name of a generated method or of an
+// earlier field of msg: a_1 and a1 both become A1 in Go.
+func uniqueFieldGoName(name string, msg *ROS2Message) string {
+	taken := func(n string) bool {
+		if generatedMethods[n] {
+			return true
+		}
+		for _, f := range msg.Fields {
+			if f.GoName == n {
+				return true
+			}
+		}
+		return false
+	}
+	for taken(name) {
+		name += "_"
+	}
+	return name
 }

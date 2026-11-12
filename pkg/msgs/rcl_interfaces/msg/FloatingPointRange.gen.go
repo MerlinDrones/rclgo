@@ -58,6 +58,12 @@ func (t *FloatingPointRange) GetTypeSupport() types.MessageTypeSupport {
 	return FloatingPointRangeTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *FloatingPointRange) CheckBounds() error {
+	return nil
+}
+
 // FloatingPointRangePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type FloatingPointRangePublisher struct {
@@ -90,11 +96,17 @@ type FloatingPointRangeSubscriptionCallback func(msg *FloatingPointRange, info *
 
 // NewFloatingPointRangeSubscription creates and returns a new subscription for the
 // FloatingPointRange
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFloatingPointRangeSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback FloatingPointRangeSubscriptionCallback) (*FloatingPointRangeSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg FloatingPointRange
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg FloatingPointRange
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, FloatingPointRangeTypeSupport, opts, callback)
 	if err != nil {
@@ -157,6 +169,7 @@ type CFloatingPointRange__Sequence = C.rcl_interfaces__msg__FloatingPointRange__
 
 func FloatingPointRange__Sequence_to_Go(goSlice *[]FloatingPointRange, cSlice CFloatingPointRange__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]FloatingPointRange, cSlice.size)
@@ -165,14 +178,17 @@ func FloatingPointRange__Sequence_to_Go(goSlice *[]FloatingPointRange, cSlice CF
 		FloatingPointRangeTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func FloatingPointRange__Sequence_to_C(cSlice *CFloatingPointRange__Sequence, goSlice []FloatingPointRange) {
+func FloatingPointRange__Sequence_into_C(cSlice *CFloatingPointRange__Sequence, goSlice []FloatingPointRange) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__FloatingPointRange__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__FloatingPointRange)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__FloatingPointRange * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__FloatingPointRange)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__FloatingPointRange))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -185,7 +201,7 @@ func FloatingPointRange__Array_to_Go(goSlice []FloatingPointRange, cSlice []CFlo
 		FloatingPointRangeTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func FloatingPointRange__Array_to_C(cSlice []CFloatingPointRange, goSlice []FloatingPointRange) {
+func FloatingPointRange__Array_into_C(cSlice []CFloatingPointRange, goSlice []FloatingPointRange) {
 	for i := 0; i < len(goSlice); i++ {
 		FloatingPointRangeTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

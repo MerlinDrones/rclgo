@@ -56,6 +56,17 @@ func (t *GetAvailableStates_Response) GetTypeSupport() types.MessageTypeSupport 
 	return GetAvailableStates_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *GetAvailableStates_Response) CheckBounds() error {
+	for i := range t.AvailableStates {
+		if err := types.CheckBounds(&t.AvailableStates[i]); err != nil {
+			return types.InElement("available_states", i, err)
+		}
+	}
+	return nil
+}
+
 // GetAvailableStates_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type GetAvailableStates_ResponsePublisher struct {
@@ -88,11 +99,17 @@ type GetAvailableStates_ResponseSubscriptionCallback func(msg *GetAvailableState
 
 // NewGetAvailableStates_ResponseSubscription creates and returns a new subscription for the
 // GetAvailableStates_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewGetAvailableStates_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback GetAvailableStates_ResponseSubscriptionCallback) (*GetAvailableStates_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg GetAvailableStates_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg GetAvailableStates_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, GetAvailableStates_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -133,7 +150,7 @@ func (t _GetAvailableStates_ResponseTypeSupport) ReleaseMemory(pointer_to_free u
 func (t _GetAvailableStates_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*GetAvailableStates_Response)
 	mem := (*C.lifecycle_msgs__srv__GetAvailableStates_Response)(dst)
-	lifecycle_msgs_msg.State__Sequence_to_C((*lifecycle_msgs_msg.CState__Sequence)(unsafe.Pointer(&mem.available_states)), m.AvailableStates)
+	lifecycle_msgs_msg.State__Sequence_into_C((*lifecycle_msgs_msg.CState__Sequence)(unsafe.Pointer(&mem.available_states)), m.AvailableStates)
 }
 
 func (t _GetAvailableStates_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -151,6 +168,7 @@ type CGetAvailableStates_Response__Sequence = C.lifecycle_msgs__srv__GetAvailabl
 
 func GetAvailableStates_Response__Sequence_to_Go(goSlice *[]GetAvailableStates_Response, cSlice CGetAvailableStates_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]GetAvailableStates_Response, cSlice.size)
@@ -159,14 +177,17 @@ func GetAvailableStates_Response__Sequence_to_Go(goSlice *[]GetAvailableStates_R
 		GetAvailableStates_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetAvailableStates_Response__Sequence_to_C(cSlice *CGetAvailableStates_Response__Sequence, goSlice []GetAvailableStates_Response) {
+func GetAvailableStates_Response__Sequence_into_C(cSlice *CGetAvailableStates_Response__Sequence, goSlice []GetAvailableStates_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__srv__GetAvailableStates_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__srv__GetAvailableStates_Response)(C.malloc(C.sizeof_struct_lifecycle_msgs__srv__GetAvailableStates_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__srv__GetAvailableStates_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__srv__GetAvailableStates_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -179,7 +200,7 @@ func GetAvailableStates_Response__Array_to_Go(goSlice []GetAvailableStates_Respo
 		GetAvailableStates_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetAvailableStates_Response__Array_to_C(cSlice []CGetAvailableStates_Response, goSlice []GetAvailableStates_Response) {
+func GetAvailableStates_Response__Array_into_C(cSlice []CGetAvailableStates_Response, goSlice []GetAvailableStates_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		GetAvailableStates_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

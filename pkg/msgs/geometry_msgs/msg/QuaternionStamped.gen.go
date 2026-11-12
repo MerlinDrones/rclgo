@@ -56,6 +56,18 @@ func (t *QuaternionStamped) GetTypeSupport() types.MessageTypeSupport {
 	return QuaternionStampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *QuaternionStamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Quaternion); err != nil {
+		return types.InField("quaternion", err)
+	}
+	return nil
+}
+
 // QuaternionStampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type QuaternionStampedPublisher struct {
@@ -88,11 +100,17 @@ type QuaternionStampedSubscriptionCallback func(msg *QuaternionStamped, info *rc
 
 // NewQuaternionStampedSubscription creates and returns a new subscription for the
 // QuaternionStamped
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewQuaternionStampedSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback QuaternionStampedSubscriptionCallback) (*QuaternionStampedSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg QuaternionStamped
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg QuaternionStamped
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, QuaternionStampedTypeSupport, opts, callback)
 	if err != nil {
@@ -153,6 +171,7 @@ type CQuaternionStamped__Sequence = C.geometry_msgs__msg__QuaternionStamped__Seq
 
 func QuaternionStamped__Sequence_to_Go(goSlice *[]QuaternionStamped, cSlice CQuaternionStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]QuaternionStamped, cSlice.size)
@@ -161,14 +180,17 @@ func QuaternionStamped__Sequence_to_Go(goSlice *[]QuaternionStamped, cSlice CQua
 		QuaternionStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func QuaternionStamped__Sequence_to_C(cSlice *CQuaternionStamped__Sequence, goSlice []QuaternionStamped) {
+func QuaternionStamped__Sequence_into_C(cSlice *CQuaternionStamped__Sequence, goSlice []QuaternionStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__QuaternionStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__QuaternionStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__QuaternionStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__QuaternionStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__QuaternionStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +203,7 @@ func QuaternionStamped__Array_to_Go(goSlice []QuaternionStamped, cSlice []CQuate
 		QuaternionStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func QuaternionStamped__Array_to_C(cSlice []CQuaternionStamped, goSlice []QuaternionStamped) {
+func QuaternionStamped__Array_into_C(cSlice []CQuaternionStamped, goSlice []QuaternionStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		QuaternionStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

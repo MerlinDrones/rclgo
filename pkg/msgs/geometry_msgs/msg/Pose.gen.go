@@ -55,6 +55,18 @@ func (t *Pose) GetTypeSupport() types.MessageTypeSupport {
 	return PoseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Pose) CheckBounds() error {
+	if err := types.CheckBounds(&t.Position); err != nil {
+		return types.InField("position", err)
+	}
+	if err := types.CheckBounds(&t.Orientation); err != nil {
+		return types.InField("orientation", err)
+	}
+	return nil
+}
+
 // PosePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PosePublisher struct {
@@ -87,11 +99,17 @@ type PoseSubscriptionCallback func(msg *Pose, info *rclgo.MessageInfo, err error
 
 // NewPoseSubscription creates and returns a new subscription for the
 // Pose
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPoseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PoseSubscriptionCallback) (*PoseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Pose
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Pose
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PoseTypeSupport, opts, callback)
 	if err != nil {
@@ -152,6 +170,7 @@ type CPose__Sequence = C.geometry_msgs__msg__Pose__Sequence
 
 func Pose__Sequence_to_Go(goSlice *[]Pose, cSlice CPose__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Pose, cSlice.size)
@@ -160,14 +179,17 @@ func Pose__Sequence_to_Go(goSlice *[]Pose, cSlice CPose__Sequence) {
 		PoseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Pose__Sequence_to_C(cSlice *CPose__Sequence, goSlice []Pose) {
+func Pose__Sequence_into_C(cSlice *CPose__Sequence, goSlice []Pose) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Pose__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Pose)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Pose * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Pose)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Pose))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -180,7 +202,7 @@ func Pose__Array_to_Go(goSlice []Pose, cSlice []CPose) {
 		PoseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Pose__Array_to_C(cSlice []CPose, goSlice []Pose) {
+func Pose__Array_into_C(cSlice []CPose, goSlice []Pose) {
 	for i := 0; i < len(goSlice); i++ {
 		PoseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

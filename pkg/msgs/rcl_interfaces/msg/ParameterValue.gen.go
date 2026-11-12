@@ -95,6 +95,12 @@ func (t *ParameterValue) GetTypeSupport() types.MessageTypeSupport {
 	return ParameterValueTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ParameterValue) CheckBounds() error {
+	return nil
+}
+
 // ParameterValuePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ParameterValuePublisher struct {
@@ -127,11 +133,17 @@ type ParameterValueSubscriptionCallback func(msg *ParameterValue, info *rclgo.Me
 
 // NewParameterValueSubscription creates and returns a new subscription for the
 // ParameterValue
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewParameterValueSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ParameterValueSubscriptionCallback) (*ParameterValueSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ParameterValue
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ParameterValue
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ParameterValueTypeSupport, opts, callback)
 	if err != nil {
@@ -176,12 +188,12 @@ func (t _ParameterValueTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	mem.bool_value = C.bool(m.BoolValue)
 	mem.integer_value = C.int64_t(m.IntegerValue)
 	mem.double_value = C.double(m.DoubleValue)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value), m.StringValue)
-	primitives.Byte__Sequence_to_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.byte_array_value)), m.ByteArrayValue)
-	primitives.Bool__Sequence_to_C((*primitives.CBool__Sequence)(unsafe.Pointer(&mem.bool_array_value)), m.BoolArrayValue)
-	primitives.Int64__Sequence_to_C((*primitives.CInt64__Sequence)(unsafe.Pointer(&mem.integer_array_value)), m.IntegerArrayValue)
-	primitives.Float64__Sequence_to_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.double_array_value)), m.DoubleArrayValue)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.string_array_value)), m.StringArrayValue)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value), m.StringValue)
+	primitives.Byte__Sequence_into_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.byte_array_value)), m.ByteArrayValue)
+	primitives.Bool__Sequence_into_C((*primitives.CBool__Sequence)(unsafe.Pointer(&mem.bool_array_value)), m.BoolArrayValue)
+	primitives.Int64__Sequence_into_C((*primitives.CInt64__Sequence)(unsafe.Pointer(&mem.integer_array_value)), m.IntegerArrayValue)
+	primitives.Float64__Sequence_into_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.double_array_value)), m.DoubleArrayValue)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.string_array_value)), m.StringArrayValue)
 }
 
 func (t _ParameterValueTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -208,6 +220,7 @@ type CParameterValue__Sequence = C.rcl_interfaces__msg__ParameterValue__Sequence
 
 func ParameterValue__Sequence_to_Go(goSlice *[]ParameterValue, cSlice CParameterValue__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ParameterValue, cSlice.size)
@@ -216,14 +229,17 @@ func ParameterValue__Sequence_to_Go(goSlice *[]ParameterValue, cSlice CParameter
 		ParameterValueTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ParameterValue__Sequence_to_C(cSlice *CParameterValue__Sequence, goSlice []ParameterValue) {
+func ParameterValue__Sequence_into_C(cSlice *CParameterValue__Sequence, goSlice []ParameterValue) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__ParameterValue__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__ParameterValue)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__ParameterValue * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__ParameterValue)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__ParameterValue))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -236,7 +252,7 @@ func ParameterValue__Array_to_Go(goSlice []ParameterValue, cSlice []CParameterVa
 		ParameterValueTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ParameterValue__Array_to_C(cSlice []CParameterValue, goSlice []ParameterValue) {
+func ParameterValue__Array_into_C(cSlice []CParameterValue, goSlice []ParameterValue) {
 	for i := 0; i < len(goSlice); i++ {
 		ParameterValueTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

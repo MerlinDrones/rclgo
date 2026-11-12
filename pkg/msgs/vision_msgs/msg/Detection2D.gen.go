@@ -66,6 +66,23 @@ func (t *Detection2D) GetTypeSupport() types.MessageTypeSupport {
 	return Detection2DTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Detection2D) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Results {
+		if err := types.CheckBounds(&t.Results[i]); err != nil {
+			return types.InElement("results", i, err)
+		}
+	}
+	if err := types.CheckBounds(&t.Bbox); err != nil {
+		return types.InField("bbox", err)
+	}
+	return nil
+}
+
 // Detection2DPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Detection2DPublisher struct {
@@ -98,11 +115,17 @@ type Detection2DSubscriptionCallback func(msg *Detection2D, info *rclgo.MessageI
 
 // NewDetection2DSubscription creates and returns a new subscription for the
 // Detection2D
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewDetection2DSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Detection2DSubscriptionCallback) (*Detection2DSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Detection2D
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Detection2D
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Detection2DTypeSupport, opts, callback)
 	if err != nil {
@@ -144,9 +167,9 @@ func (t _Detection2DTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message
 	m := msg.(*Detection2D)
 	mem := (*C.vision_msgs__msg__Detection2D)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	ObjectHypothesisWithPose__Sequence_to_C(&mem.results, m.Results)
+	ObjectHypothesisWithPose__Sequence_into_C(&mem.results, m.Results)
 	BoundingBox2DTypeSupport.AsCStruct(unsafe.Pointer(&mem.bbox), &m.Bbox)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.id), m.Id)
+	primitives.StringIntoC(unsafe.Pointer(&mem.id), m.Id)
 }
 
 func (t _Detection2DTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -167,6 +190,7 @@ type CDetection2D__Sequence = C.vision_msgs__msg__Detection2D__Sequence
 
 func Detection2D__Sequence_to_Go(goSlice *[]Detection2D, cSlice CDetection2D__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Detection2D, cSlice.size)
@@ -175,14 +199,17 @@ func Detection2D__Sequence_to_Go(goSlice *[]Detection2D, cSlice CDetection2D__Se
 		Detection2DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Detection2D__Sequence_to_C(cSlice *CDetection2D__Sequence, goSlice []Detection2D) {
+func Detection2D__Sequence_into_C(cSlice *CDetection2D__Sequence, goSlice []Detection2D) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__Detection2D__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__Detection2D)(C.malloc(C.sizeof_struct_vision_msgs__msg__Detection2D * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__Detection2D)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__Detection2D))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -195,7 +222,7 @@ func Detection2D__Array_to_Go(goSlice []Detection2D, cSlice []CDetection2D) {
 		Detection2DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Detection2D__Array_to_C(cSlice []CDetection2D, goSlice []Detection2D) {
+func Detection2D__Array_into_C(cSlice []CDetection2D, goSlice []Detection2D) {
 	for i := 0; i < len(goSlice); i++ {
 		Detection2DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

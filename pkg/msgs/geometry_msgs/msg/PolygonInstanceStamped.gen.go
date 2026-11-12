@@ -56,6 +56,18 @@ func (t *PolygonInstanceStamped) GetTypeSupport() types.MessageTypeSupport {
 	return PolygonInstanceStampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PolygonInstanceStamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Polygon); err != nil {
+		return types.InField("polygon", err)
+	}
+	return nil
+}
+
 // PolygonInstanceStampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PolygonInstanceStampedPublisher struct {
@@ -88,11 +100,17 @@ type PolygonInstanceStampedSubscriptionCallback func(msg *PolygonInstanceStamped
 
 // NewPolygonInstanceStampedSubscription creates and returns a new subscription for the
 // PolygonInstanceStamped
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPolygonInstanceStampedSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PolygonInstanceStampedSubscriptionCallback) (*PolygonInstanceStampedSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg PolygonInstanceStamped
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg PolygonInstanceStamped
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PolygonInstanceStampedTypeSupport, opts, callback)
 	if err != nil {
@@ -153,6 +171,7 @@ type CPolygonInstanceStamped__Sequence = C.geometry_msgs__msg__PolygonInstanceSt
 
 func PolygonInstanceStamped__Sequence_to_Go(goSlice *[]PolygonInstanceStamped, cSlice CPolygonInstanceStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]PolygonInstanceStamped, cSlice.size)
@@ -161,14 +180,17 @@ func PolygonInstanceStamped__Sequence_to_Go(goSlice *[]PolygonInstanceStamped, c
 		PolygonInstanceStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PolygonInstanceStamped__Sequence_to_C(cSlice *CPolygonInstanceStamped__Sequence, goSlice []PolygonInstanceStamped) {
+func PolygonInstanceStamped__Sequence_into_C(cSlice *CPolygonInstanceStamped__Sequence, goSlice []PolygonInstanceStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__PolygonInstanceStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__PolygonInstanceStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__PolygonInstanceStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__PolygonInstanceStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__PolygonInstanceStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +203,7 @@ func PolygonInstanceStamped__Array_to_Go(goSlice []PolygonInstanceStamped, cSlic
 		PolygonInstanceStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PolygonInstanceStamped__Array_to_C(cSlice []CPolygonInstanceStamped, goSlice []PolygonInstanceStamped) {
+func PolygonInstanceStamped__Array_into_C(cSlice []CPolygonInstanceStamped, goSlice []PolygonInstanceStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		PolygonInstanceStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

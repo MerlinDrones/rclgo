@@ -80,6 +80,28 @@ func (t *ParameterDescriptor) GetTypeSupport() types.MessageTypeSupport {
 	return ParameterDescriptorTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ParameterDescriptor) CheckBounds() error {
+	if len(t.FloatingPointRange) > 1 {
+		return types.BoundExceeded("floating_point_range", len(t.FloatingPointRange), 1)
+	}
+	for i := range t.FloatingPointRange {
+		if err := types.CheckBounds(&t.FloatingPointRange[i]); err != nil {
+			return types.InElement("floating_point_range", i, err)
+		}
+	}
+	if len(t.IntegerRange) > 1 {
+		return types.BoundExceeded("integer_range", len(t.IntegerRange), 1)
+	}
+	for i := range t.IntegerRange {
+		if err := types.CheckBounds(&t.IntegerRange[i]); err != nil {
+			return types.InElement("integer_range", i, err)
+		}
+	}
+	return nil
+}
+
 // ParameterDescriptorPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ParameterDescriptorPublisher struct {
@@ -112,11 +134,17 @@ type ParameterDescriptorSubscriptionCallback func(msg *ParameterDescriptor, info
 
 // NewParameterDescriptorSubscription creates and returns a new subscription for the
 // ParameterDescriptor
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewParameterDescriptorSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ParameterDescriptorSubscriptionCallback) (*ParameterDescriptorSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ParameterDescriptor
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ParameterDescriptor
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ParameterDescriptorTypeSupport, opts, callback)
 	if err != nil {
@@ -157,14 +185,14 @@ func (t _ParameterDescriptorTypeSupport) ReleaseMemory(pointer_to_free unsafe.Po
 func (t _ParameterDescriptorTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ParameterDescriptor)
 	mem := (*C.rcl_interfaces__msg__ParameterDescriptor)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
 	mem._type = C.uint8_t(m.Type)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.description), m.Description)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.additional_constraints), m.AdditionalConstraints)
+	primitives.StringIntoC(unsafe.Pointer(&mem.description), m.Description)
+	primitives.StringIntoC(unsafe.Pointer(&mem.additional_constraints), m.AdditionalConstraints)
 	mem.read_only = C.bool(m.ReadOnly)
 	mem.dynamic_typing = C.bool(m.DynamicTyping)
-	FloatingPointRange__Sequence_to_C(&mem.floating_point_range, m.FloatingPointRange)
-	IntegerRange__Sequence_to_C(&mem.integer_range, m.IntegerRange)
+	FloatingPointRange__Sequence_into_C(&mem.floating_point_range, m.FloatingPointRange)
+	IntegerRange__Sequence_into_C(&mem.integer_range, m.IntegerRange)
 }
 
 func (t _ParameterDescriptorTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -189,6 +217,7 @@ type CParameterDescriptor__Sequence = C.rcl_interfaces__msg__ParameterDescriptor
 
 func ParameterDescriptor__Sequence_to_Go(goSlice *[]ParameterDescriptor, cSlice CParameterDescriptor__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ParameterDescriptor, cSlice.size)
@@ -197,14 +226,17 @@ func ParameterDescriptor__Sequence_to_Go(goSlice *[]ParameterDescriptor, cSlice 
 		ParameterDescriptorTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ParameterDescriptor__Sequence_to_C(cSlice *CParameterDescriptor__Sequence, goSlice []ParameterDescriptor) {
+func ParameterDescriptor__Sequence_into_C(cSlice *CParameterDescriptor__Sequence, goSlice []ParameterDescriptor) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__ParameterDescriptor__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__ParameterDescriptor)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__ParameterDescriptor * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__ParameterDescriptor)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__ParameterDescriptor))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -217,7 +249,7 @@ func ParameterDescriptor__Array_to_Go(goSlice []ParameterDescriptor, cSlice []CP
 		ParameterDescriptorTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ParameterDescriptor__Array_to_C(cSlice []CParameterDescriptor, goSlice []ParameterDescriptor) {
+func ParameterDescriptor__Array_into_C(cSlice []CParameterDescriptor, goSlice []ParameterDescriptor) {
 	for i := 0; i < len(goSlice); i++ {
 		ParameterDescriptorTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

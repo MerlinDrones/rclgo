@@ -56,6 +56,18 @@ func (t *Builtins) GetTypeSupport() types.MessageTypeSupport {
 	return BuiltinsTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Builtins) CheckBounds() error {
+	if err := types.CheckBounds(&t.DurationValue); err != nil {
+		return types.InField("duration_value", err)
+	}
+	if err := types.CheckBounds(&t.TimeValue); err != nil {
+		return types.InField("time_value", err)
+	}
+	return nil
+}
+
 // BuiltinsPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BuiltinsPublisher struct {
@@ -88,11 +100,17 @@ type BuiltinsSubscriptionCallback func(msg *Builtins, info *rclgo.MessageInfo, e
 
 // NewBuiltinsSubscription creates and returns a new subscription for the
 // Builtins
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBuiltinsSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BuiltinsSubscriptionCallback) (*BuiltinsSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Builtins
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Builtins
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BuiltinsTypeSupport, opts, callback)
 	if err != nil {
@@ -153,6 +171,7 @@ type CBuiltins__Sequence = C.test_msgs__msg__Builtins__Sequence
 
 func Builtins__Sequence_to_Go(goSlice *[]Builtins, cSlice CBuiltins__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Builtins, cSlice.size)
@@ -161,14 +180,17 @@ func Builtins__Sequence_to_Go(goSlice *[]Builtins, cSlice CBuiltins__Sequence) {
 		BuiltinsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Builtins__Sequence_to_C(cSlice *CBuiltins__Sequence, goSlice []Builtins) {
+func Builtins__Sequence_into_C(cSlice *CBuiltins__Sequence, goSlice []Builtins) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__Builtins__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__Builtins)(C.malloc(C.sizeof_struct_test_msgs__msg__Builtins * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__Builtins)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__Builtins))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +203,7 @@ func Builtins__Array_to_Go(goSlice []Builtins, cSlice []CBuiltins) {
 		BuiltinsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Builtins__Array_to_C(cSlice []CBuiltins, goSlice []Builtins) {
+func Builtins__Array_into_C(cSlice []CBuiltins, goSlice []Builtins) {
 	for i := 0; i < len(goSlice); i++ {
 		BuiltinsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -60,6 +60,18 @@ func (t *TransformStamped) GetTypeSupport() types.MessageTypeSupport {
 	return TransformStampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *TransformStamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Transform); err != nil {
+		return types.InField("transform", err)
+	}
+	return nil
+}
+
 // TransformStampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TransformStampedPublisher struct {
@@ -92,11 +104,17 @@ type TransformStampedSubscriptionCallback func(msg *TransformStamped, info *rclg
 
 // NewTransformStampedSubscription creates and returns a new subscription for the
 // TransformStamped
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTransformStampedSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TransformStampedSubscriptionCallback) (*TransformStampedSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg TransformStamped
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg TransformStamped
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TransformStampedTypeSupport, opts, callback)
 	if err != nil {
@@ -138,7 +156,7 @@ func (t _TransformStampedTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*TransformStamped)
 	mem := (*C.geometry_msgs__msg__TransformStamped)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.child_frame_id), m.ChildFrameId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.child_frame_id), m.ChildFrameId)
 	TransformTypeSupport.AsCStruct(unsafe.Pointer(&mem.transform), &m.Transform)
 }
 
@@ -159,6 +177,7 @@ type CTransformStamped__Sequence = C.geometry_msgs__msg__TransformStamped__Seque
 
 func TransformStamped__Sequence_to_Go(goSlice *[]TransformStamped, cSlice CTransformStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]TransformStamped, cSlice.size)
@@ -167,14 +186,17 @@ func TransformStamped__Sequence_to_Go(goSlice *[]TransformStamped, cSlice CTrans
 		TransformStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TransformStamped__Sequence_to_C(cSlice *CTransformStamped__Sequence, goSlice []TransformStamped) {
+func TransformStamped__Sequence_into_C(cSlice *CTransformStamped__Sequence, goSlice []TransformStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__TransformStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__TransformStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__TransformStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__TransformStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__TransformStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +209,7 @@ func TransformStamped__Array_to_Go(goSlice []TransformStamped, cSlice []CTransfo
 		TransformStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TransformStamped__Array_to_C(cSlice []CTransformStamped, goSlice []TransformStamped) {
+func TransformStamped__Array_into_C(cSlice []CTransformStamped, goSlice []TransformStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		TransformStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

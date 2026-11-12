@@ -56,6 +56,15 @@ func (t *AccelWithCovariance) GetTypeSupport() types.MessageTypeSupport {
 	return AccelWithCovarianceTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *AccelWithCovariance) CheckBounds() error {
+	if err := types.CheckBounds(&t.Accel); err != nil {
+		return types.InField("accel", err)
+	}
+	return nil
+}
+
 // AccelWithCovariancePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type AccelWithCovariancePublisher struct {
@@ -88,11 +97,17 @@ type AccelWithCovarianceSubscriptionCallback func(msg *AccelWithCovariance, info
 
 // NewAccelWithCovarianceSubscription creates and returns a new subscription for the
 // AccelWithCovariance
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewAccelWithCovarianceSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback AccelWithCovarianceSubscriptionCallback) (*AccelWithCovarianceSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg AccelWithCovariance
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg AccelWithCovariance
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, AccelWithCovarianceTypeSupport, opts, callback)
 	if err != nil {
@@ -135,7 +150,7 @@ func (t _AccelWithCovarianceTypeSupport) AsCStruct(dst unsafe.Pointer, msg types
 	mem := (*C.geometry_msgs__msg__AccelWithCovariance)(dst)
 	AccelTypeSupport.AsCStruct(unsafe.Pointer(&mem.accel), &m.Accel)
 	cSlice_covariance := mem.covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_covariance)), m.Covariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_covariance)), m.Covariance[:])
 }
 
 func (t _AccelWithCovarianceTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -155,6 +170,7 @@ type CAccelWithCovariance__Sequence = C.geometry_msgs__msg__AccelWithCovariance_
 
 func AccelWithCovariance__Sequence_to_Go(goSlice *[]AccelWithCovariance, cSlice CAccelWithCovariance__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]AccelWithCovariance, cSlice.size)
@@ -163,14 +179,17 @@ func AccelWithCovariance__Sequence_to_Go(goSlice *[]AccelWithCovariance, cSlice 
 		AccelWithCovarianceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func AccelWithCovariance__Sequence_to_C(cSlice *CAccelWithCovariance__Sequence, goSlice []AccelWithCovariance) {
+func AccelWithCovariance__Sequence_into_C(cSlice *CAccelWithCovariance__Sequence, goSlice []AccelWithCovariance) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__AccelWithCovariance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__AccelWithCovariance)(C.malloc(C.sizeof_struct_geometry_msgs__msg__AccelWithCovariance * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__AccelWithCovariance)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__AccelWithCovariance))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -183,7 +202,7 @@ func AccelWithCovariance__Array_to_Go(goSlice []AccelWithCovariance, cSlice []CA
 		AccelWithCovarianceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func AccelWithCovariance__Array_to_C(cSlice []CAccelWithCovariance, goSlice []AccelWithCovariance) {
+func AccelWithCovariance__Array_into_C(cSlice []CAccelWithCovariance, goSlice []AccelWithCovariance) {
 	for i := 0; i < len(goSlice); i++ {
 		AccelWithCovarianceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

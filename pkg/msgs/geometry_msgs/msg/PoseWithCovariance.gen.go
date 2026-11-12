@@ -56,6 +56,15 @@ func (t *PoseWithCovariance) GetTypeSupport() types.MessageTypeSupport {
 	return PoseWithCovarianceTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PoseWithCovariance) CheckBounds() error {
+	if err := types.CheckBounds(&t.Pose); err != nil {
+		return types.InField("pose", err)
+	}
+	return nil
+}
+
 // PoseWithCovariancePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PoseWithCovariancePublisher struct {
@@ -88,11 +97,17 @@ type PoseWithCovarianceSubscriptionCallback func(msg *PoseWithCovariance, info *
 
 // NewPoseWithCovarianceSubscription creates and returns a new subscription for the
 // PoseWithCovariance
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPoseWithCovarianceSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PoseWithCovarianceSubscriptionCallback) (*PoseWithCovarianceSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg PoseWithCovariance
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg PoseWithCovariance
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PoseWithCovarianceTypeSupport, opts, callback)
 	if err != nil {
@@ -135,7 +150,7 @@ func (t _PoseWithCovarianceTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.
 	mem := (*C.geometry_msgs__msg__PoseWithCovariance)(dst)
 	PoseTypeSupport.AsCStruct(unsafe.Pointer(&mem.pose), &m.Pose)
 	cSlice_covariance := mem.covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_covariance)), m.Covariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_covariance)), m.Covariance[:])
 }
 
 func (t _PoseWithCovarianceTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -155,6 +170,7 @@ type CPoseWithCovariance__Sequence = C.geometry_msgs__msg__PoseWithCovariance__S
 
 func PoseWithCovariance__Sequence_to_Go(goSlice *[]PoseWithCovariance, cSlice CPoseWithCovariance__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]PoseWithCovariance, cSlice.size)
@@ -163,14 +179,17 @@ func PoseWithCovariance__Sequence_to_Go(goSlice *[]PoseWithCovariance, cSlice CP
 		PoseWithCovarianceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PoseWithCovariance__Sequence_to_C(cSlice *CPoseWithCovariance__Sequence, goSlice []PoseWithCovariance) {
+func PoseWithCovariance__Sequence_into_C(cSlice *CPoseWithCovariance__Sequence, goSlice []PoseWithCovariance) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__PoseWithCovariance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__PoseWithCovariance)(C.malloc(C.sizeof_struct_geometry_msgs__msg__PoseWithCovariance * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__PoseWithCovariance)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__PoseWithCovariance))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -183,7 +202,7 @@ func PoseWithCovariance__Array_to_Go(goSlice []PoseWithCovariance, cSlice []CPos
 		PoseWithCovarianceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PoseWithCovariance__Array_to_C(cSlice []CPoseWithCovariance, goSlice []PoseWithCovariance) {
+func PoseWithCovariance__Array_into_C(cSlice []CPoseWithCovariance, goSlice []PoseWithCovariance) {
 	for i := 0; i < len(goSlice); i++ {
 		PoseWithCovarianceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

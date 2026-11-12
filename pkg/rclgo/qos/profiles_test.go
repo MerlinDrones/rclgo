@@ -1,3 +1,12 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 // pkg/rclgo/qos/profiles_test.go
 package qos
 
@@ -53,16 +62,17 @@ func TestNewBestAvailableProfile(t *testing.T) {
 
 func TestNewParameterEventsProfile(t *testing.T) {
 	p := NewParameterEventsProfile()
-	if p.History != HistoryKeepAll || p.Depth != 0 {
+	// rmw_qos_profile_parameter_events
+	if p.History != HistoryKeepLast || p.Depth != 1000 {
 		t.Fatalf("History/Depth=%v/%d", p.History, p.Depth)
 	}
 	if p.Reliability != ReliabilityReliable {
 		t.Fatalf("Reliability=%v", p.Reliability)
 	}
-	if p.Durability != DurabilityTransientLocal {
+	if p.Durability != DurabilityVolatile {
 		t.Fatalf("Durability=%v", p.Durability)
 	}
-	if p.Liveliness != LivelinessAutomatic {
+	if p.Liveliness != LivelinessSystemDefault {
 		t.Fatalf("Liveliness=%v", p.Liveliness)
 	}
 }

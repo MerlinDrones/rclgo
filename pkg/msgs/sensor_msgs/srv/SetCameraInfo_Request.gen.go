@@ -53,6 +53,15 @@ func (t *SetCameraInfo_Request) GetTypeSupport() types.MessageTypeSupport {
 	return SetCameraInfo_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *SetCameraInfo_Request) CheckBounds() error {
+	if err := types.CheckBounds(&t.CameraInfo); err != nil {
+		return types.InField("camera_info", err)
+	}
+	return nil
+}
+
 // SetCameraInfo_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type SetCameraInfo_RequestPublisher struct {
@@ -85,11 +94,17 @@ type SetCameraInfo_RequestSubscriptionCallback func(msg *SetCameraInfo_Request, 
 
 // NewSetCameraInfo_RequestSubscription creates and returns a new subscription for the
 // SetCameraInfo_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewSetCameraInfo_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback SetCameraInfo_RequestSubscriptionCallback) (*SetCameraInfo_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg SetCameraInfo_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg SetCameraInfo_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, SetCameraInfo_RequestTypeSupport, opts, callback)
 	if err != nil {
@@ -148,6 +163,7 @@ type CSetCameraInfo_Request__Sequence = C.sensor_msgs__srv__SetCameraInfo_Reques
 
 func SetCameraInfo_Request__Sequence_to_Go(goSlice *[]SetCameraInfo_Request, cSlice CSetCameraInfo_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetCameraInfo_Request, cSlice.size)
@@ -156,14 +172,17 @@ func SetCameraInfo_Request__Sequence_to_Go(goSlice *[]SetCameraInfo_Request, cSl
 		SetCameraInfo_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetCameraInfo_Request__Sequence_to_C(cSlice *CSetCameraInfo_Request__Sequence, goSlice []SetCameraInfo_Request) {
+func SetCameraInfo_Request__Sequence_into_C(cSlice *CSetCameraInfo_Request__Sequence, goSlice []SetCameraInfo_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__srv__SetCameraInfo_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__srv__SetCameraInfo_Request)(C.malloc(C.sizeof_struct_sensor_msgs__srv__SetCameraInfo_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__srv__SetCameraInfo_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__srv__SetCameraInfo_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -176,7 +195,7 @@ func SetCameraInfo_Request__Array_to_Go(goSlice []SetCameraInfo_Request, cSlice 
 		SetCameraInfo_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetCameraInfo_Request__Array_to_C(cSlice []CSetCameraInfo_Request, goSlice []SetCameraInfo_Request) {
+func SetCameraInfo_Request__Array_into_C(cSlice []CSetCameraInfo_Request, goSlice []SetCameraInfo_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		SetCameraInfo_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

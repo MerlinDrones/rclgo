@@ -92,6 +92,12 @@ func (t *BasicTypes_Response) GetTypeSupport() types.MessageTypeSupport {
 	return BasicTypes_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *BasicTypes_Response) CheckBounds() error {
+	return nil
+}
+
 // BasicTypes_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BasicTypes_ResponsePublisher struct {
@@ -124,11 +130,17 @@ type BasicTypes_ResponseSubscriptionCallback func(msg *BasicTypes_Response, info
 
 // NewBasicTypes_ResponseSubscription creates and returns a new subscription for the
 // BasicTypes_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBasicTypes_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BasicTypes_ResponseSubscriptionCallback) (*BasicTypes_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BasicTypes_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BasicTypes_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BasicTypes_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -182,7 +194,7 @@ func (t _BasicTypes_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg types
 	mem.uint32_value = C.uint32_t(m.Uint32Value)
 	mem.int64_value = C.int64_t(m.Int64Value)
 	mem.uint64_value = C.uint64_t(m.Uint64Value)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.string_value), m.StringValue)
+	primitives.StringIntoC(unsafe.Pointer(&mem.string_value), m.StringValue)
 }
 
 func (t _BasicTypes_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -213,6 +225,7 @@ type CBasicTypes_Response__Sequence = C.test_msgs__srv__BasicTypes_Response__Seq
 
 func BasicTypes_Response__Sequence_to_Go(goSlice *[]BasicTypes_Response, cSlice CBasicTypes_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BasicTypes_Response, cSlice.size)
@@ -221,14 +234,17 @@ func BasicTypes_Response__Sequence_to_Go(goSlice *[]BasicTypes_Response, cSlice 
 		BasicTypes_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BasicTypes_Response__Sequence_to_C(cSlice *CBasicTypes_Response__Sequence, goSlice []BasicTypes_Response) {
+func BasicTypes_Response__Sequence_into_C(cSlice *CBasicTypes_Response__Sequence, goSlice []BasicTypes_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__srv__BasicTypes_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__srv__BasicTypes_Response)(C.malloc(C.sizeof_struct_test_msgs__srv__BasicTypes_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__srv__BasicTypes_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__srv__BasicTypes_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -241,7 +257,7 @@ func BasicTypes_Response__Array_to_Go(goSlice []BasicTypes_Response, cSlice []CB
 		BasicTypes_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BasicTypes_Response__Array_to_C(cSlice []CBasicTypes_Response, goSlice []BasicTypes_Response) {
+func BasicTypes_Response__Array_into_C(cSlice []CBasicTypes_Response, goSlice []BasicTypes_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		BasicTypes_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

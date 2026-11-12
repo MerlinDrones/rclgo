@@ -64,6 +64,12 @@ func (t *RegionOfInterest) GetTypeSupport() types.MessageTypeSupport {
 	return RegionOfInterestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *RegionOfInterest) CheckBounds() error {
+	return nil
+}
+
 // RegionOfInterestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type RegionOfInterestPublisher struct {
@@ -96,11 +102,17 @@ type RegionOfInterestSubscriptionCallback func(msg *RegionOfInterest, info *rclg
 
 // NewRegionOfInterestSubscription creates and returns a new subscription for the
 // RegionOfInterest
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewRegionOfInterestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback RegionOfInterestSubscriptionCallback) (*RegionOfInterestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg RegionOfInterest
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg RegionOfInterest
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, RegionOfInterestTypeSupport, opts, callback)
 	if err != nil {
@@ -167,6 +179,7 @@ type CRegionOfInterest__Sequence = C.sensor_msgs__msg__RegionOfInterest__Sequenc
 
 func RegionOfInterest__Sequence_to_Go(goSlice *[]RegionOfInterest, cSlice CRegionOfInterest__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]RegionOfInterest, cSlice.size)
@@ -175,14 +188,17 @@ func RegionOfInterest__Sequence_to_Go(goSlice *[]RegionOfInterest, cSlice CRegio
 		RegionOfInterestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func RegionOfInterest__Sequence_to_C(cSlice *CRegionOfInterest__Sequence, goSlice []RegionOfInterest) {
+func RegionOfInterest__Sequence_into_C(cSlice *CRegionOfInterest__Sequence, goSlice []RegionOfInterest) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__RegionOfInterest__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__RegionOfInterest)(C.malloc(C.sizeof_struct_sensor_msgs__msg__RegionOfInterest * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__RegionOfInterest)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__RegionOfInterest))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -195,7 +211,7 @@ func RegionOfInterest__Array_to_Go(goSlice []RegionOfInterest, cSlice []CRegionO
 		RegionOfInterestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func RegionOfInterest__Array_to_C(cSlice []CRegionOfInterest, goSlice []RegionOfInterest) {
+func RegionOfInterest__Array_into_C(cSlice []CRegionOfInterest, goSlice []RegionOfInterest) {
 	for i := 0; i < len(goSlice); i++ {
 		RegionOfInterestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

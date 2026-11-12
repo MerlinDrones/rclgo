@@ -1,0 +1,2 @@
+go test fuzz v1
+string("\x85\u0085\u0085")

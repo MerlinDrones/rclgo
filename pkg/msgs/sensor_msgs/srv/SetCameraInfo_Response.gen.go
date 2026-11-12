@@ -56,6 +56,12 @@ func (t *SetCameraInfo_Response) GetTypeSupport() types.MessageTypeSupport {
 	return SetCameraInfo_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *SetCameraInfo_Response) CheckBounds() error {
+	return nil
+}
+
 // SetCameraInfo_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type SetCameraInfo_ResponsePublisher struct {
@@ -88,11 +94,17 @@ type SetCameraInfo_ResponseSubscriptionCallback func(msg *SetCameraInfo_Response
 
 // NewSetCameraInfo_ResponseSubscription creates and returns a new subscription for the
 // SetCameraInfo_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewSetCameraInfo_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback SetCameraInfo_ResponseSubscriptionCallback) (*SetCameraInfo_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg SetCameraInfo_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg SetCameraInfo_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, SetCameraInfo_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -134,7 +146,7 @@ func (t _SetCameraInfo_ResponseTypeSupport) AsCStruct(dst unsafe.Pointer, msg ty
 	m := msg.(*SetCameraInfo_Response)
 	mem := (*C.sensor_msgs__srv__SetCameraInfo_Response)(dst)
 	mem.success = C.bool(m.Success)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.status_message), m.StatusMessage)
+	primitives.StringIntoC(unsafe.Pointer(&mem.status_message), m.StatusMessage)
 }
 
 func (t _SetCameraInfo_ResponseTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -153,6 +165,7 @@ type CSetCameraInfo_Response__Sequence = C.sensor_msgs__srv__SetCameraInfo_Respo
 
 func SetCameraInfo_Response__Sequence_to_Go(goSlice *[]SetCameraInfo_Response, cSlice CSetCameraInfo_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetCameraInfo_Response, cSlice.size)
@@ -161,14 +174,17 @@ func SetCameraInfo_Response__Sequence_to_Go(goSlice *[]SetCameraInfo_Response, c
 		SetCameraInfo_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetCameraInfo_Response__Sequence_to_C(cSlice *CSetCameraInfo_Response__Sequence, goSlice []SetCameraInfo_Response) {
+func SetCameraInfo_Response__Sequence_into_C(cSlice *CSetCameraInfo_Response__Sequence, goSlice []SetCameraInfo_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__srv__SetCameraInfo_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__srv__SetCameraInfo_Response)(C.malloc(C.sizeof_struct_sensor_msgs__srv__SetCameraInfo_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__srv__SetCameraInfo_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__srv__SetCameraInfo_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +197,7 @@ func SetCameraInfo_Response__Array_to_Go(goSlice []SetCameraInfo_Response, cSlic
 		SetCameraInfo_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetCameraInfo_Response__Array_to_C(cSlice []CSetCameraInfo_Response, goSlice []SetCameraInfo_Response) {
+func SetCameraInfo_Response__Array_into_C(cSlice []CSetCameraInfo_Response, goSlice []SetCameraInfo_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		SetCameraInfo_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

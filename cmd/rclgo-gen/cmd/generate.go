@@ -120,6 +120,7 @@ func init() {
 
 func configureFlags(cmd *cobra.Command, destPathDefault string) {
 	cmd.PersistentFlags().StringArrayP("root-path", "r", []string{os.Getenv("AMENT_PREFIX_PATH")}, "Root lookup path for ROS2 .msg files. If ROS2 environment is sourced, is autodetected.")
+	cmd.PersistentFlags().StringArray("embed-root-path", gogen.DefaultEmbedRootPaths, "Glob pattern of root paths whose include and library directories are written into generated code. Can be passed multiple times (default: /opt/ros/* and /usr). Other root paths (e.g. workspace overlays) must be provided at build time through CGO_CFLAGS/CGO_LDFLAGS, for example from the file written by --cgo-flags-path.")
 	cmd.PersistentFlags().StringP("dest-path", "d", destPathDefault, "Destination directory for the Golang typed converted ROS2 messages. ROS2 Message structure is preserved as <ros2-package>/msg/<msg-name>")
 	cmd.PersistentFlags().String("rclgo-import-path", gogen.DefaultConfig.RclgoImportPath, "Import path of rclgo library")
 	cmd.PersistentFlags().String("message-module-prefix", gogen.DefaultConfig.MessageModulePrefix, "Import path prefix for generated message binding modules")
@@ -172,7 +173,23 @@ func getGogenConfig(cmd *cobra.Command) (*gogen.Config, error) {
 	if modulePrefix == gogen.DefaultConfig.MessageModulePrefix {
 		pkgs, err := packages.Load(&packages.Config{})
 		if err == nil && len(pkgs) > 0 {
-			modulePrefix = path.Join(pkgs[0].PkgPath, destPath)
+			// The prefix is the import path of the destination directory,
+			// which is relative to the package in the working directory.
+			rel := destPath
+			if filepath.IsAbs(destPath) {
+				cwd, err := os.Getwd()
+				if err != nil {
+					return nil, err
+				}
+				if rel, err = filepath.Rel(cwd, destPath); err != nil {
+					return nil, err
+				}
+			}
+			rel = filepath.ToSlash(filepath.Clean(rel))
+			if rel == ".." || strings.HasPrefix(rel, "../") {
+				return nil, fmt.Errorf("--dest-path %s is outside the working directory's package; set --message-module-prefix", destPath)
+			}
+			modulePrefix = path.Join(pkgs[0].PkgPath, rel)
 		}
 	}
 	rules, err := getPackageRules(cmd)
@@ -193,6 +210,7 @@ func getGogenConfig(cmd *cobra.Command) (*gogen.Config, error) {
 		RootPaths:           getRootPaths(cmd),
 		DestPath:            destPath,
 		CGOFlagsPath:        getString(cmd, "cgo-flags-path"),
+		EmbedRootPaths:      viper.GetStringSlice(getPrefix(cmd) + "embed-root-path"),
 
 		RegexIncludes:  rules,
 		ROSPkgIncludes: viper.GetStringSlice(getPrefix(cmd) + "include-package-deps"),

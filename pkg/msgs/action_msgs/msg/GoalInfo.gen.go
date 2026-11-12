@@ -57,6 +57,18 @@ func (t *GoalInfo) GetTypeSupport() types.MessageTypeSupport {
 	return GoalInfoTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *GoalInfo) CheckBounds() error {
+	if err := types.CheckBounds(&t.GoalId); err != nil {
+		return types.InField("goal_id", err)
+	}
+	if err := types.CheckBounds(&t.Stamp); err != nil {
+		return types.InField("stamp", err)
+	}
+	return nil
+}
+
 // GoalInfoPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type GoalInfoPublisher struct {
@@ -89,11 +101,17 @@ type GoalInfoSubscriptionCallback func(msg *GoalInfo, info *rclgo.MessageInfo, e
 
 // NewGoalInfoSubscription creates and returns a new subscription for the
 // GoalInfo
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewGoalInfoSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback GoalInfoSubscriptionCallback) (*GoalInfoSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg GoalInfo
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg GoalInfo
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, GoalInfoTypeSupport, opts, callback)
 	if err != nil {
@@ -154,6 +172,7 @@ type CGoalInfo__Sequence = C.action_msgs__msg__GoalInfo__Sequence
 
 func GoalInfo__Sequence_to_Go(goSlice *[]GoalInfo, cSlice CGoalInfo__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]GoalInfo, cSlice.size)
@@ -162,14 +181,17 @@ func GoalInfo__Sequence_to_Go(goSlice *[]GoalInfo, cSlice CGoalInfo__Sequence) {
 		GoalInfoTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GoalInfo__Sequence_to_C(cSlice *CGoalInfo__Sequence, goSlice []GoalInfo) {
+func GoalInfo__Sequence_into_C(cSlice *CGoalInfo__Sequence, goSlice []GoalInfo) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.action_msgs__msg__GoalInfo__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.action_msgs__msg__GoalInfo)(C.malloc(C.sizeof_struct_action_msgs__msg__GoalInfo * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.action_msgs__msg__GoalInfo)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_action_msgs__msg__GoalInfo))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -182,7 +204,7 @@ func GoalInfo__Array_to_Go(goSlice []GoalInfo, cSlice []CGoalInfo) {
 		GoalInfoTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GoalInfo__Array_to_C(cSlice []CGoalInfo, goSlice []GoalInfo) {
+func GoalInfo__Array_into_C(cSlice []CGoalInfo, goSlice []GoalInfo) {
 	for i := 0; i < len(goSlice); i++ {
 		GoalInfoTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

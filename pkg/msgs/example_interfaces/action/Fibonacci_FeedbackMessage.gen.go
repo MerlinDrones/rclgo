@@ -55,6 +55,18 @@ func (t *Fibonacci_FeedbackMessage) SetDefaults() {
 func (t *Fibonacci_FeedbackMessage) GetTypeSupport() types.MessageTypeSupport {
 	return Fibonacci_FeedbackMessageTypeSupport
 }
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Fibonacci_FeedbackMessage) CheckBounds() error {
+	if err := types.CheckBounds(&t.GoalID); err != nil {
+		return types.InField("goal_id", err)
+	}
+	if err := types.CheckBounds(&t.Feedback); err != nil {
+		return types.InField("feedback", err)
+	}
+	return nil
+}
 func (t *Fibonacci_FeedbackMessage) GetGoalID() *types.GoalID {
 	return (*types.GoalID)(&t.GoalID.Uuid)
 }
@@ -95,11 +107,17 @@ type Fibonacci_FeedbackMessageSubscriptionCallback func(msg *Fibonacci_FeedbackM
 
 // NewFibonacci_FeedbackMessageSubscription creates and returns a new subscription for the
 // Fibonacci_FeedbackMessage
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewFibonacci_FeedbackMessageSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Fibonacci_FeedbackMessageSubscriptionCallback) (*Fibonacci_FeedbackMessageSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Fibonacci_FeedbackMessage
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Fibonacci_FeedbackMessage
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Fibonacci_FeedbackMessageTypeSupport, opts, callback)
 	if err != nil {
@@ -160,6 +178,7 @@ type CFibonacci_FeedbackMessage__Sequence = C.example_interfaces__action__Fibona
 
 func Fibonacci_FeedbackMessage__Sequence_to_Go(goSlice *[]Fibonacci_FeedbackMessage, cSlice CFibonacci_FeedbackMessage__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Fibonacci_FeedbackMessage, cSlice.size)
@@ -168,14 +187,17 @@ func Fibonacci_FeedbackMessage__Sequence_to_Go(goSlice *[]Fibonacci_FeedbackMess
 		Fibonacci_FeedbackMessageTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Fibonacci_FeedbackMessage__Sequence_to_C(cSlice *CFibonacci_FeedbackMessage__Sequence, goSlice []Fibonacci_FeedbackMessage) {
+func Fibonacci_FeedbackMessage__Sequence_into_C(cSlice *CFibonacci_FeedbackMessage__Sequence, goSlice []Fibonacci_FeedbackMessage) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__action__Fibonacci_FeedbackMessage__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__action__Fibonacci_FeedbackMessage)(C.malloc(C.sizeof_struct_example_interfaces__action__Fibonacci_FeedbackMessage * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__action__Fibonacci_FeedbackMessage)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__action__Fibonacci_FeedbackMessage))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -188,7 +210,7 @@ func Fibonacci_FeedbackMessage__Array_to_Go(goSlice []Fibonacci_FeedbackMessage,
 		Fibonacci_FeedbackMessageTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Fibonacci_FeedbackMessage__Array_to_C(cSlice []CFibonacci_FeedbackMessage, goSlice []Fibonacci_FeedbackMessage) {
+func Fibonacci_FeedbackMessage__Array_into_C(cSlice []CFibonacci_FeedbackMessage, goSlice []Fibonacci_FeedbackMessage) {
 	for i := 0; i < len(goSlice); i++ {
 		Fibonacci_FeedbackMessageTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

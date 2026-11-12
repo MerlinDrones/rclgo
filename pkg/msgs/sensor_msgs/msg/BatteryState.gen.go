@@ -131,6 +131,15 @@ func (t *BatteryState) GetTypeSupport() types.MessageTypeSupport {
 	return BatteryStateTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *BatteryState) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // BatteryStatePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BatteryStatePublisher struct {
@@ -163,11 +172,17 @@ type BatteryStateSubscriptionCallback func(msg *BatteryState, info *rclgo.Messag
 
 // NewBatteryStateSubscription creates and returns a new subscription for the
 // BatteryState
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBatteryStateSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BatteryStateSubscriptionCallback) (*BatteryStateSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BatteryState
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BatteryState
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BatteryStateTypeSupport, opts, callback)
 	if err != nil {
@@ -220,10 +235,10 @@ func (t _BatteryStateTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Messag
 	mem.power_supply_health = C.uint8_t(m.PowerSupplyHealth)
 	mem.power_supply_technology = C.uint8_t(m.PowerSupplyTechnology)
 	mem.present = C.bool(m.Present)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.cell_voltage)), m.CellVoltage)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.cell_temperature)), m.CellTemperature)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.location), m.Location)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.serial_number), m.SerialNumber)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.cell_voltage)), m.CellVoltage)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.cell_temperature)), m.CellTemperature)
+	primitives.StringIntoC(unsafe.Pointer(&mem.location), m.Location)
+	primitives.StringIntoC(unsafe.Pointer(&mem.serial_number), m.SerialNumber)
 }
 
 func (t _BatteryStateTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -256,6 +271,7 @@ type CBatteryState__Sequence = C.sensor_msgs__msg__BatteryState__Sequence
 
 func BatteryState__Sequence_to_Go(goSlice *[]BatteryState, cSlice CBatteryState__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BatteryState, cSlice.size)
@@ -264,14 +280,17 @@ func BatteryState__Sequence_to_Go(goSlice *[]BatteryState, cSlice CBatteryState_
 		BatteryStateTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BatteryState__Sequence_to_C(cSlice *CBatteryState__Sequence, goSlice []BatteryState) {
+func BatteryState__Sequence_into_C(cSlice *CBatteryState__Sequence, goSlice []BatteryState) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__BatteryState__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__BatteryState)(C.malloc(C.sizeof_struct_sensor_msgs__msg__BatteryState * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__BatteryState)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__BatteryState))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -284,7 +303,7 @@ func BatteryState__Array_to_Go(goSlice []BatteryState, cSlice []CBatteryState) {
 		BatteryStateTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BatteryState__Array_to_C(cSlice []CBatteryState, goSlice []BatteryState) {
+func BatteryState__Array_into_C(cSlice []CBatteryState, goSlice []BatteryState) {
 	for i := 0; i < len(goSlice); i++ {
 		BatteryStateTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -55,6 +55,18 @@ func (t *Twist) GetTypeSupport() types.MessageTypeSupport {
 	return TwistTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Twist) CheckBounds() error {
+	if err := types.CheckBounds(&t.Linear); err != nil {
+		return types.InField("linear", err)
+	}
+	if err := types.CheckBounds(&t.Angular); err != nil {
+		return types.InField("angular", err)
+	}
+	return nil
+}
+
 // TwistPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TwistPublisher struct {
@@ -87,11 +99,17 @@ type TwistSubscriptionCallback func(msg *Twist, info *rclgo.MessageInfo, err err
 
 // NewTwistSubscription creates and returns a new subscription for the
 // Twist
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTwistSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TwistSubscriptionCallback) (*TwistSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Twist
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Twist
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TwistTypeSupport, opts, callback)
 	if err != nil {
@@ -152,6 +170,7 @@ type CTwist__Sequence = C.geometry_msgs__msg__Twist__Sequence
 
 func Twist__Sequence_to_Go(goSlice *[]Twist, cSlice CTwist__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Twist, cSlice.size)
@@ -160,14 +179,17 @@ func Twist__Sequence_to_Go(goSlice *[]Twist, cSlice CTwist__Sequence) {
 		TwistTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Twist__Sequence_to_C(cSlice *CTwist__Sequence, goSlice []Twist) {
+func Twist__Sequence_into_C(cSlice *CTwist__Sequence, goSlice []Twist) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Twist__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Twist)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Twist * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Twist)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Twist))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -180,7 +202,7 @@ func Twist__Array_to_Go(goSlice []Twist, cSlice []CTwist) {
 		TwistTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Twist__Array_to_C(cSlice []CTwist, goSlice []Twist) {
+func Twist__Array_into_C(cSlice []CTwist, goSlice []Twist) {
 	for i := 0; i < len(goSlice); i++ {
 		TwistTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

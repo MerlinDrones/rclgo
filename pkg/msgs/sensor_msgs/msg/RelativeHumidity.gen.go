@@ -59,6 +59,15 @@ func (t *RelativeHumidity) GetTypeSupport() types.MessageTypeSupport {
 	return RelativeHumidityTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *RelativeHumidity) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // RelativeHumidityPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type RelativeHumidityPublisher struct {
@@ -91,11 +100,17 @@ type RelativeHumiditySubscriptionCallback func(msg *RelativeHumidity, info *rclg
 
 // NewRelativeHumiditySubscription creates and returns a new subscription for the
 // RelativeHumidity
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewRelativeHumiditySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback RelativeHumiditySubscriptionCallback) (*RelativeHumiditySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg RelativeHumidity
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg RelativeHumidity
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, RelativeHumidityTypeSupport, opts, callback)
 	if err != nil {
@@ -158,6 +173,7 @@ type CRelativeHumidity__Sequence = C.sensor_msgs__msg__RelativeHumidity__Sequenc
 
 func RelativeHumidity__Sequence_to_Go(goSlice *[]RelativeHumidity, cSlice CRelativeHumidity__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]RelativeHumidity, cSlice.size)
@@ -166,14 +182,17 @@ func RelativeHumidity__Sequence_to_Go(goSlice *[]RelativeHumidity, cSlice CRelat
 		RelativeHumidityTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func RelativeHumidity__Sequence_to_C(cSlice *CRelativeHumidity__Sequence, goSlice []RelativeHumidity) {
+func RelativeHumidity__Sequence_into_C(cSlice *CRelativeHumidity__Sequence, goSlice []RelativeHumidity) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__RelativeHumidity__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__RelativeHumidity)(C.malloc(C.sizeof_struct_sensor_msgs__msg__RelativeHumidity * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__RelativeHumidity)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__RelativeHumidity))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -186,7 +205,7 @@ func RelativeHumidity__Array_to_Go(goSlice []RelativeHumidity, cSlice []CRelativ
 		RelativeHumidityTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func RelativeHumidity__Array_to_C(cSlice []CRelativeHumidity, goSlice []RelativeHumidity) {
+func RelativeHumidity__Array_into_C(cSlice []CRelativeHumidity, goSlice []RelativeHumidity) {
 	for i := 0; i < len(goSlice); i++ {
 		RelativeHumidityTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

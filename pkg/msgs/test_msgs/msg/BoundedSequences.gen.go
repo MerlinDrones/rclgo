@@ -239,6 +239,120 @@ func (t *BoundedSequences) GetTypeSupport() types.MessageTypeSupport {
 	return BoundedSequencesTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *BoundedSequences) CheckBounds() error {
+	if len(t.BoolValues) > 3 {
+		return types.BoundExceeded("bool_values", len(t.BoolValues), 3)
+	}
+	if len(t.ByteValues) > 3 {
+		return types.BoundExceeded("byte_values", len(t.ByteValues), 3)
+	}
+	if len(t.CharValues) > 3 {
+		return types.BoundExceeded("char_values", len(t.CharValues), 3)
+	}
+	if len(t.Float32Values) > 3 {
+		return types.BoundExceeded("float32_values", len(t.Float32Values), 3)
+	}
+	if len(t.Float64Values) > 3 {
+		return types.BoundExceeded("float64_values", len(t.Float64Values), 3)
+	}
+	if len(t.Int8Values) > 3 {
+		return types.BoundExceeded("int8_values", len(t.Int8Values), 3)
+	}
+	if len(t.Uint8Values) > 3 {
+		return types.BoundExceeded("uint8_values", len(t.Uint8Values), 3)
+	}
+	if len(t.Int16Values) > 3 {
+		return types.BoundExceeded("int16_values", len(t.Int16Values), 3)
+	}
+	if len(t.Uint16Values) > 3 {
+		return types.BoundExceeded("uint16_values", len(t.Uint16Values), 3)
+	}
+	if len(t.Int32Values) > 3 {
+		return types.BoundExceeded("int32_values", len(t.Int32Values), 3)
+	}
+	if len(t.Uint32Values) > 3 {
+		return types.BoundExceeded("uint32_values", len(t.Uint32Values), 3)
+	}
+	if len(t.Int64Values) > 3 {
+		return types.BoundExceeded("int64_values", len(t.Int64Values), 3)
+	}
+	if len(t.Uint64Values) > 3 {
+		return types.BoundExceeded("uint64_values", len(t.Uint64Values), 3)
+	}
+	if len(t.StringValues) > 3 {
+		return types.BoundExceeded("string_values", len(t.StringValues), 3)
+	}
+	if len(t.BasicTypesValues) > 3 {
+		return types.BoundExceeded("basic_types_values", len(t.BasicTypesValues), 3)
+	}
+	for i := range t.BasicTypesValues {
+		if err := types.CheckBounds(&t.BasicTypesValues[i]); err != nil {
+			return types.InElement("basic_types_values", i, err)
+		}
+	}
+	if len(t.ConstantsValues) > 3 {
+		return types.BoundExceeded("constants_values", len(t.ConstantsValues), 3)
+	}
+	for i := range t.ConstantsValues {
+		if err := types.CheckBounds(&t.ConstantsValues[i]); err != nil {
+			return types.InElement("constants_values", i, err)
+		}
+	}
+	if len(t.DefaultsValues) > 3 {
+		return types.BoundExceeded("defaults_values", len(t.DefaultsValues), 3)
+	}
+	for i := range t.DefaultsValues {
+		if err := types.CheckBounds(&t.DefaultsValues[i]); err != nil {
+			return types.InElement("defaults_values", i, err)
+		}
+	}
+	if len(t.BoolValuesDefault) > 3 {
+		return types.BoundExceeded("bool_values_default", len(t.BoolValuesDefault), 3)
+	}
+	if len(t.ByteValuesDefault) > 3 {
+		return types.BoundExceeded("byte_values_default", len(t.ByteValuesDefault), 3)
+	}
+	if len(t.CharValuesDefault) > 3 {
+		return types.BoundExceeded("char_values_default", len(t.CharValuesDefault), 3)
+	}
+	if len(t.Float32ValuesDefault) > 3 {
+		return types.BoundExceeded("float32_values_default", len(t.Float32ValuesDefault), 3)
+	}
+	if len(t.Float64ValuesDefault) > 3 {
+		return types.BoundExceeded("float64_values_default", len(t.Float64ValuesDefault), 3)
+	}
+	if len(t.Int8ValuesDefault) > 3 {
+		return types.BoundExceeded("int8_values_default", len(t.Int8ValuesDefault), 3)
+	}
+	if len(t.Uint8ValuesDefault) > 3 {
+		return types.BoundExceeded("uint8_values_default", len(t.Uint8ValuesDefault), 3)
+	}
+	if len(t.Int16ValuesDefault) > 3 {
+		return types.BoundExceeded("int16_values_default", len(t.Int16ValuesDefault), 3)
+	}
+	if len(t.Uint16ValuesDefault) > 3 {
+		return types.BoundExceeded("uint16_values_default", len(t.Uint16ValuesDefault), 3)
+	}
+	if len(t.Int32ValuesDefault) > 3 {
+		return types.BoundExceeded("int32_values_default", len(t.Int32ValuesDefault), 3)
+	}
+	if len(t.Uint32ValuesDefault) > 3 {
+		return types.BoundExceeded("uint32_values_default", len(t.Uint32ValuesDefault), 3)
+	}
+	if len(t.Int64ValuesDefault) > 3 {
+		return types.BoundExceeded("int64_values_default", len(t.Int64ValuesDefault), 3)
+	}
+	if len(t.Uint64ValuesDefault) > 3 {
+		return types.BoundExceeded("uint64_values_default", len(t.Uint64ValuesDefault), 3)
+	}
+	if len(t.StringValuesDefault) > 3 {
+		return types.BoundExceeded("string_values_default", len(t.StringValuesDefault), 3)
+	}
+	return nil
+}
+
 // BoundedSequencesPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BoundedSequencesPublisher struct {
@@ -271,11 +385,17 @@ type BoundedSequencesSubscriptionCallback func(msg *BoundedSequences, info *rclg
 
 // NewBoundedSequencesSubscription creates and returns a new subscription for the
 // BoundedSequences
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBoundedSequencesSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BoundedSequencesSubscriptionCallback) (*BoundedSequencesSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BoundedSequences
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BoundedSequences
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BoundedSequencesTypeSupport, opts, callback)
 	if err != nil {
@@ -316,37 +436,37 @@ func (t _BoundedSequencesTypeSupport) ReleaseMemory(pointer_to_free unsafe.Point
 func (t _BoundedSequencesTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*BoundedSequences)
 	mem := (*C.test_msgs__msg__BoundedSequences)(dst)
-	primitives.Bool__Sequence_to_C((*primitives.CBool__Sequence)(unsafe.Pointer(&mem.bool_values)), m.BoolValues)
-	primitives.Byte__Sequence_to_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.byte_values)), m.ByteValues)
-	primitives.Char__Sequence_to_C((*primitives.CChar__Sequence)(unsafe.Pointer(&mem.char_values)), m.CharValues)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.float32_values)), m.Float32Values)
-	primitives.Float64__Sequence_to_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.float64_values)), m.Float64Values)
-	primitives.Int8__Sequence_to_C((*primitives.CInt8__Sequence)(unsafe.Pointer(&mem.int8_values)), m.Int8Values)
-	primitives.Uint8__Sequence_to_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.uint8_values)), m.Uint8Values)
-	primitives.Int16__Sequence_to_C((*primitives.CInt16__Sequence)(unsafe.Pointer(&mem.int16_values)), m.Int16Values)
-	primitives.Uint16__Sequence_to_C((*primitives.CUint16__Sequence)(unsafe.Pointer(&mem.uint16_values)), m.Uint16Values)
-	primitives.Int32__Sequence_to_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.int32_values)), m.Int32Values)
-	primitives.Uint32__Sequence_to_C((*primitives.CUint32__Sequence)(unsafe.Pointer(&mem.uint32_values)), m.Uint32Values)
-	primitives.Int64__Sequence_to_C((*primitives.CInt64__Sequence)(unsafe.Pointer(&mem.int64_values)), m.Int64Values)
-	primitives.Uint64__Sequence_to_C((*primitives.CUint64__Sequence)(unsafe.Pointer(&mem.uint64_values)), m.Uint64Values)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.string_values)), m.StringValues)
-	BasicTypes__Sequence_to_C(&mem.basic_types_values, m.BasicTypesValues)
-	Constants__Sequence_to_C(&mem.constants_values, m.ConstantsValues)
-	Defaults__Sequence_to_C(&mem.defaults_values, m.DefaultsValues)
-	primitives.Bool__Sequence_to_C((*primitives.CBool__Sequence)(unsafe.Pointer(&mem.bool_values_default)), m.BoolValuesDefault)
-	primitives.Byte__Sequence_to_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.byte_values_default)), m.ByteValuesDefault)
-	primitives.Char__Sequence_to_C((*primitives.CChar__Sequence)(unsafe.Pointer(&mem.char_values_default)), m.CharValuesDefault)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.float32_values_default)), m.Float32ValuesDefault)
-	primitives.Float64__Sequence_to_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.float64_values_default)), m.Float64ValuesDefault)
-	primitives.Int8__Sequence_to_C((*primitives.CInt8__Sequence)(unsafe.Pointer(&mem.int8_values_default)), m.Int8ValuesDefault)
-	primitives.Uint8__Sequence_to_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.uint8_values_default)), m.Uint8ValuesDefault)
-	primitives.Int16__Sequence_to_C((*primitives.CInt16__Sequence)(unsafe.Pointer(&mem.int16_values_default)), m.Int16ValuesDefault)
-	primitives.Uint16__Sequence_to_C((*primitives.CUint16__Sequence)(unsafe.Pointer(&mem.uint16_values_default)), m.Uint16ValuesDefault)
-	primitives.Int32__Sequence_to_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.int32_values_default)), m.Int32ValuesDefault)
-	primitives.Uint32__Sequence_to_C((*primitives.CUint32__Sequence)(unsafe.Pointer(&mem.uint32_values_default)), m.Uint32ValuesDefault)
-	primitives.Int64__Sequence_to_C((*primitives.CInt64__Sequence)(unsafe.Pointer(&mem.int64_values_default)), m.Int64ValuesDefault)
-	primitives.Uint64__Sequence_to_C((*primitives.CUint64__Sequence)(unsafe.Pointer(&mem.uint64_values_default)), m.Uint64ValuesDefault)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.string_values_default)), m.StringValuesDefault)
+	primitives.Bool__Sequence_into_C((*primitives.CBool__Sequence)(unsafe.Pointer(&mem.bool_values)), m.BoolValues)
+	primitives.Byte__Sequence_into_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.byte_values)), m.ByteValues)
+	primitives.Char__Sequence_into_C((*primitives.CChar__Sequence)(unsafe.Pointer(&mem.char_values)), m.CharValues)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.float32_values)), m.Float32Values)
+	primitives.Float64__Sequence_into_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.float64_values)), m.Float64Values)
+	primitives.Int8__Sequence_into_C((*primitives.CInt8__Sequence)(unsafe.Pointer(&mem.int8_values)), m.Int8Values)
+	primitives.Uint8__Sequence_into_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.uint8_values)), m.Uint8Values)
+	primitives.Int16__Sequence_into_C((*primitives.CInt16__Sequence)(unsafe.Pointer(&mem.int16_values)), m.Int16Values)
+	primitives.Uint16__Sequence_into_C((*primitives.CUint16__Sequence)(unsafe.Pointer(&mem.uint16_values)), m.Uint16Values)
+	primitives.Int32__Sequence_into_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.int32_values)), m.Int32Values)
+	primitives.Uint32__Sequence_into_C((*primitives.CUint32__Sequence)(unsafe.Pointer(&mem.uint32_values)), m.Uint32Values)
+	primitives.Int64__Sequence_into_C((*primitives.CInt64__Sequence)(unsafe.Pointer(&mem.int64_values)), m.Int64Values)
+	primitives.Uint64__Sequence_into_C((*primitives.CUint64__Sequence)(unsafe.Pointer(&mem.uint64_values)), m.Uint64Values)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.string_values)), m.StringValues)
+	BasicTypes__Sequence_into_C(&mem.basic_types_values, m.BasicTypesValues)
+	Constants__Sequence_into_C(&mem.constants_values, m.ConstantsValues)
+	Defaults__Sequence_into_C(&mem.defaults_values, m.DefaultsValues)
+	primitives.Bool__Sequence_into_C((*primitives.CBool__Sequence)(unsafe.Pointer(&mem.bool_values_default)), m.BoolValuesDefault)
+	primitives.Byte__Sequence_into_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.byte_values_default)), m.ByteValuesDefault)
+	primitives.Char__Sequence_into_C((*primitives.CChar__Sequence)(unsafe.Pointer(&mem.char_values_default)), m.CharValuesDefault)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.float32_values_default)), m.Float32ValuesDefault)
+	primitives.Float64__Sequence_into_C((*primitives.CFloat64__Sequence)(unsafe.Pointer(&mem.float64_values_default)), m.Float64ValuesDefault)
+	primitives.Int8__Sequence_into_C((*primitives.CInt8__Sequence)(unsafe.Pointer(&mem.int8_values_default)), m.Int8ValuesDefault)
+	primitives.Uint8__Sequence_into_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.uint8_values_default)), m.Uint8ValuesDefault)
+	primitives.Int16__Sequence_into_C((*primitives.CInt16__Sequence)(unsafe.Pointer(&mem.int16_values_default)), m.Int16ValuesDefault)
+	primitives.Uint16__Sequence_into_C((*primitives.CUint16__Sequence)(unsafe.Pointer(&mem.uint16_values_default)), m.Uint16ValuesDefault)
+	primitives.Int32__Sequence_into_C((*primitives.CInt32__Sequence)(unsafe.Pointer(&mem.int32_values_default)), m.Int32ValuesDefault)
+	primitives.Uint32__Sequence_into_C((*primitives.CUint32__Sequence)(unsafe.Pointer(&mem.uint32_values_default)), m.Uint32ValuesDefault)
+	primitives.Int64__Sequence_into_C((*primitives.CInt64__Sequence)(unsafe.Pointer(&mem.int64_values_default)), m.Int64ValuesDefault)
+	primitives.Uint64__Sequence_into_C((*primitives.CUint64__Sequence)(unsafe.Pointer(&mem.uint64_values_default)), m.Uint64ValuesDefault)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.string_values_default)), m.StringValuesDefault)
 	mem.alignment_check = C.int32_t(m.AlignmentCheck)
 }
 
@@ -396,6 +516,7 @@ type CBoundedSequences__Sequence = C.test_msgs__msg__BoundedSequences__Sequence
 
 func BoundedSequences__Sequence_to_Go(goSlice *[]BoundedSequences, cSlice CBoundedSequences__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BoundedSequences, cSlice.size)
@@ -404,14 +525,17 @@ func BoundedSequences__Sequence_to_Go(goSlice *[]BoundedSequences, cSlice CBound
 		BoundedSequencesTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BoundedSequences__Sequence_to_C(cSlice *CBoundedSequences__Sequence, goSlice []BoundedSequences) {
+func BoundedSequences__Sequence_into_C(cSlice *CBoundedSequences__Sequence, goSlice []BoundedSequences) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__BoundedSequences__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__BoundedSequences)(C.malloc(C.sizeof_struct_test_msgs__msg__BoundedSequences * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__BoundedSequences)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__BoundedSequences))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -424,7 +548,7 @@ func BoundedSequences__Array_to_Go(goSlice []BoundedSequences, cSlice []CBounded
 		BoundedSequencesTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BoundedSequences__Array_to_C(cSlice []CBoundedSequences, goSlice []BoundedSequences) {
+func BoundedSequences__Array_into_C(cSlice []CBoundedSequences, goSlice []BoundedSequences) {
 	for i := 0; i < len(goSlice); i++ {
 		BoundedSequencesTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

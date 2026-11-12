@@ -53,6 +53,15 @@ func (t *ChangeState_Request) GetTypeSupport() types.MessageTypeSupport {
 	return ChangeState_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ChangeState_Request) CheckBounds() error {
+	if err := types.CheckBounds(&t.Transition); err != nil {
+		return types.InField("transition", err)
+	}
+	return nil
+}
+
 // ChangeState_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ChangeState_RequestPublisher struct {
@@ -85,11 +94,17 @@ type ChangeState_RequestSubscriptionCallback func(msg *ChangeState_Request, info
 
 // NewChangeState_RequestSubscription creates and returns a new subscription for the
 // ChangeState_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewChangeState_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ChangeState_RequestSubscriptionCallback) (*ChangeState_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ChangeState_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ChangeState_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ChangeState_RequestTypeSupport, opts, callback)
 	if err != nil {
@@ -148,6 +163,7 @@ type CChangeState_Request__Sequence = C.lifecycle_msgs__srv__ChangeState_Request
 
 func ChangeState_Request__Sequence_to_Go(goSlice *[]ChangeState_Request, cSlice CChangeState_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ChangeState_Request, cSlice.size)
@@ -156,14 +172,17 @@ func ChangeState_Request__Sequence_to_Go(goSlice *[]ChangeState_Request, cSlice 
 		ChangeState_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ChangeState_Request__Sequence_to_C(cSlice *CChangeState_Request__Sequence, goSlice []ChangeState_Request) {
+func ChangeState_Request__Sequence_into_C(cSlice *CChangeState_Request__Sequence, goSlice []ChangeState_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__srv__ChangeState_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__srv__ChangeState_Request)(C.malloc(C.sizeof_struct_lifecycle_msgs__srv__ChangeState_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__srv__ChangeState_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__srv__ChangeState_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -176,7 +195,7 @@ func ChangeState_Request__Array_to_Go(goSlice []ChangeState_Request, cSlice []CC
 		ChangeState_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ChangeState_Request__Array_to_C(cSlice []CChangeState_Request, goSlice []ChangeState_Request) {
+func ChangeState_Request__Array_into_C(cSlice []CChangeState_Request, goSlice []ChangeState_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		ChangeState_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

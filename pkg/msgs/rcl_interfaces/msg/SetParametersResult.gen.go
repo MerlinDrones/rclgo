@@ -56,6 +56,12 @@ func (t *SetParametersResult) GetTypeSupport() types.MessageTypeSupport {
 	return SetParametersResultTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *SetParametersResult) CheckBounds() error {
+	return nil
+}
+
 // SetParametersResultPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type SetParametersResultPublisher struct {
@@ -88,11 +94,17 @@ type SetParametersResultSubscriptionCallback func(msg *SetParametersResult, info
 
 // NewSetParametersResultSubscription creates and returns a new subscription for the
 // SetParametersResult
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewSetParametersResultSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback SetParametersResultSubscriptionCallback) (*SetParametersResultSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg SetParametersResult
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg SetParametersResult
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, SetParametersResultTypeSupport, opts, callback)
 	if err != nil {
@@ -134,7 +146,7 @@ func (t _SetParametersResultTypeSupport) AsCStruct(dst unsafe.Pointer, msg types
 	m := msg.(*SetParametersResult)
 	mem := (*C.rcl_interfaces__msg__SetParametersResult)(dst)
 	mem.successful = C.bool(m.Successful)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.reason), m.Reason)
+	primitives.StringIntoC(unsafe.Pointer(&mem.reason), m.Reason)
 }
 
 func (t _SetParametersResultTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -153,6 +165,7 @@ type CSetParametersResult__Sequence = C.rcl_interfaces__msg__SetParametersResult
 
 func SetParametersResult__Sequence_to_Go(goSlice *[]SetParametersResult, cSlice CSetParametersResult__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetParametersResult, cSlice.size)
@@ -161,14 +174,17 @@ func SetParametersResult__Sequence_to_Go(goSlice *[]SetParametersResult, cSlice 
 		SetParametersResultTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetParametersResult__Sequence_to_C(cSlice *CSetParametersResult__Sequence, goSlice []SetParametersResult) {
+func SetParametersResult__Sequence_into_C(cSlice *CSetParametersResult__Sequence, goSlice []SetParametersResult) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__SetParametersResult__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__SetParametersResult)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__SetParametersResult * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__SetParametersResult)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__SetParametersResult))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +197,7 @@ func SetParametersResult__Array_to_Go(goSlice []SetParametersResult, cSlice []CS
 		SetParametersResultTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetParametersResult__Array_to_C(cSlice []CSetParametersResult, goSlice []SetParametersResult) {
+func SetParametersResult__Array_into_C(cSlice []CSetParametersResult, goSlice []SetParametersResult) {
 	for i := 0; i < len(goSlice); i++ {
 		SetParametersResultTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

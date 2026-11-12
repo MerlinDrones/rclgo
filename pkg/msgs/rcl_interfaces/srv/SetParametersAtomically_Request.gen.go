@@ -56,6 +56,17 @@ func (t *SetParametersAtomically_Request) GetTypeSupport() types.MessageTypeSupp
 	return SetParametersAtomically_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *SetParametersAtomically_Request) CheckBounds() error {
+	for i := range t.Parameters {
+		if err := types.CheckBounds(&t.Parameters[i]); err != nil {
+			return types.InElement("parameters", i, err)
+		}
+	}
+	return nil
+}
+
 // SetParametersAtomically_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type SetParametersAtomically_RequestPublisher struct {
@@ -88,11 +99,17 @@ type SetParametersAtomically_RequestSubscriptionCallback func(msg *SetParameters
 
 // NewSetParametersAtomically_RequestSubscription creates and returns a new subscription for the
 // SetParametersAtomically_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewSetParametersAtomically_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback SetParametersAtomically_RequestSubscriptionCallback) (*SetParametersAtomically_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg SetParametersAtomically_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg SetParametersAtomically_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, SetParametersAtomically_RequestTypeSupport, opts, callback)
 	if err != nil {
@@ -133,7 +150,7 @@ func (t _SetParametersAtomically_RequestTypeSupport) ReleaseMemory(pointer_to_fr
 func (t _SetParametersAtomically_RequestTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*SetParametersAtomically_Request)
 	mem := (*C.rcl_interfaces__srv__SetParametersAtomically_Request)(dst)
-	rcl_interfaces_msg.Parameter__Sequence_to_C((*rcl_interfaces_msg.CParameter__Sequence)(unsafe.Pointer(&mem.parameters)), m.Parameters)
+	rcl_interfaces_msg.Parameter__Sequence_into_C((*rcl_interfaces_msg.CParameter__Sequence)(unsafe.Pointer(&mem.parameters)), m.Parameters)
 }
 
 func (t _SetParametersAtomically_RequestTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -151,6 +168,7 @@ type CSetParametersAtomically_Request__Sequence = C.rcl_interfaces__srv__SetPara
 
 func SetParametersAtomically_Request__Sequence_to_Go(goSlice *[]SetParametersAtomically_Request, cSlice CSetParametersAtomically_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]SetParametersAtomically_Request, cSlice.size)
@@ -159,14 +177,17 @@ func SetParametersAtomically_Request__Sequence_to_Go(goSlice *[]SetParametersAto
 		SetParametersAtomically_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func SetParametersAtomically_Request__Sequence_to_C(cSlice *CSetParametersAtomically_Request__Sequence, goSlice []SetParametersAtomically_Request) {
+func SetParametersAtomically_Request__Sequence_into_C(cSlice *CSetParametersAtomically_Request__Sequence, goSlice []SetParametersAtomically_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__srv__SetParametersAtomically_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__srv__SetParametersAtomically_Request)(C.malloc(C.sizeof_struct_rcl_interfaces__srv__SetParametersAtomically_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__srv__SetParametersAtomically_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__srv__SetParametersAtomically_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -179,7 +200,7 @@ func SetParametersAtomically_Request__Array_to_Go(goSlice []SetParametersAtomica
 		SetParametersAtomically_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func SetParametersAtomically_Request__Array_to_C(cSlice []CSetParametersAtomically_Request, goSlice []SetParametersAtomically_Request) {
+func SetParametersAtomically_Request__Array_into_C(cSlice []CSetParametersAtomically_Request, goSlice []SetParametersAtomically_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		SetParametersAtomically_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

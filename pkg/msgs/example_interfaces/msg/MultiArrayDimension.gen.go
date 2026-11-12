@@ -59,6 +59,12 @@ func (t *MultiArrayDimension) GetTypeSupport() types.MessageTypeSupport {
 	return MultiArrayDimensionTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *MultiArrayDimension) CheckBounds() error {
+	return nil
+}
+
 // MultiArrayDimensionPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type MultiArrayDimensionPublisher struct {
@@ -91,11 +97,17 @@ type MultiArrayDimensionSubscriptionCallback func(msg *MultiArrayDimension, info
 
 // NewMultiArrayDimensionSubscription creates and returns a new subscription for the
 // MultiArrayDimension
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewMultiArrayDimensionSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback MultiArrayDimensionSubscriptionCallback) (*MultiArrayDimensionSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg MultiArrayDimension
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg MultiArrayDimension
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, MultiArrayDimensionTypeSupport, opts, callback)
 	if err != nil {
@@ -136,7 +148,7 @@ func (t _MultiArrayDimensionTypeSupport) ReleaseMemory(pointer_to_free unsafe.Po
 func (t _MultiArrayDimensionTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*MultiArrayDimension)
 	mem := (*C.example_interfaces__msg__MultiArrayDimension)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.label), m.Label)
+	primitives.StringIntoC(unsafe.Pointer(&mem.label), m.Label)
 	mem.size = C.uint32_t(m.Size)
 	mem.stride = C.uint32_t(m.Stride)
 }
@@ -158,6 +170,7 @@ type CMultiArrayDimension__Sequence = C.example_interfaces__msg__MultiArrayDimen
 
 func MultiArrayDimension__Sequence_to_Go(goSlice *[]MultiArrayDimension, cSlice CMultiArrayDimension__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]MultiArrayDimension, cSlice.size)
@@ -166,14 +179,17 @@ func MultiArrayDimension__Sequence_to_Go(goSlice *[]MultiArrayDimension, cSlice 
 		MultiArrayDimensionTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func MultiArrayDimension__Sequence_to_C(cSlice *CMultiArrayDimension__Sequence, goSlice []MultiArrayDimension) {
+func MultiArrayDimension__Sequence_into_C(cSlice *CMultiArrayDimension__Sequence, goSlice []MultiArrayDimension) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__MultiArrayDimension__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__MultiArrayDimension)(C.malloc(C.sizeof_struct_example_interfaces__msg__MultiArrayDimension * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__MultiArrayDimension)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__MultiArrayDimension))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -186,7 +202,7 @@ func MultiArrayDimension__Array_to_Go(goSlice []MultiArrayDimension, cSlice []CM
 		MultiArrayDimensionTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func MultiArrayDimension__Array_to_C(cSlice []CMultiArrayDimension, goSlice []MultiArrayDimension) {
+func MultiArrayDimension__Array_into_C(cSlice []CMultiArrayDimension, goSlice []MultiArrayDimension) {
 	for i := 0; i < len(goSlice); i++ {
 		MultiArrayDimensionTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

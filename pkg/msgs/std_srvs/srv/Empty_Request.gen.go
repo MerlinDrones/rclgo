@@ -49,6 +49,12 @@ func (t *Empty_Request) GetTypeSupport() types.MessageTypeSupport {
 	return Empty_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Empty_Request) CheckBounds() error {
+	return nil
+}
+
 // Empty_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Empty_RequestPublisher struct {
@@ -81,11 +87,17 @@ type Empty_RequestSubscriptionCallback func(msg *Empty_Request, info *rclgo.Mess
 
 // NewEmpty_RequestSubscription creates and returns a new subscription for the
 // Empty_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewEmpty_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Empty_RequestSubscriptionCallback) (*Empty_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Empty_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Empty_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Empty_RequestTypeSupport, opts, callback)
 	if err != nil {
@@ -140,6 +152,7 @@ type CEmpty_Request__Sequence = C.std_srvs__srv__Empty_Request__Sequence
 
 func Empty_Request__Sequence_to_Go(goSlice *[]Empty_Request, cSlice CEmpty_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Empty_Request, cSlice.size)
@@ -148,14 +161,17 @@ func Empty_Request__Sequence_to_Go(goSlice *[]Empty_Request, cSlice CEmpty_Reque
 		Empty_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Empty_Request__Sequence_to_C(cSlice *CEmpty_Request__Sequence, goSlice []Empty_Request) {
+func Empty_Request__Sequence_into_C(cSlice *CEmpty_Request__Sequence, goSlice []Empty_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_srvs__srv__Empty_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_srvs__srv__Empty_Request)(C.malloc(C.sizeof_struct_std_srvs__srv__Empty_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_srvs__srv__Empty_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_srvs__srv__Empty_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -168,7 +184,7 @@ func Empty_Request__Array_to_Go(goSlice []Empty_Request, cSlice []CEmpty_Request
 		Empty_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Empty_Request__Array_to_C(cSlice []CEmpty_Request, goSlice []Empty_Request) {
+func Empty_Request__Array_into_C(cSlice []CEmpty_Request, goSlice []Empty_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		Empty_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

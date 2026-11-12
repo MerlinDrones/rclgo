@@ -1,6 +1,6 @@
 module rclgo_param_demo_pkg
 
-go 1.24.0
+go 1.26.1
 
 require github.com/merlindrones/rclgo v0.4.0
 

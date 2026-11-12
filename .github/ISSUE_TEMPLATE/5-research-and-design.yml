@@ -1,0 +1,32 @@
+# Managed by swarmos-devtools; do not edit in place.
+name: Research and Design
+description: Investigation or design work needed before implementation can be defined
+type: Research and Design
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question to answer
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What is known, constraints, related issues.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Expected outcome
+      description: e.g. design doc, decision record, prototype, recommendation

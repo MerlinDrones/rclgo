@@ -40,7 +40,7 @@ func (s _NestedMessageTypeSupport) NewSendGoalResponse(accepted bool, stamp time
 	msg := NewNestedMessage_SendGoal_Response()
 	msg.Accepted = accepted
 	secs := stamp.Truncate(time.Second)
-	msg.Stamp.Sec = int32(secs)
+	msg.Stamp.Sec = int32(secs / time.Second)
 	msg.Stamp.Nanosec = uint32(stamp - secs)
 	return msg
 }
@@ -139,10 +139,15 @@ type _NestedMessageAction struct {
 }
 
 func (a _NestedMessageAction) ExecuteGoal(ctx context.Context, handle *rclgo.GoalHandle) (types.Message, error) {
-	return a.action.ExecuteGoal(ctx, &NestedMessageGoalHandle{
+	result, err := a.action.ExecuteGoal(ctx, &NestedMessageGoalHandle{
 		GoalHandle:  handle,
 		Description: handle.Description.(*NestedMessage_Goal),
 	})
+	if result == nil {
+		// A nil *NestedMessage_Result must not become a non-nil types.Message.
+		return nil, err
+	}
+	return result, err
 }
 
 func (a _NestedMessageAction) TypeSupport() types.ActionTypeSupport {

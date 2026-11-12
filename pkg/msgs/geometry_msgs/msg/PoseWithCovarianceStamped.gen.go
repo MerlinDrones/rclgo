@@ -56,6 +56,18 @@ func (t *PoseWithCovarianceStamped) GetTypeSupport() types.MessageTypeSupport {
 	return PoseWithCovarianceStampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PoseWithCovarianceStamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Pose); err != nil {
+		return types.InField("pose", err)
+	}
+	return nil
+}
+
 // PoseWithCovarianceStampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PoseWithCovarianceStampedPublisher struct {
@@ -88,11 +100,17 @@ type PoseWithCovarianceStampedSubscriptionCallback func(msg *PoseWithCovarianceS
 
 // NewPoseWithCovarianceStampedSubscription creates and returns a new subscription for the
 // PoseWithCovarianceStamped
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPoseWithCovarianceStampedSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PoseWithCovarianceStampedSubscriptionCallback) (*PoseWithCovarianceStampedSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg PoseWithCovarianceStamped
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg PoseWithCovarianceStamped
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PoseWithCovarianceStampedTypeSupport, opts, callback)
 	if err != nil {
@@ -153,6 +171,7 @@ type CPoseWithCovarianceStamped__Sequence = C.geometry_msgs__msg__PoseWithCovari
 
 func PoseWithCovarianceStamped__Sequence_to_Go(goSlice *[]PoseWithCovarianceStamped, cSlice CPoseWithCovarianceStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]PoseWithCovarianceStamped, cSlice.size)
@@ -161,14 +180,17 @@ func PoseWithCovarianceStamped__Sequence_to_Go(goSlice *[]PoseWithCovarianceStam
 		PoseWithCovarianceStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PoseWithCovarianceStamped__Sequence_to_C(cSlice *CPoseWithCovarianceStamped__Sequence, goSlice []PoseWithCovarianceStamped) {
+func PoseWithCovarianceStamped__Sequence_into_C(cSlice *CPoseWithCovarianceStamped__Sequence, goSlice []PoseWithCovarianceStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__PoseWithCovarianceStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__PoseWithCovarianceStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__PoseWithCovarianceStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__PoseWithCovarianceStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__PoseWithCovarianceStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +203,7 @@ func PoseWithCovarianceStamped__Array_to_Go(goSlice []PoseWithCovarianceStamped,
 		PoseWithCovarianceStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PoseWithCovarianceStamped__Array_to_C(cSlice []CPoseWithCovarianceStamped, goSlice []PoseWithCovarianceStamped) {
+func PoseWithCovarianceStamped__Array_into_C(cSlice []CPoseWithCovarianceStamped, goSlice []PoseWithCovarianceStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		PoseWithCovarianceStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

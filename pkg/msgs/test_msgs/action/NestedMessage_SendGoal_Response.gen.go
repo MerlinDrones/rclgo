@@ -55,6 +55,15 @@ func (t *NestedMessage_SendGoal_Response) SetDefaults() {
 func (t *NestedMessage_SendGoal_Response) GetTypeSupport() types.MessageTypeSupport {
 	return NestedMessage_SendGoal_ResponseTypeSupport
 }
+
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NestedMessage_SendGoal_Response) CheckBounds() error {
+	if err := types.CheckBounds(&t.Stamp); err != nil {
+		return types.InField("stamp", err)
+	}
+	return nil
+}
 func (t *NestedMessage_SendGoal_Response) GetGoalAccepted() bool {
 	return t.Accepted
 }
@@ -91,11 +100,17 @@ type NestedMessage_SendGoal_ResponseSubscriptionCallback func(msg *NestedMessage
 
 // NewNestedMessage_SendGoal_ResponseSubscription creates and returns a new subscription for the
 // NestedMessage_SendGoal_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewNestedMessage_SendGoal_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback NestedMessage_SendGoal_ResponseSubscriptionCallback) (*NestedMessage_SendGoal_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg NestedMessage_SendGoal_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg NestedMessage_SendGoal_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, NestedMessage_SendGoal_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -156,6 +171,7 @@ type CNestedMessage_SendGoal_Response__Sequence = C.test_msgs__action__NestedMes
 
 func NestedMessage_SendGoal_Response__Sequence_to_Go(goSlice *[]NestedMessage_SendGoal_Response, cSlice CNestedMessage_SendGoal_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]NestedMessage_SendGoal_Response, cSlice.size)
@@ -164,14 +180,17 @@ func NestedMessage_SendGoal_Response__Sequence_to_Go(goSlice *[]NestedMessage_Se
 		NestedMessage_SendGoal_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NestedMessage_SendGoal_Response__Sequence_to_C(cSlice *CNestedMessage_SendGoal_Response__Sequence, goSlice []NestedMessage_SendGoal_Response) {
+func NestedMessage_SendGoal_Response__Sequence_into_C(cSlice *CNestedMessage_SendGoal_Response__Sequence, goSlice []NestedMessage_SendGoal_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__NestedMessage_SendGoal_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__NestedMessage_SendGoal_Response)(C.malloc(C.sizeof_struct_test_msgs__action__NestedMessage_SendGoal_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__NestedMessage_SendGoal_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__NestedMessage_SendGoal_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +203,7 @@ func NestedMessage_SendGoal_Response__Array_to_Go(goSlice []NestedMessage_SendGo
 		NestedMessage_SendGoal_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NestedMessage_SendGoal_Response__Array_to_C(cSlice []CNestedMessage_SendGoal_Response, goSlice []NestedMessage_SendGoal_Response) {
+func NestedMessage_SendGoal_Response__Array_into_C(cSlice []CNestedMessage_SendGoal_Response, goSlice []NestedMessage_SendGoal_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedMessage_SendGoal_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

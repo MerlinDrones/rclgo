@@ -84,6 +84,20 @@ func (t *PointCloud2) GetTypeSupport() types.MessageTypeSupport {
 	return PointCloud2TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PointCloud2) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Fields {
+		if err := types.CheckBounds(&t.Fields[i]); err != nil {
+			return types.InElement("fields", i, err)
+		}
+	}
+	return nil
+}
+
 // PointCloud2Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PointCloud2Publisher struct {
@@ -116,11 +130,17 @@ type PointCloud2SubscriptionCallback func(msg *PointCloud2, info *rclgo.MessageI
 
 // NewPointCloud2Subscription creates and returns a new subscription for the
 // PointCloud2
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPointCloud2Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PointCloud2SubscriptionCallback) (*PointCloud2Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg PointCloud2
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg PointCloud2
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PointCloud2TypeSupport, opts, callback)
 	if err != nil {
@@ -164,11 +184,11 @@ func (t _PointCloud2TypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	mem.height = C.uint32_t(m.Height)
 	mem.width = C.uint32_t(m.Width)
-	PointField__Sequence_to_C(&mem.fields, m.Fields)
+	PointField__Sequence_into_C(&mem.fields, m.Fields)
 	mem.is_bigendian = C.bool(m.IsBigendian)
 	mem.point_step = C.uint32_t(m.PointStep)
 	mem.row_step = C.uint32_t(m.RowStep)
-	primitives.Uint8__Sequence_to_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Uint8__Sequence_into_C((*primitives.CUint8__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 	mem.is_dense = C.bool(m.IsDense)
 }
 
@@ -195,6 +215,7 @@ type CPointCloud2__Sequence = C.sensor_msgs__msg__PointCloud2__Sequence
 
 func PointCloud2__Sequence_to_Go(goSlice *[]PointCloud2, cSlice CPointCloud2__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]PointCloud2, cSlice.size)
@@ -203,14 +224,17 @@ func PointCloud2__Sequence_to_Go(goSlice *[]PointCloud2, cSlice CPointCloud2__Se
 		PointCloud2TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PointCloud2__Sequence_to_C(cSlice *CPointCloud2__Sequence, goSlice []PointCloud2) {
+func PointCloud2__Sequence_into_C(cSlice *CPointCloud2__Sequence, goSlice []PointCloud2) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__PointCloud2__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__PointCloud2)(C.malloc(C.sizeof_struct_sensor_msgs__msg__PointCloud2 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__PointCloud2)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__PointCloud2))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -223,7 +247,7 @@ func PointCloud2__Array_to_Go(goSlice []PointCloud2, cSlice []CPointCloud2) {
 		PointCloud2TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PointCloud2__Array_to_C(cSlice []CPointCloud2, goSlice []PointCloud2) {
+func PointCloud2__Array_into_C(cSlice []CPointCloud2, goSlice []PointCloud2) {
 	for i := 0; i < len(goSlice); i++ {
 		PointCloud2TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

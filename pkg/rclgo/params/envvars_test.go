@@ -1,7 +1,15 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package params
 
 import (
-	"os"
 	"testing"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo"
@@ -9,16 +17,10 @@ import (
 
 func TestApplyEnvVars_ScalarTypes(t *testing.T) {
 	// Set environment variables
-	os.Setenv("RCL_PARAM_bool_var", "true")
-	os.Setenv("RCL_PARAM_int_var", "42")
-	os.Setenv("RCL_PARAM_double_var", "3.14")
-	os.Setenv("RCL_PARAM_string_var", "hello")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_bool_var")
-		os.Unsetenv("RCL_PARAM_int_var")
-		os.Unsetenv("RCL_PARAM_double_var")
-		os.Unsetenv("RCL_PARAM_string_var")
-	}()
+	t.Setenv("RCL_PARAM_bool_var", "true")
+	t.Setenv("RCL_PARAM_int_var", "42")
+	t.Setenv("RCL_PARAM_double_var", "3.14")
+	t.Setenv("RCL_PARAM_string_var", "hello")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -33,7 +35,7 @@ func TestApplyEnvVars_ScalarTypes(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Apply env vars
 	if err := ApplyEnvVars(mgr); err != nil {
@@ -71,16 +73,10 @@ func TestApplyEnvVars_ScalarTypes(t *testing.T) {
 
 func TestApplyEnvVars_ArrayTypes(t *testing.T) {
 	// Set environment variables with array syntax
-	os.Setenv("RCL_PARAM_bool_array", "[true,false,true]")
-	os.Setenv("RCL_PARAM_int_array", "[1,2,3]")
-	os.Setenv("RCL_PARAM_double_array", "[1.1,2.2,3.3]")
-	os.Setenv("RCL_PARAM_string_array", "[a,b,c]")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_bool_array")
-		os.Unsetenv("RCL_PARAM_int_array")
-		os.Unsetenv("RCL_PARAM_double_array")
-		os.Unsetenv("RCL_PARAM_string_array")
-	}()
+	t.Setenv("RCL_PARAM_bool_array", "[true,false,true]")
+	t.Setenv("RCL_PARAM_int_array", "[1,2,3]")
+	t.Setenv("RCL_PARAM_double_array", "[1.1,2.2,3.3]")
+	t.Setenv("RCL_PARAM_string_array", "[a,b,c]")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -95,7 +91,7 @@ func TestApplyEnvVars_ArrayTypes(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Apply env vars
 	if err := ApplyEnvVars(mgr); err != nil {
@@ -141,8 +137,7 @@ func TestApplyEnvVars_ArrayTypes(t *testing.T) {
 
 func TestApplyEnvVars_TypeFromExisting(t *testing.T) {
 	// Set env var that will be interpreted based on existing param type
-	os.Setenv("RCL_PARAM_existing_param", "123")
-	defer os.Unsetenv("RCL_PARAM_existing_param")
+	t.Setenv("RCL_PARAM_existing_param", "123")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -157,7 +152,7 @@ func TestApplyEnvVars_TypeFromExisting(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare parameter as string type with default value
 	_, _ = mgr.Declare("existing_param", Value{Kind: KindString, Str: "default"}, Descriptor{})
@@ -193,7 +188,7 @@ func TestApplyEnvVars_EmptyEnvironment(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare a parameter with default
 	_, _ = mgr.Declare("test_param", Value{Kind: KindInt64, Int64: 100}, Descriptor{})
@@ -213,12 +208,8 @@ func TestApplyEnvVars_EmptyEnvironment(t *testing.T) {
 
 func TestApplyEnvVars_DotNotation(t *testing.T) {
 	// Test parameter names with dots (common in ROS)
-	os.Setenv("RCL_PARAM_camera.fps", "30")
-	os.Setenv("RCL_PARAM_robot.wheel.diameter", "0.5")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_camera.fps")
-		os.Unsetenv("RCL_PARAM_robot.wheel.diameter")
-	}()
+	t.Setenv("RCL_PARAM_camera.fps", "30")
+	t.Setenv("RCL_PARAM_robot.wheel.diameter", "0.5")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -233,7 +224,7 @@ func TestApplyEnvVars_DotNotation(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Apply env vars
 	if err := ApplyEnvVars(mgr); err != nil {
@@ -356,16 +347,10 @@ func TestParseEnvVarValue_TypeInference(t *testing.T) {
 
 func TestGetParamEnvVars(t *testing.T) {
 	// Set various env vars
-	os.Setenv("RCL_PARAM_test1", "value1")
-	os.Setenv("RCL_PARAM_test2", "value2")
-	os.Setenv("OTHER_VAR", "should_be_ignored")
-	os.Setenv("RCL_PARAM_", "should_be_ignored_empty_name")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_test1")
-		os.Unsetenv("RCL_PARAM_test2")
-		os.Unsetenv("OTHER_VAR")
-		os.Unsetenv("RCL_PARAM_")
-	}()
+	t.Setenv("RCL_PARAM_test1", "value1")
+	t.Setenv("RCL_PARAM_test2", "value2")
+	t.Setenv("OTHER_VAR", "should_be_ignored")
+	t.Setenv("RCL_PARAM_", "should_be_ignored_empty_name")
 
 	result := getParamEnvVars()
 
@@ -388,5 +373,22 @@ func TestGetParamEnvVars(t *testing.T) {
 	// Should have exactly 2 entries
 	if len(result) != 2 {
 		t.Errorf("result length: got %d, want 2", len(result))
+	}
+}
+
+// Array values are YAML flow sequences: quoted elements may contain commas.
+// Booleans use rcl's spellings.
+func TestEnvVarsQuotedArraysAndBools(t *testing.T) {
+	t.Setenv("RCL_PARAM_quoted", `["a,b", "c"]`)
+	t.Setenv("RCL_PARAM_flag", "on")
+	m := newBareManager()
+	if err := ApplyEnvVars(m); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := m.Get("quoted"); p.Value.Kind != KindStringArray || len(p.Value.Strs) != 2 || p.Value.Strs[0] != "a,b" {
+		t.Errorf("quoted = %+v", p.Value)
+	}
+	if p, _ := m.Get("flag"); p.Value.Kind != KindBool || !p.Value.Bool {
+		t.Errorf("flag = %+v", p.Value)
 	}
 }

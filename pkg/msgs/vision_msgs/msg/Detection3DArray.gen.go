@@ -59,6 +59,20 @@ func (t *Detection3DArray) GetTypeSupport() types.MessageTypeSupport {
 	return Detection3DArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Detection3DArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Detections {
+		if err := types.CheckBounds(&t.Detections[i]); err != nil {
+			return types.InElement("detections", i, err)
+		}
+	}
+	return nil
+}
+
 // Detection3DArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Detection3DArrayPublisher struct {
@@ -91,11 +105,17 @@ type Detection3DArraySubscriptionCallback func(msg *Detection3DArray, info *rclg
 
 // NewDetection3DArraySubscription creates and returns a new subscription for the
 // Detection3DArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewDetection3DArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Detection3DArraySubscriptionCallback) (*Detection3DArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Detection3DArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Detection3DArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Detection3DArrayTypeSupport, opts, callback)
 	if err != nil {
@@ -137,7 +157,7 @@ func (t _Detection3DArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*Detection3DArray)
 	mem := (*C.vision_msgs__msg__Detection3DArray)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	Detection3D__Sequence_to_C(&mem.detections, m.Detections)
+	Detection3D__Sequence_into_C(&mem.detections, m.Detections)
 }
 
 func (t _Detection3DArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +176,7 @@ type CDetection3DArray__Sequence = C.vision_msgs__msg__Detection3DArray__Sequenc
 
 func Detection3DArray__Sequence_to_Go(goSlice *[]Detection3DArray, cSlice CDetection3DArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Detection3DArray, cSlice.size)
@@ -164,14 +185,17 @@ func Detection3DArray__Sequence_to_Go(goSlice *[]Detection3DArray, cSlice CDetec
 		Detection3DArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Detection3DArray__Sequence_to_C(cSlice *CDetection3DArray__Sequence, goSlice []Detection3DArray) {
+func Detection3DArray__Sequence_into_C(cSlice *CDetection3DArray__Sequence, goSlice []Detection3DArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__Detection3DArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__Detection3DArray)(C.malloc(C.sizeof_struct_vision_msgs__msg__Detection3DArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__Detection3DArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__Detection3DArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +208,7 @@ func Detection3DArray__Array_to_Go(goSlice []Detection3DArray, cSlice []CDetecti
 		Detection3DArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Detection3DArray__Array_to_C(cSlice []CDetection3DArray, goSlice []Detection3DArray) {
+func Detection3DArray__Array_into_C(cSlice []CDetection3DArray, goSlice []Detection3DArray) {
 	for i := 0; i < len(goSlice); i++ {
 		Detection3DArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

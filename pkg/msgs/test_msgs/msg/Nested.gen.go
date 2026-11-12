@@ -52,6 +52,15 @@ func (t *Nested) GetTypeSupport() types.MessageTypeSupport {
 	return NestedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Nested) CheckBounds() error {
+	if err := types.CheckBounds(&t.BasicTypesValue); err != nil {
+		return types.InField("basic_types_value", err)
+	}
+	return nil
+}
+
 // NestedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type NestedPublisher struct {
@@ -84,11 +93,17 @@ type NestedSubscriptionCallback func(msg *Nested, info *rclgo.MessageInfo, err e
 
 // NewNestedSubscription creates and returns a new subscription for the
 // Nested
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewNestedSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback NestedSubscriptionCallback) (*NestedSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Nested
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Nested
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, NestedTypeSupport, opts, callback)
 	if err != nil {
@@ -147,6 +162,7 @@ type CNested__Sequence = C.test_msgs__msg__Nested__Sequence
 
 func Nested__Sequence_to_Go(goSlice *[]Nested, cSlice CNested__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Nested, cSlice.size)
@@ -155,14 +171,17 @@ func Nested__Sequence_to_Go(goSlice *[]Nested, cSlice CNested__Sequence) {
 		NestedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Nested__Sequence_to_C(cSlice *CNested__Sequence, goSlice []Nested) {
+func Nested__Sequence_into_C(cSlice *CNested__Sequence, goSlice []Nested) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__Nested__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__Nested)(C.malloc(C.sizeof_struct_test_msgs__msg__Nested * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__Nested)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__Nested))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -175,7 +194,7 @@ func Nested__Array_to_Go(goSlice []Nested, cSlice []CNested) {
 		NestedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Nested__Array_to_C(cSlice []CNested, goSlice []Nested) {
+func Nested__Array_into_C(cSlice []CNested, goSlice []Nested) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

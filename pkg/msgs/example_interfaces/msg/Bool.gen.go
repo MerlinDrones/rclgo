@@ -52,6 +52,12 @@ func (t *Bool) GetTypeSupport() types.MessageTypeSupport {
 	return BoolTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Bool) CheckBounds() error {
+	return nil
+}
+
 // BoolPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BoolPublisher struct {
@@ -84,11 +90,17 @@ type BoolSubscriptionCallback func(msg *Bool, info *rclgo.MessageInfo, err error
 
 // NewBoolSubscription creates and returns a new subscription for the
 // Bool
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBoolSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BoolSubscriptionCallback) (*BoolSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Bool
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Bool
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BoolTypeSupport, opts, callback)
 	if err != nil {
@@ -147,6 +159,7 @@ type CBool__Sequence = C.example_interfaces__msg__Bool__Sequence
 
 func Bool__Sequence_to_Go(goSlice *[]Bool, cSlice CBool__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Bool, cSlice.size)
@@ -155,14 +168,17 @@ func Bool__Sequence_to_Go(goSlice *[]Bool, cSlice CBool__Sequence) {
 		BoolTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Bool__Sequence_to_C(cSlice *CBool__Sequence, goSlice []Bool) {
+func Bool__Sequence_into_C(cSlice *CBool__Sequence, goSlice []Bool) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__Bool__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__Bool)(C.malloc(C.sizeof_struct_example_interfaces__msg__Bool * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__Bool)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__Bool))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -175,7 +191,7 @@ func Bool__Array_to_Go(goSlice []Bool, cSlice []CBool) {
 		BoolTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Bool__Array_to_C(cSlice []CBool, goSlice []Bool) {
+func Bool__Array_into_C(cSlice []CBool, goSlice []Bool) {
 	for i := 0; i < len(goSlice); i++ {
 		BoolTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

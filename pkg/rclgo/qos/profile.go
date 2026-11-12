@@ -1,6 +1,18 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package qos
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 // NOTE: enum values mirror your current rclgo values so C-casts still match.
 
@@ -50,7 +62,38 @@ const (
 	DeadlineDefault                = DurationUnspecified
 	LifespanDefault                = DurationUnspecified
 	LivelinessLeaseDurationDefault = DurationUnspecified
+
+	// DurationInfinite is RMW_DURATION_INFINITE, the largest duration.
+	DurationInfinite = time.Duration(math.MaxInt64)
 )
+
+// DurationToRMW splits d into the seconds and nanoseconds of an rmw_time_t
+// (nanoseconds below one second). A negative duration is infinite, as
+// rmw_time_from_nsec has it.
+func DurationToRMW(d time.Duration) (sec, nsec uint64) {
+	if d < 0 {
+		d = DurationInfinite
+	}
+	if d == 0 {
+		return 0, 0
+	}
+	return uint64(d / time.Second), uint64(d % time.Second)
+}
+
+// DurationFromRMW joins the seconds and nanoseconds of an rmw_time_t.
+// Durations beyond the range of time.Duration, such as
+// RMW_DURATION_INFINITE, saturate to DurationInfinite.
+func DurationFromRMW(sec, nsec uint64) time.Duration {
+	const maxSec = uint64(math.MaxInt64 / int64(time.Second))
+	if sec > maxSec {
+		return DurationInfinite
+	}
+	total := sec * uint64(time.Second)
+	if nsec > math.MaxInt64-total {
+		return DurationInfinite
+	}
+	return time.Duration(total + nsec)
+}
 
 // Profile is the canonical QoS container used across rclgo.
 type Profile struct {

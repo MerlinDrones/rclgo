@@ -87,6 +87,15 @@ func (t *LaserScan) GetTypeSupport() types.MessageTypeSupport {
 	return LaserScanTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *LaserScan) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // LaserScanPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type LaserScanPublisher struct {
@@ -119,11 +128,17 @@ type LaserScanSubscriptionCallback func(msg *LaserScan, info *rclgo.MessageInfo,
 
 // NewLaserScanSubscription creates and returns a new subscription for the
 // LaserScan
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewLaserScanSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback LaserScanSubscriptionCallback) (*LaserScanSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg LaserScan
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg LaserScan
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, LaserScanTypeSupport, opts, callback)
 	if err != nil {
@@ -172,8 +187,8 @@ func (t _LaserScanTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) 
 	mem.scan_time = C.float(m.ScanTime)
 	mem.range_min = C.float(m.RangeMin)
 	mem.range_max = C.float(m.RangeMax)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.ranges)), m.Ranges)
-	primitives.Float32__Sequence_to_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.intensities)), m.Intensities)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.ranges)), m.Ranges)
+	primitives.Float32__Sequence_into_C((*primitives.CFloat32__Sequence)(unsafe.Pointer(&mem.intensities)), m.Intensities)
 }
 
 func (t _LaserScanTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -200,6 +215,7 @@ type CLaserScan__Sequence = C.sensor_msgs__msg__LaserScan__Sequence
 
 func LaserScan__Sequence_to_Go(goSlice *[]LaserScan, cSlice CLaserScan__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]LaserScan, cSlice.size)
@@ -208,14 +224,17 @@ func LaserScan__Sequence_to_Go(goSlice *[]LaserScan, cSlice CLaserScan__Sequence
 		LaserScanTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func LaserScan__Sequence_to_C(cSlice *CLaserScan__Sequence, goSlice []LaserScan) {
+func LaserScan__Sequence_into_C(cSlice *CLaserScan__Sequence, goSlice []LaserScan) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__LaserScan__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__LaserScan)(C.malloc(C.sizeof_struct_sensor_msgs__msg__LaserScan * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__LaserScan)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__LaserScan))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -228,7 +247,7 @@ func LaserScan__Array_to_Go(goSlice []LaserScan, cSlice []CLaserScan) {
 		LaserScanTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func LaserScan__Array_to_C(cSlice []CLaserScan, goSlice []LaserScan) {
+func LaserScan__Array_into_C(cSlice []CLaserScan, goSlice []LaserScan) {
 	for i := 0; i < len(goSlice); i++ {
 		LaserScanTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

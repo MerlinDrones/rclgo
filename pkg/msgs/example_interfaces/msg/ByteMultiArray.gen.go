@@ -59,6 +59,15 @@ func (t *ByteMultiArray) GetTypeSupport() types.MessageTypeSupport {
 	return ByteMultiArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ByteMultiArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Layout); err != nil {
+		return types.InField("layout", err)
+	}
+	return nil
+}
+
 // ByteMultiArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ByteMultiArrayPublisher struct {
@@ -91,11 +100,17 @@ type ByteMultiArraySubscriptionCallback func(msg *ByteMultiArray, info *rclgo.Me
 
 // NewByteMultiArraySubscription creates and returns a new subscription for the
 // ByteMultiArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewByteMultiArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ByteMultiArraySubscriptionCallback) (*ByteMultiArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ByteMultiArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ByteMultiArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ByteMultiArrayTypeSupport, opts, callback)
 	if err != nil {
@@ -137,7 +152,7 @@ func (t _ByteMultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mess
 	m := msg.(*ByteMultiArray)
 	mem := (*C.example_interfaces__msg__ByteMultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Byte__Sequence_to_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Byte__Sequence_into_C((*primitives.CByte__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _ByteMultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +171,7 @@ type CByteMultiArray__Sequence = C.example_interfaces__msg__ByteMultiArray__Sequ
 
 func ByteMultiArray__Sequence_to_Go(goSlice *[]ByteMultiArray, cSlice CByteMultiArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ByteMultiArray, cSlice.size)
@@ -164,14 +180,17 @@ func ByteMultiArray__Sequence_to_Go(goSlice *[]ByteMultiArray, cSlice CByteMulti
 		ByteMultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ByteMultiArray__Sequence_to_C(cSlice *CByteMultiArray__Sequence, goSlice []ByteMultiArray) {
+func ByteMultiArray__Sequence_into_C(cSlice *CByteMultiArray__Sequence, goSlice []ByteMultiArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__ByteMultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__ByteMultiArray)(C.malloc(C.sizeof_struct_example_interfaces__msg__ByteMultiArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__ByteMultiArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__ByteMultiArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +203,7 @@ func ByteMultiArray__Array_to_Go(goSlice []ByteMultiArray, cSlice []CByteMultiAr
 		ByteMultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ByteMultiArray__Array_to_C(cSlice []CByteMultiArray, goSlice []ByteMultiArray) {
+func ByteMultiArray__Array_into_C(cSlice []CByteMultiArray, goSlice []ByteMultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		ByteMultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

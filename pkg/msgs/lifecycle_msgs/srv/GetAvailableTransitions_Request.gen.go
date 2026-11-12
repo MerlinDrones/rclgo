@@ -49,6 +49,12 @@ func (t *GetAvailableTransitions_Request) GetTypeSupport() types.MessageTypeSupp
 	return GetAvailableTransitions_RequestTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *GetAvailableTransitions_Request) CheckBounds() error {
+	return nil
+}
+
 // GetAvailableTransitions_RequestPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type GetAvailableTransitions_RequestPublisher struct {
@@ -81,11 +87,17 @@ type GetAvailableTransitions_RequestSubscriptionCallback func(msg *GetAvailableT
 
 // NewGetAvailableTransitions_RequestSubscription creates and returns a new subscription for the
 // GetAvailableTransitions_Request
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewGetAvailableTransitions_RequestSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback GetAvailableTransitions_RequestSubscriptionCallback) (*GetAvailableTransitions_RequestSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg GetAvailableTransitions_Request
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg GetAvailableTransitions_Request
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, GetAvailableTransitions_RequestTypeSupport, opts, callback)
 	if err != nil {
@@ -140,6 +152,7 @@ type CGetAvailableTransitions_Request__Sequence = C.lifecycle_msgs__srv__GetAvai
 
 func GetAvailableTransitions_Request__Sequence_to_Go(goSlice *[]GetAvailableTransitions_Request, cSlice CGetAvailableTransitions_Request__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]GetAvailableTransitions_Request, cSlice.size)
@@ -148,14 +161,17 @@ func GetAvailableTransitions_Request__Sequence_to_Go(goSlice *[]GetAvailableTran
 		GetAvailableTransitions_RequestTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func GetAvailableTransitions_Request__Sequence_to_C(cSlice *CGetAvailableTransitions_Request__Sequence, goSlice []GetAvailableTransitions_Request) {
+func GetAvailableTransitions_Request__Sequence_into_C(cSlice *CGetAvailableTransitions_Request__Sequence, goSlice []GetAvailableTransitions_Request) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.lifecycle_msgs__srv__GetAvailableTransitions_Request__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.lifecycle_msgs__srv__GetAvailableTransitions_Request)(C.malloc(C.sizeof_struct_lifecycle_msgs__srv__GetAvailableTransitions_Request * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.lifecycle_msgs__srv__GetAvailableTransitions_Request)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_lifecycle_msgs__srv__GetAvailableTransitions_Request))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -168,7 +184,7 @@ func GetAvailableTransitions_Request__Array_to_Go(goSlice []GetAvailableTransiti
 		GetAvailableTransitions_RequestTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func GetAvailableTransitions_Request__Array_to_C(cSlice []CGetAvailableTransitions_Request, goSlice []GetAvailableTransitions_Request) {
+func GetAvailableTransitions_Request__Array_into_C(cSlice []CGetAvailableTransitions_Request, goSlice []GetAvailableTransitions_Request) {
 	for i := 0; i < len(goSlice); i++ {
 		GetAvailableTransitions_RequestTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

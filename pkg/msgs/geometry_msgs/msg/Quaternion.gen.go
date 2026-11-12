@@ -61,6 +61,12 @@ func (t *Quaternion) GetTypeSupport() types.MessageTypeSupport {
 	return QuaternionTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Quaternion) CheckBounds() error {
+	return nil
+}
+
 // QuaternionPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type QuaternionPublisher struct {
@@ -93,11 +99,17 @@ type QuaternionSubscriptionCallback func(msg *Quaternion, info *rclgo.MessageInf
 
 // NewQuaternionSubscription creates and returns a new subscription for the
 // Quaternion
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewQuaternionSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback QuaternionSubscriptionCallback) (*QuaternionSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Quaternion
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Quaternion
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, QuaternionTypeSupport, opts, callback)
 	if err != nil {
@@ -162,6 +174,7 @@ type CQuaternion__Sequence = C.geometry_msgs__msg__Quaternion__Sequence
 
 func Quaternion__Sequence_to_Go(goSlice *[]Quaternion, cSlice CQuaternion__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Quaternion, cSlice.size)
@@ -170,14 +183,17 @@ func Quaternion__Sequence_to_Go(goSlice *[]Quaternion, cSlice CQuaternion__Seque
 		QuaternionTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Quaternion__Sequence_to_C(cSlice *CQuaternion__Sequence, goSlice []Quaternion) {
+func Quaternion__Sequence_into_C(cSlice *CQuaternion__Sequence, goSlice []Quaternion) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Quaternion__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Quaternion)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Quaternion * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Quaternion)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Quaternion))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +206,7 @@ func Quaternion__Array_to_Go(goSlice []Quaternion, cSlice []CQuaternion) {
 		QuaternionTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Quaternion__Array_to_C(cSlice []CQuaternion, goSlice []Quaternion) {
+func Quaternion__Array_into_C(cSlice []CQuaternion, goSlice []Quaternion) {
 	for i := 0; i < len(goSlice); i++ {
 		QuaternionTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

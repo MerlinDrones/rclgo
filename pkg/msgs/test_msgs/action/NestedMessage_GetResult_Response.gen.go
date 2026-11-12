@@ -55,6 +55,15 @@ func (t *NestedMessage_GetResult_Response) GetTypeSupport() types.MessageTypeSup
 	return NestedMessage_GetResult_ResponseTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *NestedMessage_GetResult_Response) CheckBounds() error {
+	if err := types.CheckBounds(&t.Result); err != nil {
+		return types.InField("result", err)
+	}
+	return nil
+}
+
 // NestedMessage_GetResult_ResponsePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type NestedMessage_GetResult_ResponsePublisher struct {
@@ -87,11 +96,17 @@ type NestedMessage_GetResult_ResponseSubscriptionCallback func(msg *NestedMessag
 
 // NewNestedMessage_GetResult_ResponseSubscription creates and returns a new subscription for the
 // NestedMessage_GetResult_Response
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewNestedMessage_GetResult_ResponseSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback NestedMessage_GetResult_ResponseSubscriptionCallback) (*NestedMessage_GetResult_ResponseSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg NestedMessage_GetResult_Response
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg NestedMessage_GetResult_Response
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, NestedMessage_GetResult_ResponseTypeSupport, opts, callback)
 	if err != nil {
@@ -152,6 +167,7 @@ type CNestedMessage_GetResult_Response__Sequence = C.test_msgs__action__NestedMe
 
 func NestedMessage_GetResult_Response__Sequence_to_Go(goSlice *[]NestedMessage_GetResult_Response, cSlice CNestedMessage_GetResult_Response__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]NestedMessage_GetResult_Response, cSlice.size)
@@ -160,14 +176,17 @@ func NestedMessage_GetResult_Response__Sequence_to_Go(goSlice *[]NestedMessage_G
 		NestedMessage_GetResult_ResponseTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func NestedMessage_GetResult_Response__Sequence_to_C(cSlice *CNestedMessage_GetResult_Response__Sequence, goSlice []NestedMessage_GetResult_Response) {
+func NestedMessage_GetResult_Response__Sequence_into_C(cSlice *CNestedMessage_GetResult_Response__Sequence, goSlice []NestedMessage_GetResult_Response) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__action__NestedMessage_GetResult_Response__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__action__NestedMessage_GetResult_Response)(C.malloc(C.sizeof_struct_test_msgs__action__NestedMessage_GetResult_Response * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__action__NestedMessage_GetResult_Response)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__action__NestedMessage_GetResult_Response))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -180,7 +199,7 @@ func NestedMessage_GetResult_Response__Array_to_Go(goSlice []NestedMessage_GetRe
 		NestedMessage_GetResult_ResponseTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func NestedMessage_GetResult_Response__Array_to_C(cSlice []CNestedMessage_GetResult_Response, goSlice []NestedMessage_GetResult_Response) {
+func NestedMessage_GetResult_Response__Array_into_C(cSlice []CNestedMessage_GetResult_Response, goSlice []NestedMessage_GetResult_Response) {
 	for i := 0; i < len(goSlice); i++ {
 		NestedMessage_GetResult_ResponseTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

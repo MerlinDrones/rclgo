@@ -1,4 +1,11 @@
 #!/bin/bash
+# This file is part of rclgo
+#
+# Copyright © 2025 Merlin Drones
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+#     http://www.apache.org/licenses/LICENSE-2.0
+
 # Test script for launching nodes via shell script
 # This tests scenario 4: Multiple nodes launched from a shell script that calls a launch file
 

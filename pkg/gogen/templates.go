@@ -24,6 +24,7 @@ var templateFuncMap template.FuncMap = template.FuncMap{
 	"actionNameFromActionSrvName": actionNameFromActionSrvName,
 	"cReturnCodeNameToGo":         cReturnCodeNameToGo,
 	"cloneCode":                   cloneCode,
+	"checkBoundsCode":             checkBoundsCode,
 	"actionHasSuffix":             actionHasSuffix,
 	"matchMsg":                    matchMsg,
 	"sanitizeValue":               defaultValueSanitizer,
@@ -38,7 +39,7 @@ var ros2PackageCommonTemplate = template.Must(
 package {{ .GoPackage }}
 
 /*
-{{range $dir := .Config.RootPaths -}}
+{{range $dir := .Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$dir}}/lib" "-Wl,-rpath={{$dir}}/lib"
 {{end}}
 #cgo LDFLAGS: -lrcl -lrosidl_runtime_c -lrosidl_typesupport_c -lrcutils -lrmw_implementation
@@ -47,7 +48,7 @@ package {{ .GoPackage }}
 #cgo LDFLAGS: -l{{$k}}__rosidl_typesupport_c -l{{$k}}__rosidl_generator_c
 {{""}}
 {{- end -}}
-{{range $dir := .Config.RootPaths}}
+{{range $dir := .Config.EmbeddedRootPaths}}
 #cgo CFLAGS: "-I{{$dir}}/include/action_msgs"
 #cgo CFLAGS: "-I{{$dir}}/include/builtin_interfaces"
 #cgo CFLAGS: "-I{{$dir}}/include/example_interfaces"
@@ -151,6 +152,15 @@ func (t *{{$Md.Name}}) GetTypeSupport() types.MessageTypeSupport {
 	return {{$Md.Name}}TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *{{$Md.Name}}) CheckBounds() error {
+	{{- range $f := $Md.Fields }}{{ with checkBoundsCode $f }}
+	{{.}}
+	{{- end }}{{- end }}
+	return nil
+}
+
 {{- /* Some special cased methods to avoid cyclic dependency in actions */ -}}
 
 {{- if actionHasSuffix $Md 
@@ -246,11 +256,17 @@ type {{$Md.Name}}SubscriptionCallback func(msg *{{$Md.Name}}, info *rclgo.Messag
 
 // New{{$Md.Name}}Subscription creates and returns a new subscription for the
 // {{$Md.Name}}
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func New{{$Md.Name}}Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback {{$Md.Name}}SubscriptionCallback) (*{{$Md.Name}}Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg {{$Md.Name}}
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg {{$Md.Name}}
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, {{$Md.Name}}TypeSupport, opts, callback)
 	if err != nil {
@@ -317,6 +333,7 @@ type C{{$Md.Name}}__Sequence = C.{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}}__Se
 
 func {{$Md.Name}}__Sequence_to_Go(goSlice *[]{{$Md.Name}}, cSlice C{{$Md.Name}}__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]{{$Md.Name}}, cSlice.size)
@@ -325,14 +342,17 @@ func {{$Md.Name}}__Sequence_to_Go(goSlice *[]{{$Md.Name}}, cSlice C{{$Md.Name}}_
 		{{$Md.Name}}TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func {{$Md.Name}}__Sequence_to_C(cSlice *C{{$Md.Name}}__Sequence, goSlice []{{$Md.Name}}) {
+func {{$Md.Name}}__Sequence_into_C(cSlice *C{{$Md.Name}}__Sequence, goSlice []{{$Md.Name}}) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}}__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}})(C.malloc(C.sizeof_struct_{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}} * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}})(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_{{$Md.Package}}__{{$Md.Type}}__{{$Md.Name}}))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -345,7 +365,7 @@ func {{$Md.Name}}__Array_to_Go(goSlice []{{$Md.Name}}, cSlice []C{{$Md.Name}}) {
 		{{$Md.Name}}TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func {{$Md.Name}}__Array_to_C(cSlice []C{{$Md.Name}}, goSlice []{{$Md.Name}}) {
+func {{$Md.Name}}__Array_into_C(cSlice []C{{$Md.Name}}, goSlice []{{$Md.Name}}) {
 	for i := 0; i < len(goSlice); i++ {
 		{{$Md.Name}}TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}
@@ -511,7 +531,7 @@ func (s _{{.Action.Name}}TypeSupport) NewSendGoalResponse(accepted bool, stamp t
 	msg := New{{.Action.Name}}_SendGoal_Response()
 	msg.Accepted = accepted
 	secs := stamp.Truncate(time.Second)
-	msg.Stamp.Sec = int32(secs)
+	msg.Stamp.Sec = int32(secs / time.Second)
 	msg.Stamp.Nanosec = uint32(stamp - secs)
 	return msg
 }
@@ -610,10 +630,15 @@ type _{{.Action.Name}}Action struct {
 }
 
 func (a _{{.Action.Name}}Action) ExecuteGoal(ctx context.Context, handle *rclgo.GoalHandle) (types.Message, error) {
-	return a.action.ExecuteGoal(ctx, &{{.Action.Name}}GoalHandle{
+	result, err := a.action.ExecuteGoal(ctx, &{{.Action.Name}}GoalHandle{
 		GoalHandle:  handle,
 		Description: handle.Description.(*{{.Action.Name}}_Goal),
 	})
+	if result == nil {
+		// A nil *{{.Action.Name}}_Result must not become a non-nil types.Message.
+		return nil, err
+	}
+	return result, err
 }
 
 func (a _{{.Action.Name}}Action) TypeSupport() types.ActionTypeSupport {
@@ -718,7 +743,7 @@ var primitiveTypes = template.Must(
 package primitives
 
 /*
-{{range $rootPath := $.Config.RootPaths -}}
+{{range $rootPath := $.Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$rootPath}}/lib" "-Wl,-rpath={{$rootPath}}/lib"
 #cgo CFLAGS: "-I{{$rootPath}}/include/rosidl_runtime_c"
 {{end}}
@@ -726,6 +751,7 @@ package primitives
 
 #include "rosidl_runtime_c/string.h"
 #include "rosidl_runtime_c/primitives_sequence.h"
+#include "rosidl_runtime_c/primitives_sequence_functions.h"
 
 */
 import "C"
@@ -740,6 +766,7 @@ type C{{.RosType | ucFirst}}__Sequence = C.rosidl_runtime_c__{{.CStructName}}__S
 
 func {{.RosType | ucFirst}}__Sequence_to_Go(goSlice *[]{{.GoType}}, cSlice C{{.RosType | ucFirst}}__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]{{.GoType}}, cSlice.size)
@@ -748,7 +775,9 @@ func {{.RosType | ucFirst}}__Sequence_to_Go(goSlice *[]{{.GoType}}, cSlice C{{.R
 		(*goSlice)[i] = {{.GoType}}(src[i])
 	}
 }
-func {{.RosType | ucFirst}}__Sequence_to_C(cSlice *C{{.RosType | ucFirst}}__Sequence, goSlice []{{.GoType}}) {
+func {{.RosType | ucFirst}}__Sequence_into_C(cSlice *C{{.RosType | ucFirst}}__Sequence, goSlice []{{.GoType}}) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rosidl_runtime_c__{{.CStructName}}__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
@@ -768,7 +797,7 @@ func {{.RosType | ucFirst}}__Array_to_Go(goSlice []{{.GoType}}, cSlice []C{{.Ros
 		goSlice[i] = {{.GoType}}(cSlice[i])
 	}
 }
-func {{.RosType | ucFirst}}__Array_to_C(cSlice []C{{.RosType | ucFirst}}, goSlice []{{.GoType}}) {
+func {{.RosType | ucFirst}}__Array_into_C(cSlice []C{{.RosType | ucFirst}}, goSlice []{{.GoType}}) {
 	for i := 0; i < len(goSlice); i++ {
 		cSlice[i] = C.{{.CType}}(goSlice[i])
 	}
@@ -811,15 +840,23 @@ import (
 )
 
 func errorsCastC(rcl_ret_t C.rcl_ret_t, context string) error {
-	stackTraceBuffer := make([]byte, 2048)
-	runtime.Stack(stackTraceBuffer, false) // Get stack trace of the current running thread only
+	// A take that finds no data is routine (subscriptions are polled), so it
+	// gets no stack trace; other errors get the calling goroutine's stack.
+	var stackTrace string
+	switch rcl_ret_t {
+	case C.RCL_RET_SUBSCRIPTION_TAKE_FAILED, C.RCL_RET_CLIENT_TAKE_FAILED, C.RCL_RET_SERVICE_TAKE_FAILED,
+		C.RCL_RET_ACTION_CLIENT_TAKE_FAILED, C.RCL_RET_ACTION_SERVER_TAKE_FAILED, C.RCL_RET_EVENT_TAKE_FAILED:
+	default:
+		buf := make([]byte, 2048)
+		stackTrace = string(buf[:runtime.Stack(buf, false)])
+	}
 
 	// https://stackoverflow.com/questions/9928221/table-of-functions-vs-switch-in-golang
 	// switch-case is faster thanks to compiler optimization than a dispatcher?
 	switch rcl_ret_t {
 	{{range $e := .errorTypes -}}{{if $e.Rcl_ret_t -}}{{if not (index $P.dedupFilter $e.Name) -}}
 	case C.{{$e.Name}}:
-		return &{{$e.Name|cReturnCodeNameToGo}}{rclError: rclError{rclRetCode: {{$e.Rcl_ret_t}}, trace: string(stackTraceBuffer), context: errorsBuildContext(&{{$e.Name|cReturnCodeNameToGo}}{}, context, string(stackTraceBuffer))}}
+		return &{{$e.Name|cReturnCodeNameToGo}}{rclError: rclError{rclRetCode: {{$e.Rcl_ret_t}}, trace: stackTrace, context: errorsBuildContext(&{{$e.Name|cReturnCodeNameToGo}}{}, context, stackTrace)}}
 	{{""}}
 	{{- end}}{{- end}}{{- end}}
 	default:
@@ -856,7 +893,7 @@ var rclgoFlags = template.Must(
 package rclgo
 
 /*
-{{range $rootPath := $.Config.RootPaths -}}
+{{range $rootPath := $.Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$rootPath}}/lib" "-Wl,-rpath={{$rootPath}}/lib"
 {{range $dep := $.ROSIncludes -}}
 #cgo CFLAGS: "-I{{$rootPath}}/include/{{$dep}}"
@@ -876,7 +913,7 @@ var gogenTestFlags = template.Must(
 package test
 
 /*
-{{range $rootPath := $.Config.RootPaths -}}
+{{range $rootPath := $.Config.EmbeddedRootPaths -}}
 #cgo LDFLAGS: "-L{{$rootPath}}/lib" "-Wl,-rpath={{$rootPath}}/lib"
 #cgo CFLAGS: "-I{{$rootPath}}/include/builtin_interfaces"
 #cgo CFLAGS: "-I{{$rootPath}}/include/rosidl_runtime_c"

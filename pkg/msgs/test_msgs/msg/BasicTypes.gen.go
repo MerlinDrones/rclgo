@@ -88,6 +88,12 @@ func (t *BasicTypes) GetTypeSupport() types.MessageTypeSupport {
 	return BasicTypesTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *BasicTypes) CheckBounds() error {
+	return nil
+}
+
 // BasicTypesPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BasicTypesPublisher struct {
@@ -120,11 +126,17 @@ type BasicTypesSubscriptionCallback func(msg *BasicTypes, info *rclgo.MessageInf
 
 // NewBasicTypesSubscription creates and returns a new subscription for the
 // BasicTypes
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBasicTypesSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BasicTypesSubscriptionCallback) (*BasicTypesSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BasicTypes
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BasicTypes
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BasicTypesTypeSupport, opts, callback)
 	if err != nil {
@@ -207,6 +219,7 @@ type CBasicTypes__Sequence = C.test_msgs__msg__BasicTypes__Sequence
 
 func BasicTypes__Sequence_to_Go(goSlice *[]BasicTypes, cSlice CBasicTypes__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BasicTypes, cSlice.size)
@@ -215,14 +228,17 @@ func BasicTypes__Sequence_to_Go(goSlice *[]BasicTypes, cSlice CBasicTypes__Seque
 		BasicTypesTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BasicTypes__Sequence_to_C(cSlice *CBasicTypes__Sequence, goSlice []BasicTypes) {
+func BasicTypes__Sequence_into_C(cSlice *CBasicTypes__Sequence, goSlice []BasicTypes) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__BasicTypes__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__BasicTypes)(C.malloc(C.sizeof_struct_test_msgs__msg__BasicTypes * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__BasicTypes)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__BasicTypes))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -235,7 +251,7 @@ func BasicTypes__Array_to_Go(goSlice []BasicTypes, cSlice []CBasicTypes) {
 		BasicTypesTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BasicTypes__Array_to_C(cSlice []CBasicTypes, goSlice []BasicTypes) {
+func BasicTypes__Array_into_C(cSlice []CBasicTypes, goSlice []BasicTypes) {
 	for i := 0; i < len(goSlice); i++ {
 		BasicTypesTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

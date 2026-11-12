@@ -1,10 +1,21 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package params
 
 import (
 	"fmt"
-	"log"
+	"math"
+	"slices"
 	"strings"
-	"time"
+	"sync"
+	"sync/atomic"
 
 	"github.com/merlindrones/rclgo/pkg/msgs/builtin_interfaces/msg"
 	rcl_interfaces_msg2 "github.com/merlindrones/rclgo/pkg/msgs/rcl_interfaces/msg"
@@ -12,6 +23,7 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 	"github.com/merlindrones/rclgo/pkg/rclgo/qos"
 	"github.com/merlindrones/rclgo/pkg/rclgo/types"
+	"github.com/merlindrones/rclgo/pkg/rclgo/utils"
 )
 
 type Manager struct {
@@ -20,14 +32,67 @@ type Manager struct {
 	n   *rclgo.Node
 
 	// Optional provider for simulated time. If nil, wall clock is used.
-	// When 'use_sim_time' is true and nowProvider != nil, event stamps use nowProvider().
-	nowProvider func() builtin_interfaces_msg.Time
+	// When 'use_sim_time' is true and nowProvider is set, event stamps use it.
+	nowProvider atomic.Pointer[func() builtin_interfaces_msg.Time]
+
+	// eventSink, if set, receives every parameter event (for tests).
+	eventSink func(*rcl_interfaces_msg2.ParameterEvent)
+
+	postSetMu   sync.Mutex
+	postSet     []postSetCallback // in registration order
+	postSetNext uint64
 }
 
+// AddPostSetCallback registers f to be called after parameters were declared
+// or changed, with their new values: by Declare, Set or SetValue, through the
+// set_parameters and set_parameters_atomically services, or by an override.
+// Unlike OnSet, which validates and can refuse a change, f only observes it,
+// and any number of post-set callbacks can be registered (as rclcpp's
+// add_post_set_parameters_callback), in the order they were registered.
+// Callbacks run in the order of the changes,
+// while further changes wait; a change attempted from f fails, as in rclcpp.
+// It returns a function that removes f.
+func (m *Manager) AddPostSetCallback(f func([]Parameter)) (remove func()) {
+	m.postSetMu.Lock()
+	defer m.postSetMu.Unlock()
+	id := m.postSetNext
+	m.postSetNext++
+	m.postSet = append(m.postSet, postSetCallback{id, f})
+	return func() {
+		m.postSetMu.Lock()
+		defer m.postSetMu.Unlock()
+		m.postSet = slices.DeleteFunc(m.postSet, func(c postSetCallback) bool { return c.id == id })
+	}
+}
+
+type postSetCallback struct {
+	id uint64
+	f  func([]Parameter)
+}
+
+func (m *Manager) runPostSet(changed []Parameter) {
+	m.postSetMu.Lock()
+	callbacks := slices.Clone(m.postSet)
+	m.postSetMu.Unlock()
+	for _, c := range callbacks {
+		c.f(changed)
+	}
+}
+
+// NewManager creates the parameter manager of node n: it declares
+// use_sim_time and serves the six parameter services that ros2 param and
+// rclcpp/rclpy parameter clients use, and publishes /parameter_events.
+//
+// Unlike rclcpp, which applies parameter overrides when it creates a node,
+// NewManager doesn't read any: apply them before declaring parameters, with
+// ApplyEnvVars (RCL_PARAM_* variables), LoadYAML (parameter files) and
+// ApplyOverrides (--ros-args -p and --params-file), in that order so that
+// later sources win (see ApplyEnvVars).
 func NewManager(n *rclgo.Node) (*Manager, error) {
 	m := &Manager{st: newStore(), n: n}
+	m.st.notify = m.onChange
 
-	// /parameter_events publisher: Reliable + TransientLocal + KeepAll
+	// /parameter_events publisher, with the same QoS as rclcpp and rclpy
 	opts := &rclgo.PublisherOptions{Qos: qos.NewParameterEventsProfile()}
 	pub, err := n.NewPublisher("/parameter_events", rcl_interfaces_msg2.ParameterEventTypeSupport, opts)
 	if err != nil {
@@ -42,65 +107,68 @@ func NewManager(n *rclgo.Node) (*Manager, error) {
 		Description: "Use simulated time from /clock when true.",
 	})
 
-	// Node-scoped parameter services (match rclcpp/rclpy)
+	// Node-scoped parameter services, the same six as rclcpp and rclpy. rclpy's
+	// parameter client (and so the ros2 param tool) waits for all of them.
 	base := n.FullyQualifiedName()
-	if base == "" {
-		base = "/" + n.Name()
+	for _, svc := range []struct {
+		name    string
+		ts      types.ServiceTypeSupport
+		handler rclgo.ServiceRequestHandler
+	}{
+		{"get_parameters", rcl_interfaces_srv2.GetParametersTypeSupport, m.onGetParameters},
+		{"get_parameter_types", rcl_interfaces_srv2.GetParameterTypesTypeSupport, m.onGetParameterTypes},
+		{"set_parameters", rcl_interfaces_srv2.SetParametersTypeSupport, m.onSetParameters},
+		{"set_parameters_atomically", rcl_interfaces_srv2.SetParametersAtomicallyTypeSupport, m.onSetParametersAtomically},
+		{"list_parameters", rcl_interfaces_srv2.ListParametersTypeSupport, m.onListParameters},
+		{"describe_parameters", rcl_interfaces_srv2.DescribeParametersTypeSupport, m.onDescribeParameters},
+	} {
+		name := strings.TrimSuffix(base, "/") + "/" + svc.name
+		if _, err := n.NewService(name, svc.ts, nil, svc.handler); err != nil {
+			return nil, fmt.Errorf("parameter service %s: %w", name, err)
+		}
+		n.Logger().Debugf("parameter service registered: %s", name) //nolint:errcheck
 	}
-	log.Printf("[params] node base=%s", base)
-
-	if _, err := n.NewService(base+"/get_parameters", rcl_interfaces_srv2.GetParametersTypeSupport, nil, m.onGetParameters); err != nil {
-		return nil, err
-	}
-	log.Printf("[params] service registered: %s/get_parameters", base)
-
-	if _, err := n.NewService(base+"/set_parameters", rcl_interfaces_srv2.SetParametersTypeSupport, nil, m.onSetParameters); err != nil {
-		return nil, err
-	}
-	log.Printf("[params] service registered: %s/set_parameters", base)
-
-	if _, err := n.NewService(base+"/list_parameters", rcl_interfaces_srv2.ListParametersTypeSupport, nil, m.onListParameters); err != nil {
-		return nil, err
-	}
-	log.Printf("[params] service registered: %s/list_parameters", base)
-
-	if _, err := n.NewService(base+"/describe_parameters", rcl_interfaces_srv2.DescribeParametersTypeSupport, nil, m.onDescribeParameters); err != nil {
-		return nil, err
-	}
-	log.Printf("[params] service registered: %s/describe_parameters", base)
 
 	return m, nil
 }
 
 // Public API
 
+// Declare declares a parameter with default value v and descriptor d.
+//
+// If an override (parameter file, command line or environment variable)
+// already set the parameter, Declare keeps the override's value instead of v,
+// converted to v's type (an integer widens to a double), and attaches d. It
+// returns an error if the override has an incompatible type or violates d.
 func (m *Manager) Declare(name string, v Value, d Descriptor) (Parameter, error) {
-	p, err := m.st.declare(name, v, d)
-	if err == nil {
-		m.publishEvent([]Parameter{p}, nil)
-	}
+	p, _, err := m.st.declareOrClaim(name, v, d)
 	return p, err
 }
 
+// DeclareIfMissing is like Declare but does nothing if code already declared
+// the parameter.
 func (m *Manager) DeclareIfMissing(name string, v Value, d Descriptor) error {
-	if _, ok := m.Get(name); ok {
+	if _, ok := m.Get(name); ok && !m.st.isOverrideOnly(name) {
 		return nil
 	}
 	_, err := m.Declare(name, v, d)
 	return err
 }
 
+// applyOverride sets a parameter from an override source. See store.applyOverride.
+func (m *Manager) applyOverride(name string, v Value, d Descriptor) error {
+	_, _, err := m.st.applyOverride(name, v, d)
+	return err
+}
+
 func (m *Manager) Get(name string) (Parameter, bool) { return m.st.get(name) }
 func (m *Manager) List() []Parameter                 { return m.st.list() }
-func (m *Manager) OnSet(cb OnSetCallback)            { m.st.cb = cb }
+func (m *Manager) OnSet(cb OnSetCallback)            { m.st.setCallback(cb) }
 
 // Set updates one or more existing parameters. Returns SetResult indicating success/failure.
 // All parameters must already be declared, and constraints will be validated.
 func (m *Manager) Set(params ...Parameter) (SetResult, error) {
-	result, old, newp := m.st.set(params)
-	if result.Successful {
-		m.publishEvent(newp, old)
-	}
+	result, _, _ := m.st.set(params)
 	if !result.Successful {
 		return result, fmt.Errorf("set failed: %s", result.Reason)
 	}
@@ -120,19 +188,24 @@ func (m *Manager) SimTimeEnabled() bool {
 	return false
 }
 
-// Undeclare removes a parameter and publishes a delete event.
-func (m *Manager) Undeclare(name string) bool {
-	if old, ok := m.st.undeclare(name); ok {
-		m.publishDelete([]Parameter{old})
-		return true
+// Undeclare removes a parameter and publishes a delete event, as rclcpp's
+// undeclare_parameter. It fails for a parameter that isn't declared, is
+// read-only, or is use_sim_time, which the node's clock follows.
+func (m *Manager) Undeclare(name string) error {
+	if name == "use_sim_time" {
+		return fmt.Errorf("parameter %q cannot be undeclared: the node's clock uses it", name)
 	}
-	return false
+	return m.st.undeclare(name)
 }
 
 // SetNowProvider lets you provide a sim-time source. When 'use_sim_time' is true,
 // publishEvent()/publishDelete() will use this instead of wall-clock.
 func (m *Manager) SetNowProvider(f func() builtin_interfaces_msg.Time) {
-	m.nowProvider = f
+	if f == nil {
+		m.nowProvider.Store(nil)
+		return
+	}
+	m.nowProvider.Store(&f)
 }
 
 // --- Service handlers ---
@@ -150,7 +223,7 @@ func (m *Manager) onGetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 		}
 	}
 	resp.Values = values
-	_ = send.SendResponse(resp)
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
 func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
@@ -161,64 +234,80 @@ func (m *Manager) onSetParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, se
 	for _, p := range req.Parameters {
 		incoming = append(incoming, Parameter{Name: p.Name, Value: fromRclValue(p.Value)})
 	}
-	result, old, newp := m.st.set(incoming)
-
-	// Per-item results: mirror ROS 2 semantics (one result per requested parameter)
-	results := make([]rcl_interfaces_msg2.SetParametersResult, len(req.Parameters))
-	for i := range results {
-		results[i] = rcl_interfaces_msg2.SetParametersResult{
-			Successful: result.Successful,
-			Reason:     result.Reason,
-		}
+	// Each parameter is set on its own, as in rclcpp: one that is refused
+	// does not stop the others, and each gets its own result.
+	results := make([]rcl_interfaces_msg2.SetParametersResult, len(incoming))
+	for i, p := range incoming {
+		result, _, _ := m.st.set([]Parameter{p})
+		results[i] = rcl_interfaces_msg2.SetParametersResult{Successful: result.Successful, Reason: result.Reason}
 	}
 	resp.Results = results
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
+}
 
-	if result.Successful {
-		m.publishEvent(newp, old)
+// onSetParametersAtomically sets all parameters or none.
+func (m *Manager) onSetParametersAtomically(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
+	req := reqMsg.(*rcl_interfaces_srv2.SetParametersAtomically_Request)
+	resp := rcl_interfaces_srv2.NewSetParametersAtomically_Response()
+	incoming := make([]Parameter, 0, len(req.Parameters))
+	for _, p := range req.Parameters {
+		incoming = append(incoming, Parameter{Name: p.Name, Value: fromRclValue(p.Value)})
 	}
-	_ = send.SendResponse(resp)
+	result, _, _ := m.st.set(incoming)
+	resp.Result = rcl_interfaces_msg2.SetParametersResult{Successful: result.Successful, Reason: result.Reason}
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
+}
+
+func (m *Manager) onGetParameterTypes(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
+	req := reqMsg.(*rcl_interfaces_srv2.GetParameterTypes_Request)
+	resp := rcl_interfaces_srv2.NewGetParameterTypes_Response()
+	resp.Types = make([]uint8, len(req.Names))
+	for i, name := range req.Names {
+		if p, ok := m.st.get(name); ok {
+			resp.Types[i] = p.Value.Kind
+		}
+	}
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
 func (m *Manager) onListParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
 	req := reqMsg.(*rcl_interfaces_srv2.ListParameters_Request)
 	resp := rcl_interfaces_srv2.NewListParameters_Response()
+	resp.Result.Names, resp.Result.Prefixes = listParameters(m.st.list(), req.Prefixes, req.Depth)
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
+}
 
-	var names []string
-	all := m.st.list()
-
-	// depth semantics: 0 == unlimited (ROS 2)
-	withinDepth := func(name, prefix string, depth uint64) bool {
-		if depth == 0 {
-			return true
-		}
-		rest := strings.TrimPrefix(name, prefix)
-		rest = strings.TrimPrefix(rest, ".")
-		if rest == "" {
-			return true
-		}
-		segments := uint64(strings.Count(rest, ".") + 1)
-		return segments <= depth
+// listParameters selects the parameter names under prefixes, as rclcpp does: a
+// prefix matches a name equal to it or followed by '.', depth (0 = unlimited)
+// limits how many '.'-separated segments below the prefix (or below the root
+// without prefixes) a name may have, and prefixes reports the distinct
+// parents of the selected names.
+func listParameters(all []Parameter, wantPrefixes []string, depth uint64) (names, prefixes []string) {
+	within := func(rest string) bool {
+		return depth == 0 || uint64(strings.Count(rest, "."))+1 <= depth
 	}
-
 	for _, p := range all {
-		if len(req.Prefixes) == 0 {
-			names = append(names, p.Name)
-			continue
+		match := false
+		if len(wantPrefixes) == 0 {
+			match = within(p.Name)
 		}
-		okDepth := false
-		for _, pref := range req.Prefixes {
-			if strings.HasPrefix(p.Name, pref) && withinDepth(p.Name, pref, req.Depth) {
-				okDepth = true
+		for _, pref := range wantPrefixes {
+			if p.Name == pref || (strings.HasPrefix(p.Name, pref+".") && within(p.Name[len(pref)+1:])) {
+				match = true
 				break
 			}
 		}
-		if okDepth {
-			names = append(names, p.Name)
+		if !match {
+			continue
+		}
+		names = append(names, p.Name)
+		if i := strings.LastIndex(p.Name, "."); i >= 0 && !slices.Contains(prefixes, p.Name[:i]) {
+			prefixes = append(prefixes, p.Name[:i])
 		}
 	}
-
-	resp.Result.Names = names
-	_ = send.SendResponse(resp)
+	slices.Sort(names)
+	slices.Sort(prefixes)
+	return names, prefixes
 }
 
 func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Message, send rclgo.ServiceResponseSender) {
@@ -228,7 +317,7 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 	descs := make([]rcl_interfaces_msg2.ParameterDescriptor, 0, len(req.Names))
 	for _, name := range req.Names {
 		if p, ok := m.st.get(name); ok {
-			d := m.st.desc[name]
+			d, _ := m.st.descriptor(name)
 			pd := rcl_interfaces_msg2.ParameterDescriptor{
 				Name:        name,
 				Type:        uint8(p.Value.Kind),
@@ -236,8 +325,10 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 				ReadOnly:    d.ReadOnly,
 			}
 			// Ranges
+			// A missing bound is the type's limit; the message cannot
+			// express a one-sided range.
 			if d.MinInt != nil || d.MaxInt != nil {
-				var from, to int64
+				from, to := int64(math.MinInt64), int64(math.MaxInt64)
 				if d.MinInt != nil {
 					from = *d.MinInt
 				}
@@ -251,7 +342,7 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 				}}
 			}
 			if d.MinDouble != nil || d.MaxDouble != nil {
-				var from, to float64
+				from, to := -math.MaxFloat64, math.MaxFloat64
 				if d.MinDouble != nil {
 					from = *d.MinDouble
 				}
@@ -278,62 +369,98 @@ func (m *Manager) onDescribeParameters(_ *rclgo.ServiceInfo, reqMsg types.Messag
 		})
 	}
 	resp.Descriptors = descs
-	_ = send.SendResponse(resp)
+	m.logErr("failed to send parameter service response: ", send.SendResponse(resp))
 }
 
 // --- Event publishers ---
 
 func (m *Manager) stampNow() builtin_interfaces_msg.Time {
 	// If use_sim_time is true and a nowProvider is set, use it.
-	if p, ok := m.st.get("use_sim_time"); ok && p.Value.Kind == KindBool && p.Value.Bool && m.nowProvider != nil {
-		return m.nowProvider()
+	if p, ok := m.st.get("use_sim_time"); ok && p.Value.Kind == KindBool && p.Value.Bool {
+		if f := m.nowProvider.Load(); f != nil {
+			return (*f)()
+		}
 	}
 	// Fallback to wall clock
-	now := time.Now()
-	return builtin_interfaces_msg.Time{
-		Sec:     int32(now.Unix()),
-		Nanosec: uint32(now.Nanosecond()),
+	return utils.ROSTimeNow()
+}
+
+// logErr logs err, if not nil, with the node's logger.
+func (m *Manager) logErr(what string, err error) {
+	if err != nil {
+		m.n.Logger().Error(what, err) //nolint:errcheck
 	}
 }
 
-func (m *Manager) publishEvent(newp, old []Parameter) {
-	if m.pub == nil {
+// onChange is the store's change notification: it runs the post-set
+// callbacks for declared and changed parameters (as rclcpp runs them after
+// declare_parameter and set_parameters) and publishes the parameter event. The
+// store calls it with its change lock held, so notifications arrive in the
+// order of the changes.
+func (m *Manager) onChange(declared, changed, deleted []Parameter) {
+	if len(declared)+len(changed) > 0 {
+		m.runPostSet(append(append([]Parameter(nil), declared...), changed...))
+	}
+	if len(declared)+len(changed) > 0 {
+		m.publishEvent(declared, changed)
+	}
+	if len(deleted) > 0 {
+		m.publishDelete(deleted)
+	}
+}
+
+// publishEvent publishes a ParameterEvent with declared parameters in
+// new_parameters and the new values of changed parameters in
+// changed_parameters.
+func (m *Manager) publishEvent(declared, changed []Parameter) {
+	if m.pub == nil && m.eventSink == nil {
 		return
 	}
-	evt := &rcl_interfaces_msg2.ParameterEvent{
-		Stamp: m.stampNow(),
-		Node:  m.n.FullyQualifiedName(),
-	}
-	for _, p := range newp {
+	evt := m.newEvent()
+	for _, p := range declared {
 		evt.NewParameters = append(evt.NewParameters, rcl_interfaces_msg2.Parameter{
 			Name:  p.Name,
 			Value: toRclValue(p.Value),
 		})
 	}
-	for _, p := range old {
+	for _, p := range changed {
 		evt.ChangedParameters = append(evt.ChangedParameters, rcl_interfaces_msg2.Parameter{
 			Name:  p.Name,
 			Value: toRclValue(p.Value),
 		})
 	}
-	_ = m.pub.Publish(evt)
+	m.emit(evt)
 }
 
 func (m *Manager) publishDelete(del []Parameter) {
-	if m.pub == nil {
+	if m.pub == nil && m.eventSink == nil {
 		return
 	}
-	evt := &rcl_interfaces_msg2.ParameterEvent{
-		Stamp: m.stampNow(),
-		Node:  m.n.FullyQualifiedName(),
-	}
+	evt := m.newEvent()
 	for _, p := range del {
 		evt.DeletedParameters = append(evt.DeletedParameters, rcl_interfaces_msg2.Parameter{
 			Name:  p.Name,
 			Value: toRclValue(p.Value),
 		})
 	}
-	_ = m.pub.Publish(evt)
+	m.emit(evt)
+}
+
+func (m *Manager) newEvent() *rcl_interfaces_msg2.ParameterEvent {
+	evt := &rcl_interfaces_msg2.ParameterEvent{Stamp: m.stampNow()}
+	if m.n != nil {
+		evt.Node = m.n.FullyQualifiedName()
+	}
+	return evt
+}
+
+func (m *Manager) emit(evt *rcl_interfaces_msg2.ParameterEvent) {
+	if m.eventSink != nil {
+		m.eventSink(evt)
+	}
+	if m.pub != nil {
+		m.logErr("failed to publish parameter event: ", m.pub.Publish(evt))
+	}
 }
 
 // --- Converters between Value and rcl_interfaces/ParameterValue ---

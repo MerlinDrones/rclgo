@@ -52,6 +52,12 @@ func (t *UInt8) GetTypeSupport() types.MessageTypeSupport {
 	return UInt8TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *UInt8) CheckBounds() error {
+	return nil
+}
+
 // UInt8Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type UInt8Publisher struct {
@@ -84,11 +90,17 @@ type UInt8SubscriptionCallback func(msg *UInt8, info *rclgo.MessageInfo, err err
 
 // NewUInt8Subscription creates and returns a new subscription for the
 // UInt8
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewUInt8Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback UInt8SubscriptionCallback) (*UInt8Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg UInt8
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg UInt8
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, UInt8TypeSupport, opts, callback)
 	if err != nil {
@@ -147,6 +159,7 @@ type CUInt8__Sequence = C.example_interfaces__msg__UInt8__Sequence
 
 func UInt8__Sequence_to_Go(goSlice *[]UInt8, cSlice CUInt8__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]UInt8, cSlice.size)
@@ -155,14 +168,17 @@ func UInt8__Sequence_to_Go(goSlice *[]UInt8, cSlice CUInt8__Sequence) {
 		UInt8TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func UInt8__Sequence_to_C(cSlice *CUInt8__Sequence, goSlice []UInt8) {
+func UInt8__Sequence_into_C(cSlice *CUInt8__Sequence, goSlice []UInt8) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.example_interfaces__msg__UInt8__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.example_interfaces__msg__UInt8)(C.malloc(C.sizeof_struct_example_interfaces__msg__UInt8 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.example_interfaces__msg__UInt8)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_example_interfaces__msg__UInt8))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -175,7 +191,7 @@ func UInt8__Array_to_Go(goSlice []UInt8, cSlice []CUInt8) {
 		UInt8TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func UInt8__Array_to_C(cSlice []CUInt8, goSlice []UInt8) {
+func UInt8__Array_into_C(cSlice []CUInt8, goSlice []UInt8) {
 	for i := 0; i < len(goSlice); i++ {
 		UInt8TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

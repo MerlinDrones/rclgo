@@ -62,6 +62,12 @@ func (t *ListParametersResult) GetTypeSupport() types.MessageTypeSupport {
 	return ListParametersResultTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *ListParametersResult) CheckBounds() error {
+	return nil
+}
+
 // ListParametersResultPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ListParametersResultPublisher struct {
@@ -94,11 +100,17 @@ type ListParametersResultSubscriptionCallback func(msg *ListParametersResult, in
 
 // NewListParametersResultSubscription creates and returns a new subscription for the
 // ListParametersResult
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewListParametersResultSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ListParametersResultSubscriptionCallback) (*ListParametersResultSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg ListParametersResult
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg ListParametersResult
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ListParametersResultTypeSupport, opts, callback)
 	if err != nil {
@@ -139,8 +151,8 @@ func (t _ListParametersResultTypeSupport) ReleaseMemory(pointer_to_free unsafe.P
 func (t _ListParametersResultTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*ListParametersResult)
 	mem := (*C.rcl_interfaces__msg__ListParametersResult)(dst)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.names)), m.Names)
-	primitives.String__Sequence_to_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.prefixes)), m.Prefixes)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.names)), m.Names)
+	primitives.String__Sequence_into_C((*primitives.CString__Sequence)(unsafe.Pointer(&mem.prefixes)), m.Prefixes)
 }
 
 func (t _ListParametersResultTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -159,6 +171,7 @@ type CListParametersResult__Sequence = C.rcl_interfaces__msg__ListParametersResu
 
 func ListParametersResult__Sequence_to_Go(goSlice *[]ListParametersResult, cSlice CListParametersResult__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]ListParametersResult, cSlice.size)
@@ -167,14 +180,17 @@ func ListParametersResult__Sequence_to_Go(goSlice *[]ListParametersResult, cSlic
 		ListParametersResultTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func ListParametersResult__Sequence_to_C(cSlice *CListParametersResult__Sequence, goSlice []ListParametersResult) {
+func ListParametersResult__Sequence_into_C(cSlice *CListParametersResult__Sequence, goSlice []ListParametersResult) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.rcl_interfaces__msg__ListParametersResult__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.rcl_interfaces__msg__ListParametersResult)(C.malloc(C.sizeof_struct_rcl_interfaces__msg__ListParametersResult * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.rcl_interfaces__msg__ListParametersResult)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_rcl_interfaces__msg__ListParametersResult))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -187,7 +203,7 @@ func ListParametersResult__Array_to_Go(goSlice []ListParametersResult, cSlice []
 		ListParametersResultTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func ListParametersResult__Array_to_C(cSlice []CListParametersResult, goSlice []ListParametersResult) {
+func ListParametersResult__Array_into_C(cSlice []CListParametersResult, goSlice []ListParametersResult) {
 	for i := 0; i < len(goSlice); i++ {
 		ListParametersResultTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

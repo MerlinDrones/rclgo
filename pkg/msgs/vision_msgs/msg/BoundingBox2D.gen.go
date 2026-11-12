@@ -58,6 +58,15 @@ func (t *BoundingBox2D) GetTypeSupport() types.MessageTypeSupport {
 	return BoundingBox2DTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *BoundingBox2D) CheckBounds() error {
+	if err := types.CheckBounds(&t.Center); err != nil {
+		return types.InField("center", err)
+	}
+	return nil
+}
+
 // BoundingBox2DPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BoundingBox2DPublisher struct {
@@ -90,11 +99,17 @@ type BoundingBox2DSubscriptionCallback func(msg *BoundingBox2D, info *rclgo.Mess
 
 // NewBoundingBox2DSubscription creates and returns a new subscription for the
 // BoundingBox2D
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBoundingBox2DSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BoundingBox2DSubscriptionCallback) (*BoundingBox2DSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BoundingBox2D
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BoundingBox2D
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BoundingBox2DTypeSupport, opts, callback)
 	if err != nil {
@@ -157,6 +172,7 @@ type CBoundingBox2D__Sequence = C.vision_msgs__msg__BoundingBox2D__Sequence
 
 func BoundingBox2D__Sequence_to_Go(goSlice *[]BoundingBox2D, cSlice CBoundingBox2D__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BoundingBox2D, cSlice.size)
@@ -165,14 +181,17 @@ func BoundingBox2D__Sequence_to_Go(goSlice *[]BoundingBox2D, cSlice CBoundingBox
 		BoundingBox2DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BoundingBox2D__Sequence_to_C(cSlice *CBoundingBox2D__Sequence, goSlice []BoundingBox2D) {
+func BoundingBox2D__Sequence_into_C(cSlice *CBoundingBox2D__Sequence, goSlice []BoundingBox2D) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__BoundingBox2D__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__BoundingBox2D)(C.malloc(C.sizeof_struct_vision_msgs__msg__BoundingBox2D * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__BoundingBox2D)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__BoundingBox2D))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -185,7 +204,7 @@ func BoundingBox2D__Array_to_Go(goSlice []BoundingBox2D, cSlice []CBoundingBox2D
 		BoundingBox2DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BoundingBox2D__Array_to_C(cSlice []CBoundingBox2D, goSlice []BoundingBox2D) {
+func BoundingBox2D__Array_into_C(cSlice []CBoundingBox2D, goSlice []BoundingBox2D) {
 	for i := 0; i < len(goSlice); i++ {
 		BoundingBox2DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

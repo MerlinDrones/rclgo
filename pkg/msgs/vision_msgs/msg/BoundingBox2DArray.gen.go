@@ -59,6 +59,20 @@ func (t *BoundingBox2DArray) GetTypeSupport() types.MessageTypeSupport {
 	return BoundingBox2DArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *BoundingBox2DArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	for i := range t.Boxes {
+		if err := types.CheckBounds(&t.Boxes[i]); err != nil {
+			return types.InElement("boxes", i, err)
+		}
+	}
+	return nil
+}
+
 // BoundingBox2DArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BoundingBox2DArrayPublisher struct {
@@ -91,11 +105,17 @@ type BoundingBox2DArraySubscriptionCallback func(msg *BoundingBox2DArray, info *
 
 // NewBoundingBox2DArraySubscription creates and returns a new subscription for the
 // BoundingBox2DArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBoundingBox2DArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BoundingBox2DArraySubscriptionCallback) (*BoundingBox2DArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BoundingBox2DArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BoundingBox2DArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BoundingBox2DArrayTypeSupport, opts, callback)
 	if err != nil {
@@ -137,7 +157,7 @@ func (t _BoundingBox2DArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.
 	m := msg.(*BoundingBox2DArray)
 	mem := (*C.vision_msgs__msg__BoundingBox2DArray)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	BoundingBox2D__Sequence_to_C(&mem.boxes, m.Boxes)
+	BoundingBox2D__Sequence_into_C(&mem.boxes, m.Boxes)
 }
 
 func (t _BoundingBox2DArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +176,7 @@ type CBoundingBox2DArray__Sequence = C.vision_msgs__msg__BoundingBox2DArray__Seq
 
 func BoundingBox2DArray__Sequence_to_Go(goSlice *[]BoundingBox2DArray, cSlice CBoundingBox2DArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BoundingBox2DArray, cSlice.size)
@@ -164,14 +185,17 @@ func BoundingBox2DArray__Sequence_to_Go(goSlice *[]BoundingBox2DArray, cSlice CB
 		BoundingBox2DArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BoundingBox2DArray__Sequence_to_C(cSlice *CBoundingBox2DArray__Sequence, goSlice []BoundingBox2DArray) {
+func BoundingBox2DArray__Sequence_into_C(cSlice *CBoundingBox2DArray__Sequence, goSlice []BoundingBox2DArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__BoundingBox2DArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__BoundingBox2DArray)(C.malloc(C.sizeof_struct_vision_msgs__msg__BoundingBox2DArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__BoundingBox2DArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__BoundingBox2DArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +208,7 @@ func BoundingBox2DArray__Array_to_Go(goSlice []BoundingBox2DArray, cSlice []CBou
 		BoundingBox2DArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BoundingBox2DArray__Array_to_C(cSlice []CBoundingBox2DArray, goSlice []BoundingBox2DArray) {
+func BoundingBox2DArray__Array_into_C(cSlice []CBoundingBox2DArray, goSlice []BoundingBox2DArray) {
 	for i := 0; i < len(goSlice); i++ {
 		BoundingBox2DArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

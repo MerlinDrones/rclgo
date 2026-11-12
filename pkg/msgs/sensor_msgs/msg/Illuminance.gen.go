@@ -59,6 +59,15 @@ func (t *Illuminance) GetTypeSupport() types.MessageTypeSupport {
 	return IlluminanceTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Illuminance) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	return nil
+}
+
 // IlluminancePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type IlluminancePublisher struct {
@@ -91,11 +100,17 @@ type IlluminanceSubscriptionCallback func(msg *Illuminance, info *rclgo.MessageI
 
 // NewIlluminanceSubscription creates and returns a new subscription for the
 // Illuminance
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewIlluminanceSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback IlluminanceSubscriptionCallback) (*IlluminanceSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Illuminance
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Illuminance
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, IlluminanceTypeSupport, opts, callback)
 	if err != nil {
@@ -158,6 +173,7 @@ type CIlluminance__Sequence = C.sensor_msgs__msg__Illuminance__Sequence
 
 func Illuminance__Sequence_to_Go(goSlice *[]Illuminance, cSlice CIlluminance__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Illuminance, cSlice.size)
@@ -166,14 +182,17 @@ func Illuminance__Sequence_to_Go(goSlice *[]Illuminance, cSlice CIlluminance__Se
 		IlluminanceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Illuminance__Sequence_to_C(cSlice *CIlluminance__Sequence, goSlice []Illuminance) {
+func Illuminance__Sequence_into_C(cSlice *CIlluminance__Sequence, goSlice []Illuminance) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__Illuminance__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__Illuminance)(C.malloc(C.sizeof_struct_sensor_msgs__msg__Illuminance * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__Illuminance)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__Illuminance))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -186,7 +205,7 @@ func Illuminance__Array_to_Go(goSlice []Illuminance, cSlice []CIlluminance) {
 		IlluminanceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Illuminance__Array_to_C(cSlice []CIlluminance, goSlice []Illuminance) {
+func Illuminance__Array_into_C(cSlice []CIlluminance, goSlice []Illuminance) {
 	for i := 0; i < len(goSlice); i++ {
 		IlluminanceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

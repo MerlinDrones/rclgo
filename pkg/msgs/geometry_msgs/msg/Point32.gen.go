@@ -58,6 +58,12 @@ func (t *Point32) GetTypeSupport() types.MessageTypeSupport {
 	return Point32TypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Point32) CheckBounds() error {
+	return nil
+}
+
 // Point32Publisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Point32Publisher struct {
@@ -90,11 +96,17 @@ type Point32SubscriptionCallback func(msg *Point32, info *rclgo.MessageInfo, err
 
 // NewPoint32Subscription creates and returns a new subscription for the
 // Point32
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPoint32Subscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Point32SubscriptionCallback) (*Point32Subscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Point32
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Point32
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Point32TypeSupport, opts, callback)
 	if err != nil {
@@ -157,6 +169,7 @@ type CPoint32__Sequence = C.geometry_msgs__msg__Point32__Sequence
 
 func Point32__Sequence_to_Go(goSlice *[]Point32, cSlice CPoint32__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Point32, cSlice.size)
@@ -165,14 +178,17 @@ func Point32__Sequence_to_Go(goSlice *[]Point32, cSlice CPoint32__Sequence) {
 		Point32TypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Point32__Sequence_to_C(cSlice *CPoint32__Sequence, goSlice []Point32) {
+func Point32__Sequence_into_C(cSlice *CPoint32__Sequence, goSlice []Point32) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__Point32__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__Point32)(C.malloc(C.sizeof_struct_geometry_msgs__msg__Point32 * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__Point32)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__Point32))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -185,7 +201,7 @@ func Point32__Array_to_Go(goSlice []Point32, cSlice []CPoint32) {
 		Point32TypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Point32__Array_to_C(cSlice []CPoint32, goSlice []Point32) {
+func Point32__Array_into_C(cSlice []CPoint32, goSlice []Point32) {
 	for i := 0; i < len(goSlice); i++ {
 		Point32TypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

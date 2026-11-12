@@ -55,6 +55,15 @@ func (t *Pose2D) GetTypeSupport() types.MessageTypeSupport {
 	return Pose2DTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Pose2D) CheckBounds() error {
+	if err := types.CheckBounds(&t.Position); err != nil {
+		return types.InField("position", err)
+	}
+	return nil
+}
+
 // Pose2DPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type Pose2DPublisher struct {
@@ -87,11 +96,17 @@ type Pose2DSubscriptionCallback func(msg *Pose2D, info *rclgo.MessageInfo, err e
 
 // NewPose2DSubscription creates and returns a new subscription for the
 // Pose2D
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPose2DSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback Pose2DSubscriptionCallback) (*Pose2DSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Pose2D
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Pose2D
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, Pose2DTypeSupport, opts, callback)
 	if err != nil {
@@ -152,6 +167,7 @@ type CPose2D__Sequence = C.vision_msgs__msg__Pose2D__Sequence
 
 func Pose2D__Sequence_to_Go(goSlice *[]Pose2D, cSlice CPose2D__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Pose2D, cSlice.size)
@@ -160,14 +176,17 @@ func Pose2D__Sequence_to_Go(goSlice *[]Pose2D, cSlice CPose2D__Sequence) {
 		Pose2DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Pose2D__Sequence_to_C(cSlice *CPose2D__Sequence, goSlice []Pose2D) {
+func Pose2D__Sequence_into_C(cSlice *CPose2D__Sequence, goSlice []Pose2D) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__Pose2D__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__Pose2D)(C.malloc(C.sizeof_struct_vision_msgs__msg__Pose2D * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__Pose2D)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__Pose2D))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -180,7 +199,7 @@ func Pose2D__Array_to_Go(goSlice []Pose2D, cSlice []CPose2D) {
 		Pose2DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Pose2D__Array_to_C(cSlice []CPose2D, goSlice []Pose2D) {
+func Pose2D__Array_into_C(cSlice []CPose2D, goSlice []Pose2D) {
 	for i := 0; i < len(goSlice); i++ {
 		Pose2DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

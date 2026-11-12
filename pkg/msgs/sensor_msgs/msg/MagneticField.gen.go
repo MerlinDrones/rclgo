@@ -61,6 +61,18 @@ func (t *MagneticField) GetTypeSupport() types.MessageTypeSupport {
 	return MagneticFieldTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *MagneticField) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.MagneticField); err != nil {
+		return types.InField("magnetic_field", err)
+	}
+	return nil
+}
+
 // MagneticFieldPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type MagneticFieldPublisher struct {
@@ -93,11 +105,17 @@ type MagneticFieldSubscriptionCallback func(msg *MagneticField, info *rclgo.Mess
 
 // NewMagneticFieldSubscription creates and returns a new subscription for the
 // MagneticField
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewMagneticFieldSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback MagneticFieldSubscriptionCallback) (*MagneticFieldSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg MagneticField
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg MagneticField
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, MagneticFieldTypeSupport, opts, callback)
 	if err != nil {
@@ -141,7 +159,7 @@ func (t _MagneticFieldTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Messa
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	geometry_msgs_msg.Vector3TypeSupport.AsCStruct(unsafe.Pointer(&mem.magnetic_field), &m.MagneticField)
 	cSlice_magnetic_field_covariance := mem.magnetic_field_covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_magnetic_field_covariance)), m.MagneticFieldCovariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_magnetic_field_covariance)), m.MagneticFieldCovariance[:])
 }
 
 func (t _MagneticFieldTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -162,6 +180,7 @@ type CMagneticField__Sequence = C.sensor_msgs__msg__MagneticField__Sequence
 
 func MagneticField__Sequence_to_Go(goSlice *[]MagneticField, cSlice CMagneticField__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]MagneticField, cSlice.size)
@@ -170,14 +189,17 @@ func MagneticField__Sequence_to_Go(goSlice *[]MagneticField, cSlice CMagneticFie
 		MagneticFieldTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func MagneticField__Sequence_to_C(cSlice *CMagneticField__Sequence, goSlice []MagneticField) {
+func MagneticField__Sequence_into_C(cSlice *CMagneticField__Sequence, goSlice []MagneticField) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__MagneticField__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__MagneticField)(C.malloc(C.sizeof_struct_sensor_msgs__msg__MagneticField * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__MagneticField)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__MagneticField))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -190,7 +212,7 @@ func MagneticField__Array_to_Go(goSlice []MagneticField, cSlice []CMagneticField
 		MagneticFieldTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func MagneticField__Array_to_C(cSlice []CMagneticField, goSlice []MagneticField) {
+func MagneticField__Array_into_C(cSlice []CMagneticField, goSlice []MagneticField) {
 	for i := 0; i < len(goSlice); i++ {
 		MagneticFieldTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

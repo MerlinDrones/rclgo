@@ -73,6 +73,24 @@ func (t *Imu) GetTypeSupport() types.MessageTypeSupport {
 	return ImuTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Imu) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Orientation); err != nil {
+		return types.InField("orientation", err)
+	}
+	if err := types.CheckBounds(&t.AngularVelocity); err != nil {
+		return types.InField("angular_velocity", err)
+	}
+	if err := types.CheckBounds(&t.LinearAcceleration); err != nil {
+		return types.InField("linear_acceleration", err)
+	}
+	return nil
+}
+
 // ImuPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ImuPublisher struct {
@@ -105,11 +123,17 @@ type ImuSubscriptionCallback func(msg *Imu, info *rclgo.MessageInfo, err error)
 
 // NewImuSubscription creates and returns a new subscription for the
 // Imu
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewImuSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ImuSubscriptionCallback) (*ImuSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Imu
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Imu
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ImuTypeSupport, opts, callback)
 	if err != nil {
@@ -153,13 +177,13 @@ func (t _ImuTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	geometry_msgs_msg.QuaternionTypeSupport.AsCStruct(unsafe.Pointer(&mem.orientation), &m.Orientation)
 	cSlice_orientation_covariance := mem.orientation_covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_orientation_covariance)), m.OrientationCovariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_orientation_covariance)), m.OrientationCovariance[:])
 	geometry_msgs_msg.Vector3TypeSupport.AsCStruct(unsafe.Pointer(&mem.angular_velocity), &m.AngularVelocity)
 	cSlice_angular_velocity_covariance := mem.angular_velocity_covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_angular_velocity_covariance)), m.AngularVelocityCovariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_angular_velocity_covariance)), m.AngularVelocityCovariance[:])
 	geometry_msgs_msg.Vector3TypeSupport.AsCStruct(unsafe.Pointer(&mem.linear_acceleration), &m.LinearAcceleration)
 	cSlice_linear_acceleration_covariance := mem.linear_acceleration_covariance[:]
-	primitives.Float64__Array_to_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_linear_acceleration_covariance)), m.LinearAccelerationCovariance[:])
+	primitives.Float64__Array_into_C(*(*[]primitives.CFloat64)(unsafe.Pointer(&cSlice_linear_acceleration_covariance)), m.LinearAccelerationCovariance[:])
 }
 
 func (t _ImuTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -186,6 +210,7 @@ type CImu__Sequence = C.sensor_msgs__msg__Imu__Sequence
 
 func Imu__Sequence_to_Go(goSlice *[]Imu, cSlice CImu__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Imu, cSlice.size)
@@ -194,14 +219,17 @@ func Imu__Sequence_to_Go(goSlice *[]Imu, cSlice CImu__Sequence) {
 		ImuTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Imu__Sequence_to_C(cSlice *CImu__Sequence, goSlice []Imu) {
+func Imu__Sequence_into_C(cSlice *CImu__Sequence, goSlice []Imu) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__Imu__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__Imu)(C.malloc(C.sizeof_struct_sensor_msgs__msg__Imu * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__Imu)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__Imu))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -214,7 +242,7 @@ func Imu__Array_to_Go(goSlice []Imu, cSlice []CImu) {
 		ImuTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Imu__Array_to_C(cSlice []CImu, goSlice []Imu) {
+func Imu__Array_into_C(cSlice []CImu, goSlice []Imu) {
 	for i := 0; i < len(goSlice); i++ {
 		ImuTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

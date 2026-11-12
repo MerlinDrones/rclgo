@@ -63,6 +63,18 @@ func (t *VelocityStamped) GetTypeSupport() types.MessageTypeSupport {
 	return VelocityStampedTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *VelocityStamped) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.Velocity); err != nil {
+		return types.InField("velocity", err)
+	}
+	return nil
+}
+
 // VelocityStampedPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type VelocityStampedPublisher struct {
@@ -95,11 +107,17 @@ type VelocityStampedSubscriptionCallback func(msg *VelocityStamped, info *rclgo.
 
 // NewVelocityStampedSubscription creates and returns a new subscription for the
 // VelocityStamped
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewVelocityStampedSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback VelocityStampedSubscriptionCallback) (*VelocityStampedSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg VelocityStamped
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg VelocityStamped
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, VelocityStampedTypeSupport, opts, callback)
 	if err != nil {
@@ -141,8 +159,8 @@ func (t _VelocityStampedTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Mes
 	m := msg.(*VelocityStamped)
 	mem := (*C.geometry_msgs__msg__VelocityStamped)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.body_frame_id), m.BodyFrameId)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.reference_frame_id), m.ReferenceFrameId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.body_frame_id), m.BodyFrameId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.reference_frame_id), m.ReferenceFrameId)
 	TwistTypeSupport.AsCStruct(unsafe.Pointer(&mem.velocity), &m.Velocity)
 }
 
@@ -164,6 +182,7 @@ type CVelocityStamped__Sequence = C.geometry_msgs__msg__VelocityStamped__Sequenc
 
 func VelocityStamped__Sequence_to_Go(goSlice *[]VelocityStamped, cSlice CVelocityStamped__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]VelocityStamped, cSlice.size)
@@ -172,14 +191,17 @@ func VelocityStamped__Sequence_to_Go(goSlice *[]VelocityStamped, cSlice CVelocit
 		VelocityStampedTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func VelocityStamped__Sequence_to_C(cSlice *CVelocityStamped__Sequence, goSlice []VelocityStamped) {
+func VelocityStamped__Sequence_into_C(cSlice *CVelocityStamped__Sequence, goSlice []VelocityStamped) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.geometry_msgs__msg__VelocityStamped__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.geometry_msgs__msg__VelocityStamped)(C.malloc(C.sizeof_struct_geometry_msgs__msg__VelocityStamped * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.geometry_msgs__msg__VelocityStamped)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_geometry_msgs__msg__VelocityStamped))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -192,7 +214,7 @@ func VelocityStamped__Array_to_Go(goSlice []VelocityStamped, cSlice []CVelocityS
 		VelocityStampedTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func VelocityStamped__Array_to_C(cSlice []CVelocityStamped, goSlice []VelocityStamped) {
+func VelocityStamped__Array_into_C(cSlice []CVelocityStamped, goSlice []VelocityStamped) {
 	for i := 0; i < len(goSlice); i++ {
 		VelocityStampedTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

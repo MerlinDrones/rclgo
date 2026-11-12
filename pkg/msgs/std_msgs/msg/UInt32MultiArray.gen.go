@@ -59,6 +59,15 @@ func (t *UInt32MultiArray) GetTypeSupport() types.MessageTypeSupport {
 	return UInt32MultiArrayTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *UInt32MultiArray) CheckBounds() error {
+	if err := types.CheckBounds(&t.Layout); err != nil {
+		return types.InField("layout", err)
+	}
+	return nil
+}
+
 // UInt32MultiArrayPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type UInt32MultiArrayPublisher struct {
@@ -91,11 +100,17 @@ type UInt32MultiArraySubscriptionCallback func(msg *UInt32MultiArray, info *rclg
 
 // NewUInt32MultiArraySubscription creates and returns a new subscription for the
 // UInt32MultiArray
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewUInt32MultiArraySubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback UInt32MultiArraySubscriptionCallback) (*UInt32MultiArraySubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg UInt32MultiArray
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg UInt32MultiArray
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, UInt32MultiArrayTypeSupport, opts, callback)
 	if err != nil {
@@ -137,7 +152,7 @@ func (t _UInt32MultiArrayTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Me
 	m := msg.(*UInt32MultiArray)
 	mem := (*C.std_msgs__msg__UInt32MultiArray)(dst)
 	MultiArrayLayoutTypeSupport.AsCStruct(unsafe.Pointer(&mem.layout), &m.Layout)
-	primitives.Uint32__Sequence_to_C((*primitives.CUint32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
+	primitives.Uint32__Sequence_into_C((*primitives.CUint32__Sequence)(unsafe.Pointer(&mem.data)), m.Data)
 }
 
 func (t _UInt32MultiArrayTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -156,6 +171,7 @@ type CUInt32MultiArray__Sequence = C.std_msgs__msg__UInt32MultiArray__Sequence
 
 func UInt32MultiArray__Sequence_to_Go(goSlice *[]UInt32MultiArray, cSlice CUInt32MultiArray__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]UInt32MultiArray, cSlice.size)
@@ -164,14 +180,17 @@ func UInt32MultiArray__Sequence_to_Go(goSlice *[]UInt32MultiArray, cSlice CUInt3
 		UInt32MultiArrayTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func UInt32MultiArray__Sequence_to_C(cSlice *CUInt32MultiArray__Sequence, goSlice []UInt32MultiArray) {
+func UInt32MultiArray__Sequence_into_C(cSlice *CUInt32MultiArray__Sequence, goSlice []UInt32MultiArray) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__UInt32MultiArray__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__UInt32MultiArray)(C.malloc(C.sizeof_struct_std_msgs__msg__UInt32MultiArray * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__UInt32MultiArray)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__UInt32MultiArray))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +203,7 @@ func UInt32MultiArray__Array_to_Go(goSlice []UInt32MultiArray, cSlice []CUInt32M
 		UInt32MultiArrayTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func UInt32MultiArray__Array_to_C(cSlice []CUInt32MultiArray, goSlice []UInt32MultiArray) {
+func UInt32MultiArray__Array_into_C(cSlice []CUInt32MultiArray, goSlice []UInt32MultiArray) {
 	for i := 0; i < len(goSlice); i++ {
 		UInt32MultiArrayTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

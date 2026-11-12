@@ -1,0 +1,39 @@
+# Managed by swarmos-devtools; do not edit in place.
+name: Bug
+description: Something broken or not working as intended (use Safety if it affects flight safety)
+type: Bug
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Actual behaviour, with logs or screenshots if available.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: SITL or hardware, versions, config files, commands.
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      placeholder: e.g. mission_executor, birdseye frontend, operator routing

@@ -1,0 +1,31 @@
+# Managed by swarmos-devtools; do not edit in place.
+name: Chore
+description: Maintenance — build, CI, dependencies, docs, refactors, test tooling
+type: Chore
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: What needs doing
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What does it unblock or prevent?
+  - type: input
+    id: component
+    attributes:
+      label: Component

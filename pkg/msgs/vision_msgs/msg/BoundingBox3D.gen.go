@@ -56,6 +56,18 @@ func (t *BoundingBox3D) GetTypeSupport() types.MessageTypeSupport {
 	return BoundingBox3DTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *BoundingBox3D) CheckBounds() error {
+	if err := types.CheckBounds(&t.Center); err != nil {
+		return types.InField("center", err)
+	}
+	if err := types.CheckBounds(&t.Size); err != nil {
+		return types.InField("size", err)
+	}
+	return nil
+}
+
 // BoundingBox3DPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type BoundingBox3DPublisher struct {
@@ -88,11 +100,17 @@ type BoundingBox3DSubscriptionCallback func(msg *BoundingBox3D, info *rclgo.Mess
 
 // NewBoundingBox3DSubscription creates and returns a new subscription for the
 // BoundingBox3D
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewBoundingBox3DSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback BoundingBox3DSubscriptionCallback) (*BoundingBox3DSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg BoundingBox3D
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg BoundingBox3D
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, BoundingBox3DTypeSupport, opts, callback)
 	if err != nil {
@@ -153,6 +171,7 @@ type CBoundingBox3D__Sequence = C.vision_msgs__msg__BoundingBox3D__Sequence
 
 func BoundingBox3D__Sequence_to_Go(goSlice *[]BoundingBox3D, cSlice CBoundingBox3D__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]BoundingBox3D, cSlice.size)
@@ -161,14 +180,17 @@ func BoundingBox3D__Sequence_to_Go(goSlice *[]BoundingBox3D, cSlice CBoundingBox
 		BoundingBox3DTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func BoundingBox3D__Sequence_to_C(cSlice *CBoundingBox3D__Sequence, goSlice []BoundingBox3D) {
+func BoundingBox3D__Sequence_into_C(cSlice *CBoundingBox3D__Sequence, goSlice []BoundingBox3D) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.vision_msgs__msg__BoundingBox3D__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.vision_msgs__msg__BoundingBox3D)(C.malloc(C.sizeof_struct_vision_msgs__msg__BoundingBox3D * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.vision_msgs__msg__BoundingBox3D)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_vision_msgs__msg__BoundingBox3D))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -181,7 +203,7 @@ func BoundingBox3D__Array_to_Go(goSlice []BoundingBox3D, cSlice []CBoundingBox3D
 		BoundingBox3DTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func BoundingBox3D__Array_to_C(cSlice []CBoundingBox3D, goSlice []BoundingBox3D) {
+func BoundingBox3D__Array_into_C(cSlice []CBoundingBox3D, goSlice []BoundingBox3D) {
 	for i := 0; i < len(goSlice); i++ {
 		BoundingBox3DTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

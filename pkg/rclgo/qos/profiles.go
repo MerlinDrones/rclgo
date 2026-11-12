@@ -1,3 +1,12 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package qos
 
 // rclcpp::ClockQoS — KeepLast(1), BestEffort, Volatile
@@ -35,13 +44,15 @@ func NewBestAvailableProfile() Profile {
 	}
 }
 
-// Parameter events: KeepAll, Reliable, TransientLocal
+// Parameter events: KeepLast(1000), Reliable, Volatile (rmw_qos_profile_parameter_events)
 func NewParameterEventsProfile() Profile {
+	// rmw_qos_profile_parameter_events: late subscribers get no history, as
+	// with rclcpp and rclpy nodes.
 	return Profile{
-		History:     HistoryKeepAll,
-		Depth:       0,
+		History:     HistoryKeepLast,
+		Depth:       1000,
 		Reliability: ReliabilityReliable,
-		Durability:  DurabilityTransientLocal,
-		Liveliness:  LivelinessAutomatic,
+		Durability:  DurabilityVolatile,
+		Liveliness:  LivelinessSystemDefault,
 	}
 }

@@ -65,6 +65,12 @@ func (t *Constants) GetTypeSupport() types.MessageTypeSupport {
 	return ConstantsTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Constants) CheckBounds() error {
+	return nil
+}
+
 // ConstantsPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type ConstantsPublisher struct {
@@ -97,11 +103,17 @@ type ConstantsSubscriptionCallback func(msg *Constants, info *rclgo.MessageInfo,
 
 // NewConstantsSubscription creates and returns a new subscription for the
 // Constants
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewConstantsSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback ConstantsSubscriptionCallback) (*ConstantsSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Constants
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Constants
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, ConstantsTypeSupport, opts, callback)
 	if err != nil {
@@ -156,6 +168,7 @@ type CConstants__Sequence = C.test_msgs__msg__Constants__Sequence
 
 func Constants__Sequence_to_Go(goSlice *[]Constants, cSlice CConstants__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Constants, cSlice.size)
@@ -164,14 +177,17 @@ func Constants__Sequence_to_Go(goSlice *[]Constants, cSlice CConstants__Sequence
 		ConstantsTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Constants__Sequence_to_C(cSlice *CConstants__Sequence, goSlice []Constants) {
+func Constants__Sequence_into_C(cSlice *CConstants__Sequence, goSlice []Constants) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.test_msgs__msg__Constants__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.test_msgs__msg__Constants)(C.malloc(C.sizeof_struct_test_msgs__msg__Constants * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.test_msgs__msg__Constants)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_test_msgs__msg__Constants))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -184,7 +200,7 @@ func Constants__Array_to_Go(goSlice []Constants, cSlice []CConstants) {
 		ConstantsTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Constants__Array_to_C(cSlice []CConstants, goSlice []Constants) {
+func Constants__Array_into_C(cSlice []CConstants, goSlice []Constants) {
 	for i := 0; i < len(goSlice); i++ {
 		ConstantsTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

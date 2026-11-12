@@ -1,7 +1,17 @@
+/*
+This file is part of rclgo
+
+Copyright © 2022 Technology Innovation Institute, United Arab Emirates
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package rclgo_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -22,6 +32,10 @@ func requireTopicNamesAndTypes(t *testing.T, node *rclgo.Node, expected map[stri
 		filtered := make(map[string][]string, len(actual))
 		for k, v := range actual {
 			if k != "/rosout" {
+				// The order of a topic's types is not specified (it
+				// differs between RMWs).
+				v = slices.Clone(v)
+				slices.Sort(v)
 				filtered[k] = v
 			}
 		}
@@ -31,6 +45,38 @@ func requireTopicNamesAndTypes(t *testing.T, node *rclgo.Node, expected map[stri
 		select {
 		case <-ctx.Done():
 			require.EqualValues(t, expected, filtered)
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+// TestNodePublishesRosout is a regression test for
+// https://github.com/MerlinDrones/rclgo/issues/13: rclgo nodes must appear as
+// publishers on /rosout, matching rclcpp/rclpy behavior. Since rcl 9.x (Jazzy)
+// rcl_node_init no longer creates this publisher, so NewNode must create it
+// explicitly.
+func TestNodePublishesRosout(t *testing.T) {
+	setNewDomainID()
+
+	rclctx, err := newDefaultRCLContext()
+	require.NoError(t, err)
+	defer rclctx.Close()
+
+	node, err := rclctx.NewNode("rosout_node", "rosout_test")
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	for {
+		topics, err := node.GetTopicNamesAndTypes(true)
+		require.NoError(t, err)
+		if types, ok := topics["/rosout"]; ok {
+			assert.Contains(t, types, "rcl_interfaces/msg/Log")
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("node did not create a /rosout publisher")
 		case <-time.After(100 * time.Millisecond):
 		}
 	}

@@ -1,3 +1,12 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package params
 
 import (
@@ -15,8 +24,7 @@ import (
 // CLI override takes final precedence.
 func TestParameterSourcePriority(t *testing.T) {
 	// Set environment variable
-	os.Setenv("RCL_PARAM_test_param", "200")
-	defer os.Unsetenv("RCL_PARAM_test_param")
+	t.Setenv("RCL_PARAM_test_param", "200")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -31,7 +39,7 @@ func TestParameterSourcePriority(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// STEP 1: Declare with default value (lowest priority)
 	_, _ = mgr.Declare("test_param", Value{Kind: KindInt64, Int64: 100}, Descriptor{
@@ -97,12 +105,8 @@ func TestParameterSourcePriority(t *testing.T) {
 // can override different parameters independently.
 func TestParameterSourcePriority_PartialOverrides(t *testing.T) {
 	// Set env vars for param2 and param3
-	os.Setenv("RCL_PARAM_param2", "env_value2")
-	os.Setenv("RCL_PARAM_param3", "env_value3")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_param2")
-		os.Unsetenv("RCL_PARAM_param3")
-	}()
+	t.Setenv("RCL_PARAM_param2", "env_value2")
+	t.Setenv("RCL_PARAM_param3", "env_value3")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -117,7 +121,7 @@ func TestParameterSourcePriority_PartialOverrides(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// Declare 4 parameters with defaults
 	_, _ = mgr.Declare("param1", Value{Kind: KindString, Str: "default1"}, Descriptor{})
@@ -187,12 +191,8 @@ func TestParameterSourcePriority_PartialOverrides(t *testing.T) {
 // usage pattern with all four sources.
 func TestParameterSourcePriority_AllSources(t *testing.T) {
 	// Set up environment
-	os.Setenv("RCL_PARAM_fps", "60")
-	os.Setenv("RCL_PARAM_resolution", "1080")
-	defer func() {
-		os.Unsetenv("RCL_PARAM_fps")
-		os.Unsetenv("RCL_PARAM_resolution")
-	}()
+	t.Setenv("RCL_PARAM_fps", "60")
+	t.Setenv("RCL_PARAM_resolution", "1080")
 
 	// Init RCL context
 	if err := rclgo.Init(nil); err != nil {
@@ -207,7 +207,7 @@ func TestParameterSourcePriority_AllSources(t *testing.T) {
 	}
 	defer n.Close()
 
-	mgr := &Manager{st: newStore(), n: n}
+	mgr := newBareManagerFor(n)
 
 	// 1. Declare defaults
 	_, _ = mgr.Declare("fps", Value{Kind: KindInt64, Int64: 15}, Descriptor{

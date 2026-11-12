@@ -73,6 +73,12 @@ func (t *PointField) GetTypeSupport() types.MessageTypeSupport {
 	return PointFieldTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *PointField) CheckBounds() error {
+	return nil
+}
+
 // PointFieldPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type PointFieldPublisher struct {
@@ -105,11 +111,17 @@ type PointFieldSubscriptionCallback func(msg *PointField, info *rclgo.MessageInf
 
 // NewPointFieldSubscription creates and returns a new subscription for the
 // PointField
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewPointFieldSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback PointFieldSubscriptionCallback) (*PointFieldSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg PointField
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg PointField
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, PointFieldTypeSupport, opts, callback)
 	if err != nil {
@@ -150,7 +162,7 @@ func (t _PointFieldTypeSupport) ReleaseMemory(pointer_to_free unsafe.Pointer) {
 func (t _PointFieldTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*PointField)
 	mem := (*C.sensor_msgs__msg__PointField)(dst)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.name), m.Name)
+	primitives.StringIntoC(unsafe.Pointer(&mem.name), m.Name)
 	mem.offset = C.uint32_t(m.Offset)
 	mem.datatype = C.uint8_t(m.Datatype)
 	mem.count = C.uint32_t(m.Count)
@@ -174,6 +186,7 @@ type CPointField__Sequence = C.sensor_msgs__msg__PointField__Sequence
 
 func PointField__Sequence_to_Go(goSlice *[]PointField, cSlice CPointField__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]PointField, cSlice.size)
@@ -182,14 +195,17 @@ func PointField__Sequence_to_Go(goSlice *[]PointField, cSlice CPointField__Seque
 		PointFieldTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func PointField__Sequence_to_C(cSlice *CPointField__Sequence, goSlice []PointField) {
+func PointField__Sequence_into_C(cSlice *CPointField__Sequence, goSlice []PointField) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__PointField__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__PointField)(C.malloc(C.sizeof_struct_sensor_msgs__msg__PointField * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__PointField)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__PointField))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -202,7 +218,7 @@ func PointField__Array_to_Go(goSlice []PointField, cSlice []CPointField) {
 		PointFieldTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func PointField__Array_to_C(cSlice []CPointField, goSlice []PointField) {
+func PointField__Array_into_C(cSlice []CPointField, goSlice []PointField) {
 	for i := 0; i < len(goSlice); i++ {
 		PointFieldTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

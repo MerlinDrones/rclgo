@@ -52,6 +52,12 @@ func (t *Char) GetTypeSupport() types.MessageTypeSupport {
 	return CharTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Char) CheckBounds() error {
+	return nil
+}
+
 // CharPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type CharPublisher struct {
@@ -84,11 +90,17 @@ type CharSubscriptionCallback func(msg *Char, info *rclgo.MessageInfo, err error
 
 // NewCharSubscription creates and returns a new subscription for the
 // Char
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewCharSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback CharSubscriptionCallback) (*CharSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Char
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Char
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, CharTypeSupport, opts, callback)
 	if err != nil {
@@ -147,6 +159,7 @@ type CChar__Sequence = C.std_msgs__msg__Char__Sequence
 
 func Char__Sequence_to_Go(goSlice *[]Char, cSlice CChar__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Char, cSlice.size)
@@ -155,14 +168,17 @@ func Char__Sequence_to_Go(goSlice *[]Char, cSlice CChar__Sequence) {
 		CharTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Char__Sequence_to_C(cSlice *CChar__Sequence, goSlice []Char) {
+func Char__Sequence_into_C(cSlice *CChar__Sequence, goSlice []Char) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Char__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Char)(C.malloc(C.sizeof_struct_std_msgs__msg__Char * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Char)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Char))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -175,7 +191,7 @@ func Char__Array_to_Go(goSlice []Char, cSlice []CChar) {
 		CharTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Char__Array_to_C(cSlice []CChar, goSlice []Char) {
+func Char__Array_into_C(cSlice []CChar, goSlice []Char) {
 	for i := 0; i < len(goSlice); i++ {
 		CharTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

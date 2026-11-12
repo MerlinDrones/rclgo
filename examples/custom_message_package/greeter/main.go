@@ -1,3 +1,12 @@
+/*
+This file is part of rclgo
+
+Copyright © 2022 Technology Innovation Institute, United Arab Emirates
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package main
 
 import (
@@ -12,7 +21,7 @@ import (
 	"github.com/merlindrones/rclgo/pkg/rclgo"
 )
 
-//go:generate go run github.com/merlindrones/rclgo/cmd/rclgo-gen generate -d msgs --include-go-package-deps ./... --cgo-flags-path ""
+//go:generate go run github.com/merlindrones/rclgo/cmd/rclgo-gen generate -d msgs --include-go-package-deps ./...
 
 func run() error {
 	rclArgs, restArgs, err := rclgo.ParseArgs(os.Args[1:])

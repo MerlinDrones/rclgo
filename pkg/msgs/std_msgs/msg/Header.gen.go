@@ -57,6 +57,15 @@ func (t *Header) GetTypeSupport() types.MessageTypeSupport {
 	return HeaderTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *Header) CheckBounds() error {
+	if err := types.CheckBounds(&t.Stamp); err != nil {
+		return types.InField("stamp", err)
+	}
+	return nil
+}
+
 // HeaderPublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type HeaderPublisher struct {
@@ -89,11 +98,17 @@ type HeaderSubscriptionCallback func(msg *Header, info *rclgo.MessageInfo, err e
 
 // NewHeaderSubscription creates and returns a new subscription for the
 // Header
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewHeaderSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback HeaderSubscriptionCallback) (*HeaderSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg Header
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg Header
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, HeaderTypeSupport, opts, callback)
 	if err != nil {
@@ -135,7 +150,7 @@ func (t _HeaderTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Message) {
 	m := msg.(*Header)
 	mem := (*C.std_msgs__msg__Header)(dst)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.stamp), &m.Stamp)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.frame_id), m.FrameId)
+	primitives.StringIntoC(unsafe.Pointer(&mem.frame_id), m.FrameId)
 }
 
 func (t _HeaderTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -154,6 +169,7 @@ type CHeader__Sequence = C.std_msgs__msg__Header__Sequence
 
 func Header__Sequence_to_Go(goSlice *[]Header, cSlice CHeader__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]Header, cSlice.size)
@@ -162,14 +178,17 @@ func Header__Sequence_to_Go(goSlice *[]Header, cSlice CHeader__Sequence) {
 		HeaderTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func Header__Sequence_to_C(cSlice *CHeader__Sequence, goSlice []Header) {
+func Header__Sequence_into_C(cSlice *CHeader__Sequence, goSlice []Header) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.std_msgs__msg__Header__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.std_msgs__msg__Header)(C.malloc(C.sizeof_struct_std_msgs__msg__Header * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.std_msgs__msg__Header)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_std_msgs__msg__Header))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -182,7 +201,7 @@ func Header__Array_to_Go(goSlice []Header, cSlice []CHeader) {
 		HeaderTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func Header__Array_to_C(cSlice []CHeader, goSlice []Header) {
+func Header__Array_into_C(cSlice []CHeader, goSlice []Header) {
 	for i := 0; i < len(goSlice); i++ {
 		HeaderTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

@@ -61,6 +61,18 @@ func (t *TimeReference) GetTypeSupport() types.MessageTypeSupport {
 	return TimeReferenceTypeSupport
 }
 
+// CheckBounds returns an error wrapping types.ErrBoundExceeded if a bounded
+// sequence in t, or in a message nested in it, is longer than its bound.
+func (t *TimeReference) CheckBounds() error {
+	if err := types.CheckBounds(&t.Header); err != nil {
+		return types.InField("header", err)
+	}
+	if err := types.CheckBounds(&t.TimeRef); err != nil {
+		return types.InField("time_ref", err)
+	}
+	return nil
+}
+
 // TimeReferencePublisher wraps rclgo.Publisher to provide type safe helper
 // functions
 type TimeReferencePublisher struct {
@@ -93,11 +105,17 @@ type TimeReferenceSubscriptionCallback func(msg *TimeReference, info *rclgo.Mess
 
 // NewTimeReferenceSubscription creates and returns a new subscription for the
 // TimeReference
+//
+// A nil subscriptionCallback creates a subscription that Spin does not
+// service; read it with TakeMessage.
 func NewTimeReferenceSubscription(node *rclgo.Node, topic_name string, opts *rclgo.SubscriptionOptions, subscriptionCallback TimeReferenceSubscriptionCallback) (*TimeReferenceSubscription, error) {
-	callback := func(s *rclgo.Subscription) {
-		var msg TimeReference
-		info, err := s.TakeMessage(&msg)
-		subscriptionCallback(&msg, info, err)
+	var callback rclgo.SubscriptionCallback
+	if subscriptionCallback != nil {
+		callback = func(s *rclgo.Subscription) {
+			var msg TimeReference
+			info, err := s.TakeMessage(&msg)
+			subscriptionCallback(&msg, info, err)
+		}
 	}
 	sub, err := node.NewSubscription(topic_name, TimeReferenceTypeSupport, opts, callback)
 	if err != nil {
@@ -140,7 +158,7 @@ func (t _TimeReferenceTypeSupport) AsCStruct(dst unsafe.Pointer, msg types.Messa
 	mem := (*C.sensor_msgs__msg__TimeReference)(dst)
 	std_msgs_msg.HeaderTypeSupport.AsCStruct(unsafe.Pointer(&mem.header), &m.Header)
 	builtin_interfaces_msg.TimeTypeSupport.AsCStruct(unsafe.Pointer(&mem.time_ref), &m.TimeRef)
-	primitives.StringAsCStruct(unsafe.Pointer(&mem.source), m.Source)
+	primitives.StringIntoC(unsafe.Pointer(&mem.source), m.Source)
 }
 
 func (t _TimeReferenceTypeSupport) AsGoStruct(msg types.Message, ros2_message_buffer unsafe.Pointer) {
@@ -160,6 +178,7 @@ type CTimeReference__Sequence = C.sensor_msgs__msg__TimeReference__Sequence
 
 func TimeReference__Sequence_to_Go(goSlice *[]TimeReference, cSlice CTimeReference__Sequence) {
 	if cSlice.size == 0 {
+		*goSlice = nil
 		return
 	}
 	*goSlice = make([]TimeReference, cSlice.size)
@@ -168,14 +187,17 @@ func TimeReference__Sequence_to_Go(goSlice *[]TimeReference, cSlice CTimeReferen
 		TimeReferenceTypeSupport.AsGoStruct(&(*goSlice)[i], unsafe.Pointer(&src[i]))
 	}
 }
-func TimeReference__Sequence_to_C(cSlice *CTimeReference__Sequence, goSlice []TimeReference) {
+func TimeReference__Sequence_into_C(cSlice *CTimeReference__Sequence, goSlice []TimeReference) {
+	// Free what the sequence holds (e.g. default values set by __init).
+	C.sensor_msgs__msg__TimeReference__Sequence__fini(cSlice)
 	if len(goSlice) == 0 {
 		cSlice.data = nil
 		cSlice.capacity = 0
 		cSlice.size = 0
 		return
 	}
-	cSlice.data = (*C.sensor_msgs__msg__TimeReference)(C.malloc(C.sizeof_struct_sensor_msgs__msg__TimeReference * C.size_t(len(goSlice))))
+	// Zeroed, so that AsCStruct sees empty strings and sequences in each element.
+	cSlice.data = (*C.sensor_msgs__msg__TimeReference)(C.calloc(C.size_t(len(goSlice)), C.sizeof_struct_sensor_msgs__msg__TimeReference))
 	cSlice.capacity = C.size_t(len(goSlice))
 	cSlice.size = cSlice.capacity
 	dst := unsafe.Slice(cSlice.data, cSlice.size)
@@ -188,7 +210,7 @@ func TimeReference__Array_to_Go(goSlice []TimeReference, cSlice []CTimeReference
 		TimeReferenceTypeSupport.AsGoStruct(&goSlice[i], unsafe.Pointer(&cSlice[i]))
 	}
 }
-func TimeReference__Array_to_C(cSlice []CTimeReference, goSlice []TimeReference) {
+func TimeReference__Array_into_C(cSlice []CTimeReference, goSlice []TimeReference) {
 	for i := 0; i < len(goSlice); i++ {
 		TimeReferenceTypeSupport.AsCStruct(unsafe.Pointer(&cSlice[i]), &goSlice[i])
 	}

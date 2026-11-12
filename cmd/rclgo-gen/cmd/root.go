@@ -10,6 +10,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -23,6 +24,11 @@ var rootCmd = &cobra.Command{
 	Use:   "rclgo-gen",
 	Short: "ROS2 client library in Golang - ROS2 Message generator",
 	Long:  `Call this program to generate Go types for the ROS2 messages found in your ROS2 environment.`,
+	// Execute prints the error once, and exits with status 1.
+	SilenceErrors: true,
+	// Usage is shown for bad flags and arguments, not for failures while
+	// generating.
+	PersistentPreRun: func(cmd *cobra.Command, _ []string) { cmd.SilenceUsage = true },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -56,8 +62,16 @@ func initConfig() {
 
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
+	// Read the config file. A missing default ~/.rclgo is fine; a config file
+	// given with --config-file that can't be read, or any malformed one, is
+	// an error rather than silently ignored.
+	err := viper.ReadInConfig()
+	var notFound viper.ConfigFileNotFoundError
+	switch {
+	case err == nil:
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	case viper.GetString("config-file") == "" && errors.As(err, &notFound):
+	default:
+		cobra.CheckErr(fmt.Errorf("config file: %w", err))
 	}
 }

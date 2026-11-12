@@ -25,6 +25,9 @@ type MessageTypeSupport interface {
 	New() Message
 	PrepareMemory() unsafe.Pointer
 	ReleaseMemory(p unsafe.Pointer)
+	// AsCStruct converts src into the C message at dst, which must hold a
+	// valid message: initialized by PrepareMemory (the rosidl __create or
+	// __init function) or zeroed. What dst holds is freed or reused.
 	AsCStruct(dst unsafe.Pointer, src Message)
 	AsGoStruct(dst Message, src unsafe.Pointer)
 	TypeSupport() unsafe.Pointer // *C.rosidl_message_type_support_t

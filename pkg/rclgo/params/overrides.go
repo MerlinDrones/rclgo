@@ -1,7 +1,19 @@
+/*
+This file is part of rclgo
+
+Copyright © 2025 Merlin Drones
+
+Licensed under the Apache License, Version 2.0 (the "License");
+    http://www.apache.org/licenses/LICENSE-2.0
+*/
+
 package params
 
 /*
-#cgo LDFLAGS: -lrcl_yaml_param_parser
+#cgo CFLAGS: -I/opt/ros/jazzy/include/rcl -I/opt/ros/jazzy/include/rcl_yaml_param_parser -I/opt/ros/jazzy/include/rcutils -I/opt/ros/jazzy/include/rmw
+#cgo CFLAGS: -I/opt/ros/jazzy/include/rosidl_runtime_c -I/opt/ros/jazzy/include/rosidl_typesupport_interface -I/opt/ros/jazzy/include/rosidl_dynamic_typesupport
+#cgo CFLAGS: -I/opt/ros/jazzy/include/type_description_interfaces -I/opt/ros/jazzy/include/service_msgs -I/opt/ros/jazzy/include/builtin_interfaces
+#cgo LDFLAGS: -L/opt/ros/jazzy/lib -Wl,-rpath,/opt/ros/jazzy/lib -lrcl_yaml_param_parser
 #include <rcl/arguments.h>
 #include <rcl_yaml_param_parser/parser.h>
 
@@ -15,6 +27,8 @@ void rclgo_params_fini(rcl_params_t * params) {
 import "C"
 import (
 	"fmt"
+	"regexp"
+	"strings"
 	"unsafe"
 
 	"github.com/merlindrones/rclgo/pkg/rclgo"
@@ -51,46 +65,44 @@ func ApplyOverrides(m *Manager, nodeName string, args *rclgo.Args) error {
 	cparams := (*C.rcl_params_t)(cparamsPtr)
 	defer C.rclgo_params_fini(cparams)
 
-	// Find node-specific parameters
-	var nodeParams *C.rcl_node_params_t
+	// Like rclcpp, apply every section whose node name matches this node, in
+	// the order rcl stores them, so that a later section overrides an earlier
+	// one: -p values are in the "/**" section, and each --params-file adds its
+	// own sections.
+	names := matchNames(m, nodeName)
+	type override struct {
+		name string
+		val  Value
+	}
+	var merged []override
+	index := map[string]int{}
 	for i := 0; i < int(cparams.num_nodes); i++ {
-		// Access node name from array
-		nodeNamePtr := *(**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(cparams.node_names)) + uintptr(i)*unsafe.Sizeof((*C.char)(nil))))
-		nodeName_c := C.GoString(nodeNamePtr)
-		// Match if it's the wildcard node "/**" OR matches our specific node name
-		if nodeName_c == "/**" || nodeName_c == nodeName || nodeName_c == "/"+nodeName {
-			// Access node params from array
-			nodeParams = (*C.rcl_node_params_t)(unsafe.Pointer(uintptr(unsafe.Pointer(cparams.params)) + uintptr(i)*unsafe.Sizeof(C.rcl_node_params_t{})))
-			break
+		sectionPtr := *(**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(cparams.node_names)) + uintptr(i)*unsafe.Sizeof((*C.char)(nil))))
+		if !sectionMatches(C.GoString(sectionPtr), names) {
+			continue
+		}
+		nodeParams := (*C.rcl_node_params_t)(unsafe.Pointer(uintptr(unsafe.Pointer(cparams.params)) + uintptr(i)*unsafe.Sizeof(C.rcl_node_params_t{})))
+		for j := 0; j < int(nodeParams.num_params); j++ {
+			paramNamePtr := *(**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(nodeParams.parameter_names)) + uintptr(j)*unsafe.Sizeof((*C.char)(nil))))
+			paramName := C.GoString(paramNamePtr)
+			variant := (*C.rcl_variant_t)(unsafe.Pointer(uintptr(unsafe.Pointer(nodeParams.parameter_values)) + uintptr(j)*unsafe.Sizeof(C.rcl_variant_t{})))
+			val, ok := valueFromVariant(variant)
+			if !ok {
+				return fmt.Errorf("unsupported parameter type for %s", paramName)
+			}
+			if k, seen := index[paramName]; seen {
+				merged[k].val = val
+			} else {
+				index[paramName] = len(merged)
+				merged = append(merged, override{paramName, val})
+			}
 		}
 	}
-	if nodeParams == nil {
-		// No overrides for this node
-		return nil
-	}
 
-	// Apply each parameter override
-	for i := 0; i < int(nodeParams.num_params); i++ {
-		// Access parameter name from array
-		paramNamePtr := *(**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(nodeParams.parameter_names)) + uintptr(i)*unsafe.Sizeof((*C.char)(nil))))
-		paramName := C.GoString(paramNamePtr)
-		// Access parameter value from array
-		variant := (*C.rcl_variant_t)(unsafe.Pointer(uintptr(unsafe.Pointer(nodeParams.parameter_values)) + uintptr(i)*unsafe.Sizeof(C.rcl_variant_t{})))
-
-		val, ok := valueFromVariant(variant)
-		if !ok {
-			return fmt.Errorf("unsupported parameter type for %s", paramName)
-		}
-
-		// If parameter already exists, set it. Otherwise declare it.
-		if _, exists := m.Get(paramName); exists {
-			if _, err := m.SetValue(paramName, val); err != nil {
-				return fmt.Errorf("failed to set override for %s: %w", paramName, err)
-			}
-		} else {
-			if _, err := m.Declare(paramName, val, Descriptor{}); err != nil {
-				return fmt.Errorf("failed to declare override for %s: %w", paramName, err)
-			}
+	for _, o := range merged {
+		// A later Declare in code attaches its descriptor to this value.
+		if err := m.applyOverride(o.name, o.val, Descriptor{}); err != nil {
+			return fmt.Errorf("failed to apply override for %s: %w", o.name, err)
 		}
 	}
 
@@ -149,4 +161,41 @@ func valueFromVariant(v *C.rcl_variant_t) (Value, bool) {
 	}
 	// Byte arrays not commonly used for ROS params, skip for now
 	return Value{}, false
+}
+
+// matchNames returns the fully qualified names a parameter section is matched
+// against. With a node, that is only the node's fully qualified name after
+// remapping (__node:=, __ns:=), as in rcl: nodeName is ignored. Without one
+// (a manager not attached to a node), nodeName is used, taken as fully
+// qualified when it starts with "/" and in the root namespace otherwise.
+func matchNames(m *Manager, nodeName string) []string {
+	if m.n != nil {
+		return []string{m.n.FullyQualifiedName()}
+	}
+	if nodeName == "" {
+		return nil
+	}
+	return []string{"/" + strings.TrimPrefix(nodeName, "/")}
+}
+
+// sectionMatches reports whether a parameter section applies to one of names,
+// with rclcpp's rules: a missing leading slash is added, "/*" matches one name
+// token and "/**" any number of them.
+func sectionMatches(section string, names []string) bool {
+	if !strings.HasPrefix(section, "/") {
+		section = "/" + section
+	}
+	pattern := regexp.QuoteMeta(section)
+	pattern = strings.ReplaceAll(pattern, `/\*\*`, `(/\w+)*`)
+	pattern = strings.ReplaceAll(pattern, `/\*`, `(/\w+)`)
+	re, err := regexp.Compile("^" + pattern + "$")
+	if err != nil {
+		return false
+	}
+	for _, n := range names {
+		if re.MatchString(n) {
+			return true
+		}
+	}
+	return false
 }
